@@ -2,6 +2,6 @@
 
 export interface IEntityBase {
   id?: number;
-createdAt?: Date;
+  createdAt?: Date;
   updatedAt?: Date;
 }

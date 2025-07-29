@@ -1,0 +1,53 @@
+import { Column, Entity } from 'typeorm';
+import { BaseEntity } from 'src/core/base/entity/entity.base';
+import { IProduct } from 'src/module/product/interface/product.interface';
+import { EInventoryStatus } from 'src/common/enums/inventory-status.enum';
+
+@Entity({ name: 'products' })
+export class Product extends BaseEntity implements IProduct {
+    @Column({ name: 'sku', type: 'varchar', length: 100, nullable: true })
+    sku?: string;
+
+    @Column({ name: 'title', type: 'varchar', length: 255 })
+    title: string;
+
+    @Column({ name: 'slug', type: 'varchar', length: 255 })
+    slug: string;
+
+    @Column({ name: 'short_description', type: 'text', nullable: true })
+    shortDescription?: string;
+
+    @Column({ name: 'description', type: 'text', nullable: true })
+    description?: string;
+
+    @Column({ name: 'seo_title', type: 'varchar', length: 255, nullable: true })
+    seoTitle?: string;
+
+    @Column({ name: 'seo_description', type: 'text', nullable: true })
+    seoDescription?: string;
+
+    @Column({ name: 'price', type: 'decimal', precision: 10, scale: 2 })
+    price: number;
+
+    @Column({ name: 'sale_price', type: 'decimal', precision: 10, scale: 2, nullable: true })
+    salePrice?: number;
+
+    @Column({ name: 'stock_quantity', type: 'int' })
+    stockQuantity: number;
+
+    @Column({
+        name: 'status',
+        type: 'enum',
+        enum: EInventoryStatus,
+    })
+    status: EInventoryStatus;
+
+    @Column({ name: 'category_id', type: 'int' })
+    categoryId: number;
+
+    @Column({ name: 'image', type: 'varchar', length: 1000, nullable: true })
+    image?: string;
+
+    @Column({ name: 'gallery', type: 'json', nullable: true })
+    gallery?: string[];
+}

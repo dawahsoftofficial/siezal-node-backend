@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import  { getDatabaseConfig } from './core/config/database.config';
+import { getDatabaseConfig } from './core/config/database.config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -40,13 +40,13 @@ import { RedisModule } from './shared/redis/redis.module';
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => {
-    await ensureDatabaseExists(configService); // ✅ Ensure DB exists before connecting
-    return {
-      ...getDatabaseConfig(EDBConnectionName.MAIN, configService),
-    };
-  },
+        await ensureDatabaseExists(configService); // ✅ Ensure DB exists before connecting
+        return {
+          ...getDatabaseConfig(EDBConnectionName.MAIN, configService),
+        };
+      },
     }),
-   
+
     AuditLogModule,
     AuthModule,
     HelperModule,
@@ -76,4 +76,4 @@ import { RedisModule } from './shared/redis/redis.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

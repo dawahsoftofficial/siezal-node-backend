@@ -25,8 +25,8 @@ async function bootstrap() {
   if (process.env.NODE_ENV !== 'production') {
     // Swagger Configuration
     const config = new DocumentBuilder()
-      .setTitle('Golootlo API Docs')
-      .setDescription('The Golootlo API description')
+      .setTitle('Siezal API Docs')
+      .setDescription('The Siezal API description')
       .setVersion('1.0')
       .addServer(process.env.BASE_URL!, process.env.NODE_ENV)
       .addBasicAuth({ type: 'http', scheme: 'basic' }, 'basicAuth')

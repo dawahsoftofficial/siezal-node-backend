@@ -9,10 +9,10 @@ const configService = new ConfigService();
 // npm run migration:generate src/database/migrations/<migrato name>
 const config = {
 
-    ...getDatabaseConfig(EDBConnectionName.MAIN,configService),
-  
-    migrations:['src/database/migrations/*.ts'],
-    entities:['src/database/entities/*.ts'],
+  ...getDatabaseConfig(EDBConnectionName.MAIN, configService),
+
+  migrations: ['src/database/migrations/*.ts'],
+  entities: ['src/database/entities/*.ts'],
   logger: 'advanced-console', // remove custom logger for CLI
 
 

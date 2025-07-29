@@ -1,5 +1,3 @@
-
-
 import { AppDataSource } from 'src/core/data-source/app.data-source';
 import { UserSeeder } from './user.seeder';
 

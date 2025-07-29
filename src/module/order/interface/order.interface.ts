@@ -1,0 +1,23 @@
+import { EOrderStatus } from "src/common/enums/order-status.enum";
+import { IEntityBase } from "src/core/base/entity/interface/entity-interface.base";
+
+export interface IOrder extends IEntityBase {
+    orderUID: string;
+
+    userFullName: string;
+    userPhone: string;
+    userEmail?: string;
+
+    shippingAddressLine1: string;
+    shippingAddressLine2: string;
+    shippingCity: string;
+    shippingState?: string;
+    shippingCountry: string;
+    shippingPostalCode: string;
+
+    gstAmount: number;
+    shippingAmount: number;
+    totalAmount: number;
+
+    status: EOrderStatus;
+}
