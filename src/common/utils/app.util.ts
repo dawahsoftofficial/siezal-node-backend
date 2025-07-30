@@ -178,3 +178,24 @@ export const hashString = (input: string) => {
   return crypto.createHash('sha256').update(input).digest('hex');
 };
 
+/**
+ * Generates a numeric One-Time Password (OTP) of a specified length.
+ *
+ * This function creates a secure OTP using cryptographically strong random numbers.
+ * The OTP consists only of digits (0–9).
+ *
+ * @param {number} [length=6] - The length of the OTP to generate. Defaults to 6 digits.
+ * @returns {string} A string representing the generated numeric OTP.
+ *
+ * @example
+ * generateOtp();       // "483920"
+ * generateOtp(4);      // "1947"
+ */
+export function generateOtp(length = 6): string {
+  const digits = '0123456789';
+  let otp = '';
+  for (let i = 0; i < length; i++) {
+    otp += digits[crypto.randomInt(0, 10)];
+  }
+  return otp;
+}
