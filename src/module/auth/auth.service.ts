@@ -9,9 +9,9 @@ import { RedisService } from "src/shared/redis/redis.service";
 import { SignupDto } from "./dto/signup.dto";
 import { VerifyOtpDto } from "./dto/verify-otp.dto";
 import { ForgotPasswordDto } from "./dto/forget-password.dto";
-import moment from "moment";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { TVerifyOtpResponse } from "./interface/response.interface";
+import { addMinuteToNow, isNotAfterNow } from "src/common/utils/date.util";
 
 
 @Injectable()
@@ -89,7 +89,7 @@ export class AuthService {
     }
 
     const otp = generateOtp();
-    const expiresAt = moment().add(5, 'minutes').toDate(); // OTP valid for 5 minutes
+    const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
 
     const sent = true; // await sendOtp(dto.phone, otp);
 
@@ -118,7 +118,7 @@ export class AuthService {
     if (!user.otp || !user.otpExpiresAt) {
       throw new NotFoundException('OTP not found');
     }
-    const isExpired = moment().isAfter(user.otpExpiresAt);
+    const isExpired = isNotAfterNow(user.otpExpiresAt);
     const isValid = user.otp === otp;
 
     if (!isValid || isExpired) {

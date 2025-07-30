@@ -56,3 +56,21 @@ export const timeAgo = (date: string | Date, timeZone = TIME_ZONE) =>
 
 export const currentDateTime = () =>
   dayjs(new Date()).tz(TIME_ZONE).format(TIME_FORMAT);
+
+
+export const isNotAfterNow = (
+  timestamp: string | Date,
+  timeZone = TIME_ZONE
+): boolean => {
+  const now = dayjs().tz(timeZone);
+  const inputTime = dayjs(timestamp).tz(timeZone);
+  return inputTime.isSame(now) || inputTime.isBefore(now);
+};
+
+export const addMinuteToNow = (
+  value: number,
+  timeZone = TIME_ZONE
+): Date => {  
+  const now = dayjs().tz(timeZone);
+  return now.add(value, 'minute').toDate();
+};
