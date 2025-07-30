@@ -21,5 +21,10 @@ export class UserService extends BaseSqlService<User, IUser> {
     return instanceToPlain(await this.findOne({ where: { email ,role} })) as IUser | null;
   }
   
-
+  findByRefreshToken = async (refreshToken: string) => {
+    return await this.userRepository.findOne({
+      where: { refreshToken },
+      
+    }) as IUser;
+  };
 }

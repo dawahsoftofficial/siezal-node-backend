@@ -19,6 +19,7 @@ import {
   SuccessResponseTokenDto,
 } from "src/common/dto/app.dto";
 import { GenerateSwaggerDoc } from "src/common/decorators/swagger-generate.decorator";
+import { AccessTokenDto } from "../dto/access-token.dto";
 
 @ApiTags("User Authentication")
 @UserRouteController("auth")
@@ -89,6 +90,7 @@ export class AuthController {
   @ApiExtraModels( SuccessResponseResetTokenDto)
   @GenerateSwaggerDoc({
     summary: "Verify phone OTP",
+        security: [{ key: "apiKey", name: "payload" }],
     responses: [
       {
         status: HttpStatus.OK,
@@ -143,5 +145,26 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto);
     return SuccessResponse("Password reset successful");
+  }
+
+    @GenerateSwaggerDoc({
+    summary: 'Get updated access token on expiration',
+    security: [{ key: 'apiKey', name: 'payload' }],
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseTokenDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @HttpCode(200)
+  @UseGuards(PublicAuthGuard)
+    @ApplyHeader(PublicRouteHeaderDto)
+  @Post('access-token')
+  async accessToken(
+    @Body() { refreshToken }: AccessTokenDto,
+  ) {
+    const response = await this.authService.accessToken(refreshToken);
+      return SuccessResponse("Token reset successful",{},response);
   }
 }

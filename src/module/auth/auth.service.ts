@@ -105,16 +105,16 @@ export class AuthService {
     };
   };
 
-  verifyOtp = async (dto: VerifyOtpDto) :Promise<
+  verifyOtp = async (dto: VerifyOtpDto): Promise<
     TVerifyOtpResponse
   > => {
-    const { phone, otp,forgotPassword } = dto;
+    const { phone, otp, forgotPassword } = dto;
 
     const user = await this.userService.findOne({ where: { phone } });
 
-    if(!user) {
+    if (!user) {
       throw new NotFoundException('User not found');
-    } 
+    }
     if (!user.otp || !user.otpExpiresAt) {
       throw new NotFoundException('OTP not found');
     }
@@ -127,31 +127,33 @@ export class AuthService {
     const dataToUpdate: Partial<IUser> = {
       otp: null,
       otpExpiresAt: null,
+      verifiedAt: new Date(),
     }
 
-    let response :TVerifyOtpResponse={}
-    if(forgotPassword){
+    let response: TVerifyOtpResponse = {}
+    if (forgotPassword) {
       const randomString = generateRandomString(48);
-        const resetPasswordToken =  hashString(randomString);
-      await this.redisService.setResetPaswordToken(resetPasswordToken,user.id!, 3600); // Store reset token in Redis for 1 hour
-       response = {
-        token:{resetPasswordToken: randomString}
+      const resetPasswordToken = hashString(randomString);
+      await this.redisService.setResetPaswordToken(resetPasswordToken, user.id!, 3600); // Store reset token in Redis for 1 hour
+      response = {
+        token: { resetPasswordToken: randomString }
       };
     }
-    else{
-    const { accessToken, encryptRefreshToken } =
-      await this.generateUserJwtTokens(user);
-     await this.redisService.setUserData({ ...user, accessToken }) 
+    else {
+      const { accessToken, encryptRefreshToken } =
+        await this.generateUserJwtTokens(user);
+      await this.redisService.setUserData({ ...user, accessToken })
       dataToUpdate.refreshToken = encryptRefreshToken;
-          const userData = removeSensitiveData(user) as IUser;
+      const userData = removeSensitiveData(user) as IUser;
       response = {
         ...userData,
-        token:{ accessToken,
-        refreshToken: encryptRefreshToken
+        token: {
+          accessToken,
+          refreshToken: encryptRefreshToken
         }
       };
     }
-      
+
     await this.userService.updateById(user.id!, dataToUpdate);
 
     return response;
@@ -159,7 +161,7 @@ export class AuthService {
 
   resetPassword = async (dto: ResetPasswordDto) => {
     const { resetPasswordToken, newPassword } = dto;
-    
+
     const hashedToken = hashString(resetPasswordToken);
     const userId = await this.redisService.getUserIdResetPasswordToken(hashedToken);
     if (!userId) {
@@ -181,6 +183,42 @@ export class AuthService {
       password: hashedPassword,
     });
   };
+
+  accessToken = async (encryptRefreshToken: string): Promise<{ accessToken: string; refreshToken?: string }> => {
+    const decryptedRefreshToken = this.aesHelper.decryptData(encryptRefreshToken);
+    const result =
+      await this.jwtService.verifyRefreshToken(decryptedRefreshToken);
+    if (!result) {
+      throw new UnauthorizedException('Invalid Token');
+    }
+    const { id: userId, role } = result
+    let userUpdatedData = await this.redisService.getUserData(role, userId!);
+    const cacheRefreshToken = userUpdatedData?.refreshToken;
+
+    if (!userUpdatedData || cacheRefreshToken !== encryptRefreshToken) {
+      userUpdatedData =
+        await this.userService.findByRefreshToken(encryptRefreshToken);
+    }
+
+    if (!userUpdatedData) {
+      throw new UnauthorizedException('Token Not found');
+    }
+    const accessToken = this.jwtService.generateAccessToken(
+      userUpdatedData,
+    );
+    const response: { accessToken: string; refreshToken?: string } = {
+      accessToken: accessToken,
+    };
+    await this.redisService.setUserData(
+      {
+        ...userUpdatedData,
+        refreshToken: encryptRefreshToken,
+        accessToken,
+      },
+    );
+
+    return response;
+  }
 
   private generateUserJwtTokens = async (
     user: IUser,
