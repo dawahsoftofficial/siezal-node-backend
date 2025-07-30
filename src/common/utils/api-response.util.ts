@@ -10,7 +10,7 @@ import { currentDateTime } from './date.util';
 export function SuccessResponse<T>(
   message: string,
   data?: T,
-  tokens?: { accessToken?: string; refreshToken?: string },
+  tokens?: { accessToken?: string; refreshToken?: string,resetPasswordToken?: string },
   extra?: any,
 ) {
   return {

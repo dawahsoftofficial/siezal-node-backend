@@ -7,6 +7,8 @@ import { AesHelper } from './aes.helper';
 import { ConfigService } from '@nestjs/config';
 import { IAuthRequest } from '../interfaces/app.interface';
 import { JwtService } from 'src/shared/jwt/jwt.service';
+import { hashString } from '../utils/app.util';
+import { RedisService } from 'src/shared/redis/redis.service';
   
 
   
@@ -27,6 +29,7 @@ import { JwtService } from 'src/shared/jwt/jwt.service';
     constructor(
       private readonly jwtService: JwtService,
       private readonly configService:ConfigService,
+      private readonly redisService: RedisService,
 
       private readonly aesHelper: AesHelper,
     ) {}
@@ -102,8 +105,6 @@ import { JwtService } from 'src/shared/jwt/jwt.service';
   
       return decoded as IAuthRequest;
     };
-
-  
 
 
   }

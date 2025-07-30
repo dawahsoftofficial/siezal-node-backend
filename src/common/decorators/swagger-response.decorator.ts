@@ -4,13 +4,14 @@
  * Usage: @SwaggerResponse([{ status: HttpStatus.OK, type: MyDto }])
  */
 import { applyDecorators, HttpStatus } from '@nestjs/common';
-import { ApiResponse } from '@nestjs/swagger';
+import { ApiExtraModels, ApiResponse } from '@nestjs/swagger';
 import {
   ErrorResponseDto,
   SuccessResponseArrayDto,
   ValidationErrorResponseDto,
   SuccessResponseSingleObjectDto
 } from '../dto/app.dto';
+import { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 
 /**
  * Applies one or more ApiResponse decorators based on the provided response options.
@@ -21,18 +22,22 @@ export function SwaggerResponse(
     status: HttpStatus; // 👈 Enforce usage of HttpStatus enum
     description?: string;
     type?: any;
+    schema?:SchemaObject & Partial<SchemaObject>;
   }>,
 ) {
+ 
   const decorators = responses.map((res) =>
-    ApiResponse({
-      status: res.status,
-      description: res.description || getDefaultDescription(res.status),
-      type: res.type || getDefaultResponseType(res.status),
-    }),
+   
+ApiResponse({
+  status: res.status,
+  description: res.description || getDefaultDescription(res.status),
+  ...(res.schema ? { schema: res.schema } : { type: res.type || getDefaultResponseType(res.status) })
+})
   );
 
   return applyDecorators(...decorators);
 }
+
 
 /**
  * Returns a default description for a given HTTP status code.
@@ -42,7 +47,7 @@ function getDefaultDescription(status: HttpStatus): string {
   switch (status) {
     case HttpStatus.OK:
       return 'Success';
-    case HttpStatus.CREATED:
+    case HttpStatus.CREATED:  
       return 'Created';
     case HttpStatus.BAD_REQUEST:
       return 'Bad Request';
@@ -52,6 +57,8 @@ function getDefaultDescription(status: HttpStatus): string {
       return 'Validation Error';
     case HttpStatus.INTERNAL_SERVER_ERROR:
       return 'Internal Server Error';
+    case HttpStatus.NOT_FOUND:
+      return 'Not Found';  
     default:
       return 'Unknown Status';
   }
@@ -73,6 +80,8 @@ function getDefaultResponseType(status: HttpStatus): any {
       return ErrorResponseDto;
     case HttpStatus.UNPROCESSABLE_ENTITY:
       return ValidationErrorResponseDto;
+   case HttpStatus.NOT_FOUND:
+      return ErrorResponseDto;   
     default:
       return null;
   }

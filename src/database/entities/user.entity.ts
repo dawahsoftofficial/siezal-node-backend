@@ -36,9 +36,9 @@ export class User extends BaseEntity implements IUser {
   @Column({ name: 'google_id', nullable: true })
   googleId?: string;
 
-  @Column({ nullable: true })
-  otp?: string;
+  @Column({ nullable: true,  type: 'varchar' })
+  otp?: string | null;
 
   @Column({ name: 'otp_expires_at', nullable: true, type: 'timestamp' })
-  otpExpiresAt?: Date;
+  otpExpiresAt?: Date | null;
 }

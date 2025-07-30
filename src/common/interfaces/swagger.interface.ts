@@ -8,6 +8,8 @@ import {
   ApiParamOptions,
   ApiQueryOptions,
 } from '@nestjs/swagger';
+import { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
+
 
 /**
  * Represents a custom header option for Swagger documentation.
@@ -25,7 +27,8 @@ export interface SwaggerHeaderOption {
 export interface SwaggerResponseOption {
   status: HttpStatus;     // HTTP status code for the response
   description?: string;   // Description of the response
-  type?: any;             // Response type (DTO/class)
+  type?: any;   
+schema?:SchemaObject & Partial<SchemaObject>;       // Response type (DTO/class)
 }
 
 /**

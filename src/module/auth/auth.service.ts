@@ -1,7 +1,7 @@
-import { HttpException, HttpStatus, Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, HttpException, HttpStatus, Injectable, Logger, NotFoundException, UnauthorizedException, UnprocessableEntityException } from "@nestjs/common";
 import { UserService } from "../user/user.service";
 import { ERole } from "src/common/enums/role.enum";
-import { generateOtp, hashBcrypt, removeSensitiveData, verifyPassword } from "src/common/utils/app.util";
+import { generateOtp, generateRandomString, hashBcrypt, hashString, removeSensitiveData, verifyPassword } from "src/common/utils/app.util";
 import { JwtService } from "src/shared/jwt/jwt.service";
 import { AesHelper } from "src/common/helpers/aes.helper";
 import { IUser } from "../user/interface/user.interface";
@@ -11,6 +11,7 @@ import { VerifyOtpDto } from "./dto/verify-otp.dto";
 import { ForgotPasswordDto } from "./dto/forget-password.dto";
 import moment from "moment";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { TVerifyOtpResponse } from "./interface/response.interface";
 
 
 @Injectable()
@@ -27,7 +28,7 @@ export class AuthService {
     const existing = await this.userService.findOne({ where: { phone: dto.phone } });
 
     if (existing) {
-      throw new HttpException('Phone already in use', HttpStatus.CONFLICT);
+      throw new ConflictException('Phone already in use');
     }
 
     const hashedPassword = await hashBcrypt(dto.password);
@@ -104,41 +105,74 @@ export class AuthService {
     };
   };
 
-  verifyOtp = async (dto: VerifyOtpDto) => {
-    const { phone, otp } = dto;
+  verifyOtp = async (dto: VerifyOtpDto) :Promise<
+    TVerifyOtpResponse
+  > => {
+    const { phone, otp,forgotPassword } = dto;
 
     const user = await this.userService.findOne({ where: { phone } });
 
-    if (!user || !user.otp || !user.otpExpiresAt) {
-      throw new HttpException('OTP not found', HttpStatus.UNAUTHORIZED);
+    if(!user) {
+      throw new NotFoundException('User not found');
+    } 
+    if (!user.otp || !user.otpExpiresAt) {
+      throw new NotFoundException('OTP not found');
     }
-
     const isExpired = moment().isAfter(user.otpExpiresAt);
     const isValid = user.otp === otp;
 
     if (!isValid || isExpired) {
-      throw new HttpException('Invalid or expired OTP', HttpStatus.UNAUTHORIZED);
+      throw new UnauthorizedException('Invalid or expired OTP');
     }
-
-    await this.userService.updateById(user.id!, {
+    const dataToUpdate: Partial<IUser> = {
       otp: null,
       otpExpiresAt: null,
-    });
+    }
 
-    return { message: 'OTP verified' };
+    let response :TVerifyOtpResponse={}
+    if(forgotPassword){
+      const randomString = generateRandomString(48);
+        const resetPasswordToken =  hashString(randomString);
+      await this.redisService.setResetPaswordToken(resetPasswordToken,user.id!, 3600); // Store reset token in Redis for 1 hour
+       response = {
+        token:{resetPasswordToken: randomString}
+      };
+    }
+    else{
+    const { accessToken, encryptRefreshToken } =
+      await this.generateUserJwtTokens(user);
+     await this.redisService.setUserData({ ...user, accessToken }) 
+      dataToUpdate.refreshToken = encryptRefreshToken;
+          const userData = removeSensitiveData(user) as IUser;
+      response = {
+        ...userData,
+        token:{ accessToken,
+        refreshToken: encryptRefreshToken
+        }
+      };
+    }
+      
+    await this.userService.updateById(user.id!, dataToUpdate);
+
+    return response;
   };
 
   resetPassword = async (dto: ResetPasswordDto) => {
-    const { phone, newPassword } = dto;
-
-    const user = await this.userService.findOne({ where: { phone } });
+    const { resetPasswordToken, newPassword } = dto;
+    
+    const hashedToken = hashString(resetPasswordToken);
+    const userId = await this.redisService.getUserIdResetPasswordToken(hashedToken);
+    if (!userId) {
+      throw new ForbiddenException('Invalid or expired reset password token');
+    }
+    const user = await this.userService.findById(userId);
 
     if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      throw new NotFoundException('User not found');
     }
 
     if (user.otp || user.otpExpiresAt) {
-      throw new HttpException('OTP verification required before resetting password', HttpStatus.FORBIDDEN);
+      throw new ForbiddenException('OTP verification required before resetting password');
     }
 
     const hashedPassword = await hashBcrypt(newPassword);
@@ -146,8 +180,6 @@ export class AuthService {
     await this.userService.updateById(user.id!, {
       password: hashedPassword,
     });
-
-    return { message: 'Password has been reset successfully' };
   };
 
   private generateUserJwtTokens = async (

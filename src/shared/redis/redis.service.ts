@@ -21,7 +21,23 @@ export class RedisService {
     const key = `${ERedisKey.USER_ACCESS}:${value.role}:${value.id}`;
     await this.mainCache.set(key, value, ttl);
   }
+   
+   async setResetPaswordToken(
+    key: string,
+    value: number,
+    ttl = 1800, // 30 minutes
+  ): Promise<void> {
+    const redisKey = `${ERedisKey.RESET_PASSWORD}:${key}`;
+    await this.mainCache.set(redisKey, value, ttl);
+    this.logger.log(`Set reset password token for user ${key} with TTL ${ttl} seconds`);
+  }
 
+  async getUserIdResetPasswordToken(key: string): Promise<number | undefined> {
+    const redisKey = `${ERedisKey.RESET_PASSWORD}:${key}`;
+    const token = await this.mainCache.get<number>(redisKey);
+    this.logger.log(`Get reset password token for user ${key}: ${token}`);
+    return token;
+  }
   /**
    * Get a value from Redis by key
    */

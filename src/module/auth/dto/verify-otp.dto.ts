@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsPhoneNumber, IsString, Length } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsPhoneNumber, IsString, Length } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class VerifyOtpDto {
@@ -18,4 +18,13 @@ export class VerifyOtpDto {
     @IsString()
     @Length(6, 6, { message: 'OTP must be exactly 6 digits' })
     otp: string;
+
+    @ApiProperty({
+        example: true,
+        description: 'Flag to indicate if this is for forgot password flow',
+        required: false,
+    })
+    @IsEmail()
+    @IsBoolean({ message: 'Forgot password flag must be a boolean' })
+    forgotPassword?: boolean;
 }

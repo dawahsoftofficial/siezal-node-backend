@@ -2,20 +2,12 @@ import { IsNotEmpty, IsPhoneNumber, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ResetPasswordDto {
+    
     @ApiProperty({
-        example: '+923001234567',
-        description: 'Phone number used to receive OTP',
+        example: 'reset-password-token',
+        description: 'Sent reset password token',
     })
-    @IsNotEmpty({ message: 'Phone number is required' })
-    @IsPhoneNumber('PK', { message: 'Must be a valid Pakistani phone number' })
-    phone: string;
-
-    @ApiProperty({
-        example: '123456',
-        description: 'OTP sent to the phone',
-    })
-    @IsNotEmpty({ message: 'OTP is required' })
-    otp: string;
+    resetPasswordToken: string; // This should be the token sent to the user's email or phone
 
     @ApiProperty({
         example: 'NewStrongPassword!',
