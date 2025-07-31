@@ -112,6 +112,21 @@ import { RedisService } from 'src/shared/redis/redis.service';
       return decoded as IAuthRequest;
     };
 
+  validateGuestAuth = async (request: any): Promise<IAuthRequest | boolean> => {
+    const payload = request.headers['payload'];
+    const authorization = request.headers['authorization'];
 
+    // Check if both or neither are provided
+    if (!!payload === !!authorization) {
+      throw new UnauthorizedException(
+        'Either payload or authorization must be provided, not both or neither.',
+      );
+    }
+
+    if (payload) {
+      return this.validatePublicAuth(request);
+    }
+    return this.validateJwtToken(request);
+  };
   }
   

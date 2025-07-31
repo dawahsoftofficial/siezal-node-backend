@@ -2,6 +2,7 @@
  * Utility class for building standardized API responses.
  * Use these static methods to format success and custom responses consistently.
  */
+import { IPaginationMetadata } from '../interfaces/app.interface';
 import { currentDateTime } from './date.util';
 
 /**
@@ -11,6 +12,7 @@ export function SuccessResponse<T>(
   message: string,
   data?: T,
   tokens?: { accessToken?: string; refreshToken?: string,resetPasswordToken?: string },
+  pagination?: IPaginationMetadata,
   extra?: any,
 ) {
   return {
@@ -19,6 +21,7 @@ export function SuccessResponse<T>(
     data,
     ...(tokens ?? {}),
     ...(extra ? { extra } : {}),
+    ...(pagination ? { pagination } : {}),
     timestamp: currentDateTime(),
   };
 }

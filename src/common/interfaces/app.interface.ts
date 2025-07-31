@@ -35,3 +35,9 @@ export interface IPaginationMetadata {
   hasPreviousPage: boolean; // True if there is a previous page
 }
   
+
+
+export interface IPaginatedResponse<T> {
+  data: T[];
+  pagination: IPaginationMetadata;
+}

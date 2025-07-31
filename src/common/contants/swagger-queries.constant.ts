@@ -22,6 +22,9 @@ export const LimitQueryParam = {
   example: 1,
 };
 
+export const PaginationQueryParams = [PageQueryParam,LimitQueryParam]
+
+
 /**
  * Swagger query parameter definition for resource ID.
  * Use this in Swagger decorators (e.g., @ApiParam) to document the 'id' path parameter.

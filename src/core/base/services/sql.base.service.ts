@@ -9,6 +9,8 @@ import {
 } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { instanceToPlain } from 'class-transformer';
+import { getPaginationMetadata } from 'src/common/utils/pagination.utils';
+import { IPaginatedResponse, IPaginationMetadata } from 'src/common/interfaces/app.interface';
 /**
  * A generic base service class providing common database operations.
  *
@@ -335,22 +337,26 @@ export abstract class BaseSqlService<
    * Paginate records.
    * Returns paginated result with current page, total, and lastPage.
    */
-  async paginate(
-    options: FindManyOptions<TEntity>,
-    page: number,
-    limit: number,
-  ) {
-    const [entities, total] = await this.repository.findAndCount({
-      ...options,
-      skip: (page - 1) * limit,
-      take: limit,
-    });
-    const plainObjects = instanceToPlain(entities) as TInterface[];
-    return {
-      data: plainObjects,
-      total,
-      page,
-      lastPage: Math.ceil(total / limit),
-    };
-  }
+  async paginate<TInterface>(
+    page: number = 1,
+    limit: number = 10,
+    options?: FindManyOptions<TEntity>,
+): Promise<IPaginatedResponse<TInterface>> {
+  const [entities, total] = await this.repository.findAndCount({
+    ...options ? options : {},
+    skip: (page - 1) * limit,
+    take: limit,
+  });
+
+  const plainObjects = instanceToPlain(entities) as TInterface[];
+  
+  const pagination: IPaginationMetadata = getPaginationMetadata(
+    total,page, limit
+  );
+
+  return {
+    data: plainObjects,
+    pagination,
+  };
+}
 }
