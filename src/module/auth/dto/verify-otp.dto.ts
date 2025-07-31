@@ -24,7 +24,7 @@ export class VerifyOtpDto {
         description: 'Flag to indicate if this is for forgot password flow',
         required: false,
     })
-    @IsEmail()
+ 
     @IsBoolean({ message: 'Forgot password flag must be a boolean' })
     forgotPassword?: boolean;
 }

@@ -71,7 +71,7 @@ import { Logger } from '@nestjs/common';
       if (this.isPublicGuard(guards)) {
         return PublicRouteHeaderDto;
       }
-  
+    console.log('Authenticated headers interceptor');
       return AuthenticatedHeaderDto;
     }
 

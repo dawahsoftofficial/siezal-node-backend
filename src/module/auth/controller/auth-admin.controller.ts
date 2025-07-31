@@ -2,12 +2,14 @@ import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs
 import { ApiTags } from "@nestjs/swagger";
 import { AuthService } from "../auth.service";
 import { GenerateSwaggerDoc } from "src/common/decorators/swagger-generate.decorator";
-import { AdminRouteController, ApplyHeader } from "src/common/decorators/app.decorator";
+import { AdminRouteController, ApplyHeader, AuthUser } from "src/common/decorators/app.decorator";
 import { PublicAuthGuard } from "src/common/guards/public-auth.guard";
-import { SuccessResponseSingleObjectWithTokenDto } from "src/common/dto/app.dto";
-import { LoginDto } from "../dto/login.dto";
+import { SuccessResponseNoDataDto, SuccessResponseSingleObjectWithTokenDto } from "src/common/dto/app.dto";
+import { LoginAdminDto } from "../dto/login-admin.dto";
 import { SuccessResponse } from "src/common/utils/api-response.util";
 import { PublicRouteHeaderDto } from "src/common/dto/public-route-header.dto";
+import { ERole } from "src/common/enums/role.enum";
+import { IAuthRequest } from "src/common/interfaces/app.interface";
 
   @ApiTags('Admin/uthentication')
 @AdminRouteController('auth')
@@ -27,10 +29,26 @@ export class AuthAdminController {
   @UseGuards(PublicAuthGuard)
   @ApplyHeader(PublicRouteHeaderDto) //no header validation
   @Post('login')
-  async login(@Body() {email,password}: LoginDto) {
-    const {token,...response} = await this.service.login(email, password);
+  async login(@Body() {email,password}: LoginAdminDto) {
+    const {token,...response} = await this.service.login(email, password,ERole.ADMIN);
   
     return SuccessResponse('Logged In Successfully', response,token);
   }
+
+    @GenerateSwaggerDoc({
+      summary: 'Logout user',
+      responses: [
+        { status: HttpStatus.OK , type: SuccessResponseNoDataDto },
+        { status: HttpStatus.BAD_REQUEST },
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        { status: HttpStatus.INTERNAL_SERVER_ERROR },
+      ],
+    })
+    @HttpCode(200)
+    @Post('logout')
+    async logout(@AuthUser() {id,role}:IAuthRequest) {
+      await this.service.logout(role,id);
+      return SuccessResponse("Logged out successfully");
+      }
 
 }

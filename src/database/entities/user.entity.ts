@@ -31,7 +31,7 @@ export class User extends BaseEntity implements IUser {
   verifiedAt?: Date;
 
   @Column({ name: 'refresh_token', nullable: true, type: 'text' })
-  refreshToken?: string;
+  refreshToken?: string | null;
 
   @Column({ name: 'google_id', nullable: true })
   googleId?: string;

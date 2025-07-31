@@ -19,6 +19,7 @@ export class RedisService {
    */
    async setUserData(value: IUser, ttl = 3600000): Promise<void> {
     const key = `${ERedisKey.USER_ACCESS}:${value.role}:${value.id}`;
+    console.log(`Setting user data for key: ${key} with TTL: ${ttl}`,value);
     await this.mainCache.set(key, value, ttl);
   }
    
@@ -44,6 +45,12 @@ export class RedisService {
   async getUserData<T>(role:ERole,id:number): Promise<IUser | undefined> {
      const key = `${ERedisKey.USER_ACCESS}:${role}:${id}`;
     return this.mainCache.get<IUser>(key);
+  }
+
+  async deleteUserData(role:ERole,id:number): Promise<void> {
+    const key = `${ERedisKey.USER_ACCESS}:${role}:${id}`;
+    this.logger.log(`Deleting user data for key: ${key}`);
+    await this.mainCache.del(key);
   }
 
 

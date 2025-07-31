@@ -8,6 +8,7 @@ import * as haversineDistance from 'haversine-distance';
 import * as _ from 'lodash';
 import { ValidationError } from 'class-validator';
 import { ICordinate } from '../interfaces/app.interface';
+import { instanceToPlain } from 'class-transformer';
 
 /**
  * Generates a random 5-digit integer between 10000 and 99999.
@@ -80,8 +81,17 @@ export const calculateDistance = (
  */
 export const removeSensitiveData = (data: any): any => {
   const field = ['accessToken', 'refreshToken', 'password', 'otp'];
-
-  const response = filterSensitiveData(data, field, true);
+    let plainData: any;
+  if (Array.isArray(data)) {
+    plainData = data.map(item =>
+      typeof item === 'object' ? instanceToPlain(item) : item
+    );
+  } else if (typeof data === 'object' && data !== null) {
+    plainData = instanceToPlain(data);
+  } else {
+    plainData = data;
+  }
+  const response = filterSensitiveData(plainData, field, true);
   
   return response;
 };

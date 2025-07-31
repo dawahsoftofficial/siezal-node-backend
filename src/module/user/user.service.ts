@@ -17,8 +17,9 @@ export class UserService extends BaseSqlService<User, IUser> {
     super(userRepository);
   }
 
-  async findByEmail(email: string,role= ERole.USER): Promise<IUser | null> {
-    return instanceToPlain(await this.findOne({ where: { email ,role} })) as IUser | null;
+  async loginVerify(identifier: string,role= ERole.USER): Promise<IUser | null> {
+      const filter = role === ERole.ADMIN ? { email: identifier } : { phone: identifier };
+    return instanceToPlain(await this.findOne({ where: { ...filter ,role} })) as IUser | null;
   }
   
   findByRefreshToken = async (refreshToken: string) => {

@@ -32,11 +32,20 @@ export class AuthService {
     }
 
     const hashedPassword = await hashBcrypt(dto.password);
+    const otp = generateOtp();
+    const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
+
+    const sent = true; // await sendOtp(dto.phone, otp);
+ if (!sent) {
+      throw new HttpException('Failed to send OTP', HttpStatus.SERVICE_UNAVAILABLE);
+    }
 
     const user = await this.userService.create({
       ...dto,
       password: hashedPassword,
       role: ERole.USER,
+      otp,
+      otpExpiresAt: expiresAt,
     });
 
     const userData = removeSensitiveData(user);
@@ -45,23 +54,25 @@ export class AuthService {
   }
 
   login = async (
-    email: string,
-    password: string
+    identifier: string,
+    password: string,
+    role:ERole = ERole.USER
   ): Promise<IUser & {
     token: {
       accessToken: string;
       refreshToken: string;
     };
   }> => {
-    this.logger.log(`Login attempt for email: ${email}`);
+    this.logger.log(`Login attempt for identifier: ${identifier}`);
+
     // Here you would typically validate the user credentials and return a token
-    const user = await this.userService.findByEmail(email, ERole.ADMIN);
+    const user = await this.userService.loginVerify(identifier,role);
 
     if (!user || !(await verifyPassword(password, user.password!))) {
-      this.logger.warn(`Invalid login attempt for email: ${email}`);
+      this.logger.warn(`Invalid login attempt for identifier: ${identifier}`);
       throw new UnauthorizedException('Invalid credentials');
     }
-    this.logger.log(`User logged in successfully: ${user.email}`);
+
     const { accessToken, encryptRefreshToken } =
       await this.generateUserJwtTokens(user);
 
@@ -219,6 +230,28 @@ export class AuthService {
 
     return response;
   }
+
+
+
+  getProfile = async (userId: number): Promise<IUser> => {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return removeSensitiveData(user);
+    }
+
+
+    logout = async (role:ERole,userId: number): Promise<void> => {
+    const user = await this.userService.updateById(userId, {
+      refreshToken: null});
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    // Clear user data from Redis
+    await this.redisService.deleteUserData(role!, userId);
+  }
+
 
   private generateUserJwtTokens = async (
     user: IUser,

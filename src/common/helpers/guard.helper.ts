@@ -98,10 +98,16 @@ import { RedisService } from 'src/shared/redis/redis.service';
       }
   
       const decoded = await this.jwtService.verifyAccessToken(token);
-  
-      if ('access-Token' !== token) {
-        throw new UnauthorizedException('Session expired or invalid token');
+   
+      if (!decoded) {
+        throw new UnauthorizedException('Invalid or expired token');
       }
+
+          const data = await this.redisService.getUserData(decoded.role,decoded.id);
+    if (!data || data?.accessToken !== token) {
+      throw new UnauthorizedException('Session expired or invalid token');
+    }
+
   
       return decoded as IAuthRequest;
     };

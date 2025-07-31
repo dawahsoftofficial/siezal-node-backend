@@ -13,7 +13,7 @@ export interface IUser extends IEntityBase {
 
   verifiedAt?: Date;
   
-  refreshToken?: string;
+  refreshToken?: string | null;
   accessToken?: string;
 
   googleId?: string;

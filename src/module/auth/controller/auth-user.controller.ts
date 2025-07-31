@@ -2,7 +2,7 @@ import { Body, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import { ApiExtraModels, ApiTags, getSchemaPath } from "@nestjs/swagger";
 import { AuthService } from "../auth.service";
 import { SignupDto } from "../dto/signup.dto";
-import { LoginDto } from "../dto/login.dto";
+import { LoginAdminDto } from "../dto/login-admin.dto";
 import { ForgotPasswordDto } from "../dto/forget-password.dto";
 import { VerifyOtpDto } from "../dto/verify-otp.dto";
 import { ResetPasswordDto } from "../dto/reset-password.dto";
@@ -10,16 +10,21 @@ import { PublicAuthGuard } from "src/common/guards/public-auth.guard";
 import {
   UserRouteController,
   ApplyHeader,
+  AuthUser,
 } from "src/common/decorators/app.decorator";
 import { PublicRouteHeaderDto } from "src/common/dto/public-route-header.dto";
 import { SuccessResponse } from "src/common/utils/api-response.util";
 import {
+  SuccessResponseNoDataDto,
   SuccessResponseResetTokenDto,
+  SuccessResponseSingleObjectDto,
   SuccessResponseSingleObjectWithTokenDto,
   SuccessResponseTokenDto,
 } from "src/common/dto/app.dto";
 import { GenerateSwaggerDoc } from "src/common/decorators/swagger-generate.decorator";
 import { AccessTokenDto } from "../dto/access-token.dto";
+import { IAuthRequest } from "src/common/interfaces/app.interface";
+import { LoginUserDto } from "../dto/login-user.dto";
 
 @ApiTags("User Authentication")
 @UserRouteController("auth")
@@ -39,7 +44,7 @@ export class AuthController {
   })
   @Post("signup")
   @UseGuards(PublicAuthGuard)
-  @ApplyHeader(PublicRouteHeaderDto)
+  
   async signup(@Body() dto: SignupDto) {
     await this.authService.signup(dto);
     return SuccessResponse("Signup successful, OTP sent to phone");
@@ -58,11 +63,10 @@ export class AuthController {
   })
   @HttpCode(HttpStatus.OK)
   @UseGuards(PublicAuthGuard)
-  @ApplyHeader(PublicRouteHeaderDto)
   @Post("login")
-  async login(@Body() dto: LoginDto) {
+  async login(@Body() dto: LoginUserDto) {
     const { token, ...user } = await this.authService.login(
-      dto.email,
+      dto.phone,
       dto.password
     );
     return SuccessResponse("Login successful", user, token);
@@ -81,7 +85,7 @@ export class AuthController {
     ],
   })
   @UseGuards(PublicAuthGuard)
-  @ApplyHeader(PublicRouteHeaderDto)
+  
   @Post("forgot-password")
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     await this.authService.forgetPassword(dto);
@@ -120,7 +124,7 @@ export class AuthController {
   })
   @HttpCode(HttpStatus.OK)
   @UseGuards(PublicAuthGuard)
-  @ApplyHeader(PublicRouteHeaderDto)
+  
   @Post("verify-otp")
   async verifyOtp(@Body() dto: VerifyOtpDto) {
     const { token, ...user } = await this.authService.verifyOtp(dto);
@@ -140,7 +144,7 @@ export class AuthController {
   })
   @HttpCode(HttpStatus.OK)
   @UseGuards(PublicAuthGuard)
-  @ApplyHeader(PublicRouteHeaderDto)
+  
   @Post("reset-password")
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto);
@@ -159,7 +163,7 @@ export class AuthController {
   })
   @HttpCode(200)
   @UseGuards(PublicAuthGuard)
-    @ApplyHeader(PublicRouteHeaderDto)
+    
   @Post('access-token')
   async accessToken(
     @Body() { refreshToken }: AccessTokenDto,
@@ -167,4 +171,38 @@ export class AuthController {
     const response = await this.authService.accessToken(refreshToken);
       return SuccessResponse("Token reset successful",{},response);
   }
+
+   @GenerateSwaggerDoc({
+    summary: 'Get my details',
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @HttpCode(200)
+  @Post('my-profile')
+  async myProfile(
+    @AuthUser() {id}:IAuthRequest
+  ) {
+    const response = await this.authService.getProfile(id);
+      return SuccessResponse("Data Fetched Succesfully!",response);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: 'Logout user',
+    responses: [
+      { status: HttpStatus.OK , type: SuccessResponseNoDataDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @HttpCode(200)
+  @Post('logout')
+  async logout(@AuthUser() {id,role}:IAuthRequest) {
+    await this.authService.logout(role,id);
+    return SuccessResponse("Logged out successfully");
+    }
 }
