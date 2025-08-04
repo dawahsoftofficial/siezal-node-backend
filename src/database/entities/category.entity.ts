@@ -19,19 +19,19 @@ export class Category extends BaseEntity implements ICategory {
     @JoinColumn({ name: 'parent_id' })
     parentCategory?: Category;
 
-    @BeforeInsert()
-async generateSlug() {
-    if (this.name) {
-        let baseSlug = slugify(this.name);
-        let slug = baseSlug;
-        let count = 1;
+    // @BeforeInsert()
+// async generateSlug() {
+//     if (this.name) {
+//         let baseSlug = slugify(this.name);
+//         let slug = baseSlug;
+//         let count = 1;
         
-        // Check if slug exists (you'll need to inject the repository)
-        while (await this.constructor.findOne({ where: { slug } })) {
-            slug = `${baseSlug}-${count++}`;
-        }
+//         // Check if slug exists (you'll need to inject the repository)
+//         while (await this.constructor.findOne({ where: { slug } })) {
+//             slug = `${baseSlug}-${count++}`;
+//         }
         
-        this.slug = slug;
-    }
-}
+//         this.slug = slug;
+//     }
+// }
 }
