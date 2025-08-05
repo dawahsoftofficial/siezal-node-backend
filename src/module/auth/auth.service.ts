@@ -12,6 +12,8 @@ import { ForgotPasswordDto } from "./dto/forget-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { TVerifyOtpResponse } from "./interface/response.interface";
 import { addMinuteToNow, isNotAfterNow } from "src/common/utils/date.util";
+import { FirebaseService } from "src/shared/firebase/firebase.service";
+import { ResendOtpDto } from "./dto/resend-otp.dto";
 
 
 @Injectable()
@@ -19,6 +21,7 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   constructor(
     private readonly userService: UserService,
+    private readonly firebaseService: FirebaseService,
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
     private readonly aesHelper: AesHelper,
@@ -102,7 +105,7 @@ export class AuthService {
     const otp = generateOtp();
     const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
 
-    const sent = true; // await sendOtp(dto.phone, otp);
+    const sent = await this.firebaseService.sendOtp(dto.phone, otp);
 
     if (!sent) {
       throw new HttpException('Failed to send OTP', HttpStatus.SERVICE_UNAVAILABLE);
@@ -115,6 +118,34 @@ export class AuthService {
       expiresAt,
     };
   };
+
+  resendOtp = async (dto: ResendOtpDto) => {
+    const user = await this.userService.findOne({ where: { phone: dto.phone } });
+
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    const otp = generateOtp();
+    const expiresAt = addMinuteToNow(5);
+
+    const sent = await this.firebaseService.sendOtp(dto.phone, otp);
+
+    if (!sent) {
+      throw new HttpException('Failed to send OTP', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    await this.userService.updateById(user.id!, {
+      otp: otp,
+      otpExpiresAt: expiresAt,
+    });
+
+    return {
+      message: 'OTP resent successfully',
+      expiresAt,
+    };
+  };
+  
 
   verifyOtp = async (dto: VerifyOtpDto): Promise<
     TVerifyOtpResponse
@@ -230,8 +261,6 @@ export class AuthService {
 
     return response;
   }
-
-
 
   getProfile = async (userId: number): Promise<IUser> => {
     const user = await this.userService.findById(userId);

@@ -4,7 +4,6 @@ import { BaseSqlService } from 'src/core/base/services/sql.base.service';
 import { Repository } from 'typeorm';
 import { ICategory } from './interface/category.interface';
 import { Category } from 'src/database/entities/category.entity';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CategoryListQueryDto } from './dto/category-list-query.dto';
 
 
@@ -16,11 +15,9 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
   ) {
     super(categoryRepository);
   }
-    
+
   index = async (query: CategoryListQueryDto) => {
-     const { page, limit } = query;
-    return this.paginate<ICategory>(page, limit) ;
-    };
-
-
+    const { page, limit } = query;
+    return this.paginate<ICategory>(page, limit);
+  };
 }

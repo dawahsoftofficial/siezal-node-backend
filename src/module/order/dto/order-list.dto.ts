@@ -1,0 +1,18 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { EOrderStatus } from 'src/common/enums/order-status.enum';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
+
+export class GetOrdersQueryDto extends PaginationDto {
+    @ApiPropertyOptional({ enum: EOrderStatus, description: 'Filter by order status' })
+    @IsOptional()
+    @IsEnum(EOrderStatus)
+    status?: EOrderStatus;
+
+    @ApiPropertyOptional({ example: 1, description: 'Filter by user id' })
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    userId: number;
+}

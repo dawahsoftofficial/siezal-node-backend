@@ -1,7 +1,9 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { BaseEntity } from 'src/core/base/entity/entity.base';
 import { IProduct } from 'src/module/product/interface/product.interface';
 import { EInventoryStatus } from 'src/common/enums/inventory-status.enum';
+import { Inventory } from './inventory.entity';
+import { ProductAttributePivot } from './product-attributes.entity';
 
 @Entity({ name: 'products' })
 export class Product extends BaseEntity implements IProduct {
@@ -45,9 +47,19 @@ export class Product extends BaseEntity implements IProduct {
     @Column({ name: 'category_id', type: 'int' })
     categoryId: number;
 
+    @ManyToOne(() => Inventory)
+    @JoinColumn({ name: 'inventory_id' })
+    inventory: Inventory;
+
+    @Column({ name: 'inventory_id', type: 'int' })
+    inventoryId: number;
+
     @Column({ name: 'image', type: 'varchar', length: 1000, nullable: true })
     image?: string;
 
     @Column({ name: 'gallery', type: 'json', nullable: true })
     gallery?: string[];
+
+    @OneToMany(() => ProductAttributePivot, pivot => pivot.product)
+    attributePivots: ProductAttributePivot[];
 }

@@ -4,6 +4,7 @@ import { IEntityBase } from "src/core/base/entity/interface/entity-interface.bas
 export interface IOrder extends IEntityBase {
     orderUID: string;
 
+    userId: number;
     userFullName: string;
     userPhone: string;
     userEmail?: string;

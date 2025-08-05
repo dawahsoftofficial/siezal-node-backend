@@ -1,12 +1,16 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, OneToMany } from 'typeorm';
 import { BaseEntity } from 'src/core/base/entity/entity.base';
 import { IOrder } from 'src/module/order/interface/order.interface';
 import { EOrderStatus } from 'src/common/enums/order-status.enum';
+import { OrderItem } from './order-item.entity';
 
 @Entity({ name: 'orders' })
 export class Order extends BaseEntity implements IOrder {
     @Column({ name: 'order_uid', type: 'varchar', length: 100, unique: true })
     orderUID: string;
+
+    @Column({ name: 'user_id', type: 'int' })
+    userId: number;
 
     @Column({ name: 'user_full_name', type: 'varchar', length: 255 })
     userFullName: string;
@@ -50,4 +54,7 @@ export class Order extends BaseEntity implements IOrder {
         enum: EOrderStatus,
     })
     status: EOrderStatus;
+
+    @OneToMany(() => OrderItem, item => item.order, { cascade: true })
+    items: OrderItem[];
 }
