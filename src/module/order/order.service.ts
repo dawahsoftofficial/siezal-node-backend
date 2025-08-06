@@ -47,39 +47,6 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
         return order;
     }
 
-    // async createOrder(userId: number, dto: CreateOrderDto) {
-    //     return this.dataSource.transaction(async manager => {
-    //         // Create order entity with userId
-    //         const order = this.orderRepository.create({
-    //             orderUID: v4(),
-    //             userId,
-    //             ...dto,
-    //             status: EOrderStatus.PENDING,
-    //         });
-
-    //         const savedOrder = await manager.save(order);
-
-    //         // Create order items
-    //         const items = dto.items.map(item =>
-    //             this.orderItemRepository.create({
-    //                 orderId: savedOrder.id,
-    //                 ...item,
-    //             })
-    //         );
-
-    //         await manager.save(items);
-
-    //         return {
-    //             success: true,
-    //             message: 'Order created successfully',
-    //             data: {
-    //                 ...savedOrder,
-    //                 items,
-    //             },
-    //         };
-    //     });
-    // }
-
     async createOrder(userId: number, dto: CreateOrderDto) {
         return this.dataSource.transaction(async manager => {
             const orderRepo = manager.getRepository(Order);

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Get, HttpCode, HttpStatus, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { GenerateSwaggerDoc } from 'src/common/decorators/swagger-generate.decorator';
 import { SuccessResponseArrayDto, SuccessResponseSingleObjectDto } from 'src/common/dto/app.dto';
@@ -7,9 +7,10 @@ import { GetOrderParamDto } from 'src/module/order/dto/order-show.dto';
 import { OrderService } from '../order.service';
 import { GetOrdersQueryDto } from '../dto/order-list.dto';
 import { CreateOrderDto } from '../dto/create-order.dto';
+import { UserRouteController } from 'src/common/decorators/app.decorator';
 
 @ApiTags('Orders API CRUD')
-@Controller('orders')
+@UserRouteController('orders')
 export class UserOrderController {
     constructor(private readonly orderService: OrderService) { }
 

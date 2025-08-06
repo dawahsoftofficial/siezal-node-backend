@@ -1,10 +1,12 @@
-// src/database/seeds/category.seeder.ts
 import { DataSource } from 'typeorm';
 import { Category } from '../entities/category.entity';
 
 type CategoryDefinition = {
   name: string;
-  slug: string;
+  slug?: string;
+  icon?: string;
+  slideShow?: boolean;
+  images?: string[];
   children?: Omit<CategoryDefinition, 'children'>[];
 };
 
@@ -12,123 +14,121 @@ export default class CategorySeeder {
   public static async run(dataSource: DataSource): Promise<void> {
     const categoryRepository = dataSource.getRepository(Category);
 
-    // Use transaction for better performance
     await dataSource.transaction(async (transactionalEntityManager) => {
-      // Clear existing data more efficiently
+      // await transactionalEntityManager.clear(Category);
 
-      // Define category hierarchy in a clean structure
       const categories: CategoryDefinition[] = [
         {
           name: 'Fruits',
-          slug: 'fruits',
+          icon: '/icons/fruits.png',
+          slideShow: true,
+          images: ['/banners/fruits-banner.jpg'],
           children: [
-            { name: 'Apples', slug: 'apples' },
-            { name: 'Bananas', slug: 'bananas' },
-            { name: 'Berries', slug: 'berries' },
-            { name: 'Citrus', slug: 'citrus' },
-            { name: 'Tropical', slug: 'tropical' },
+            { name: 'Apples', icon: '/icons/apples.png' },
+            { name: 'Bananas', icon: '/icons/bananas.png' },
+            { name: 'Berries', icon: '/icons/berries.png' },
+            { name: 'Citrus', icon: '/icons/citrus.png' },
+            { name: 'Tropical', icon: '/icons/tropical.png' },
           ],
         },
         {
           name: 'Vegetables',
-          slug: 'vegetables',
+          icon: '/icons/vegetables.png',
+          slideShow: true,
+          images: ['/banners/vegetables-banner.jpg'],
           children: [
-            { name: 'Leafy Greens', slug: 'leafy-greens' },
-            { name: 'Root Vegetables', slug: 'root-vegetables' },
-            { name: 'Tomatoes & Cucumbers', slug: 'tomatoes-cucumbers' },
-            { name: 'Peppers', slug: 'peppers' },
-            { name: 'Mushrooms', slug: 'mushrooms' },
+            { name: 'Leafy Greens', icon: '/icons/leafy-greens.png' },
+            { name: 'Root Vegetables', icon: '/icons/root-vegetables.png' },
+            { name: 'Tomatoes & Cucumbers', icon: '/icons/tomatoes-cucumbers.png' },
+            { name: 'Peppers', icon: '/icons/peppers.png' },
+            { name: 'Mushrooms', icon: '/icons/mushrooms.png' },
           ],
         },
         {
           name: 'Dairy & Eggs',
-          slug: 'dairy-eggs',
+          icon: '/icons/dairy-eggs.png',
           children: [
-            { name: 'Milk', slug: 'milk' },
-            { name: 'Cheese', slug: 'cheese' },
-            { name: 'Yogurt', slug: 'yogurt' },
-            { name: 'Butter', slug: 'butter' },
-            { name: 'Eggs', slug: 'eggs' },
+            { name: 'Milk', icon: '/icons/milk.png' },
+            { name: 'Cheese', icon: '/icons/cheese.png' },
+            { name: 'Yogurt', icon: '/icons/yogurt.png' },
+            { name: 'Butter', icon: '/icons/butter.png' },
+            { name: 'Eggs', icon: '/icons/eggs.png' },
           ],
         },
         {
           name: 'Beverages',
-          slug: 'beverages',
+          icon: '/icons/beverages.png',
           children: [
-            { name: 'Water', slug: 'water' },
-            { name: 'Juices', slug: 'juices' },
-            { name: 'Soft Drinks', slug: 'soft-drinks' },
-            { name: 'Tea & Coffee', slug: 'tea-coffee' },
+            { name: 'Water', icon: '/icons/water.png' },
+            { name: 'Juices', icon: '/icons/juices.png' },
+            { name: 'Soft Drinks', icon: '/icons/soft-drinks.png' },
+            { name: 'Tea & Coffee', icon: '/icons/tea-coffee.png' },
           ],
         },
         {
           name: 'Bakery',
-          slug: 'bakery',
+          icon: '/icons/bakery.png',
           children: [
-            { name: 'Bread', slug: 'bread' },
-            { name: 'Pastries', slug: 'pastries' },
-            { name: 'Cakes', slug: 'cakes' },
-            { name: 'Cookies', slug: 'cookies' },
+            { name: 'Bread', icon: '/icons/bread.png' },
+            { name: 'Pastries', icon: '/icons/pastries.png' },
+            { name: 'Cakes', icon: '/icons/cakes.png' },
+            { name: 'Cookies', icon: '/icons/cookies.png' },
           ],
         },
         {
           name: 'Meat & Poultry',
-          slug: 'meat-poultry',
+          icon: '/icons/meat-poultry.png',
           children: [
-            { name: 'Beef', slug: 'beef' },
-            { name: 'Chicken', slug: 'chicken' },
-            { name: 'Pork', slug: 'pork' },
-            { name: 'Lamb', slug: 'lamb' },
+            { name: 'Beef', icon: '/icons/beef.png' },
+            { name: 'Chicken', icon: '/icons/chicken.png' },
+            { name: 'Pork', icon: '/icons/pork.png' },
+            { name: 'Lamb', icon: '/icons/lamb.png' },
           ],
         },
         {
           name: 'Seafood',
-          slug: 'seafood',
+          icon: '/icons/seafood.png',
           children: [
-            { name: 'Fish', slug: 'fish' },
-            { name: 'Shrimp', slug: 'shrimp' },
-            { name: 'Shellfish', slug: 'shellfish' },
-            { name: 'Crab & Lobster', slug: 'crab-lobster' },
+            { name: 'Fish', icon: '/icons/fish.png' },
+            { name: 'Shrimp', icon: '/icons/shrimp.png' },
+            { name: 'Shellfish', icon: '/icons/shellfish.png' },
+            { name: 'Crab & Lobster', icon: '/icons/crab-lobster.png' },
           ],
         },
       ];
 
-      // Process categories in parallel for better performance
-      await Promise.all(
-        categories.map(async (category) => {
-          const parent = await transactionalEntityManager.save(
-            categoryRepository.create({
-              name: category.name,
-              slug: category.slug,
-            })
-          );
-
-          if (category.children?.length) {
-            const children = category.children.map((child) =>
-              categoryRepository.create({
-                name: child.name,
-                slug: child.slug,
-                parentId: parent.id,
-              })
-            );
-            await transactionalEntityManager.save(children);
-          }
-        })
-      );
-
-      // Add flat categories without children in a single batch
-      const flatCategories = [
-        { name: 'Frozen Foods', slug: 'frozen-foods' },
-        { name: 'Canned Goods', slug: 'canned-goods' },
-        { name: 'Snacks', slug: 'snacks' },
-        { name: 'Pasta & Rice', slug: 'pasta-rice' },
-        { name: 'Cereals', slug: 'cereals' },
-        { name: 'Spices & Seasonings', slug: 'spices-seasonings' },
+      const flatCategories: CategoryDefinition[] = [
+        { name: 'Frozen Foods', icon: '/icons/frozen-foods.png' },
+        { name: 'Canned Goods', icon: '/icons/canned-goods.png' },
+        { name: 'Snacks', icon: '/icons/snacks.png' },
+        { name: 'Pasta & Rice', icon: '/icons/pasta-rice.png' },
+        { name: 'Cereals', icon: '/icons/cereals.png' },
+        { name: 'Spices & Seasonings', icon: '/icons/spices-seasonings.png' },
       ];
 
-      await transactionalEntityManager.save(
-        categoryRepository.create(flatCategories)
-      );
+      const makeSlug = (name: string) =>
+        name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+      const saveCategoryTree = async (defs: CategoryDefinition[], parentId?: number) => {
+        for (const def of defs) {
+          const category = categoryRepository.create({
+            name: def.name,
+            slug: def.slug || makeSlug(def.name),
+            icon: def.icon || '',
+            slideShow: def.slideShow ?? false,
+            images: def.images || [],
+            parentId: parentId ?? undefined,
+          });
+
+          const saved = await transactionalEntityManager.save(category);
+          if (def.children?.length) {
+            await saveCategoryTree(def.children, saved.id);
+          }
+        }
+      };
+
+      await saveCategoryTree(categories);
+      await saveCategoryTree(flatCategories);
     });
   }
 }

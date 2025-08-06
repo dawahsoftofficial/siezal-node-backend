@@ -3,5 +3,8 @@ import { IEntityBase } from "src/core/base/entity/interface/entity-interface.bas
 export interface ICategory extends IEntityBase {
     name: string;
     slug: string;
+    icon: string;
     parentId?: number;
+    slideShow: boolean;
+    images: string[];
 }

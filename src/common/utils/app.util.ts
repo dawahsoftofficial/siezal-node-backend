@@ -9,6 +9,7 @@ import * as _ from 'lodash';
 import { ValidationError } from 'class-validator';
 import { ICordinate } from '../interfaces/app.interface';
 import { instanceToPlain } from 'class-transformer';
+import { ESettingType } from '../enums/setting-type.enum';
 
 /**
  * Generates a random 5-digit integer between 10000 and 99999.
@@ -208,4 +209,28 @@ export function generateOtp(length = 6): string {
     otp += digits[crypto.randomInt(0, 10)];
   }
   return otp;
+}
+
+/**
+ * Parses a setting value based on its type.
+ * @param value The raw value from the setting.
+ * @param type The type of the setting (e.g., STRING, NUMBER, BOOLEAN, JSON).
+ * @returns The parsed value in the appropriate format.
+ */
+export function parseSettingValue(value: string, type: ESettingType) {
+  switch (type) {
+    case ESettingType.NUMBER:
+      return Number(value);
+    case ESettingType.BOOLEAN:
+      return value === 'true';
+    case ESettingType.JSON:
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    case ESettingType.STRING:
+    default:
+      return value;
+  }
 }
