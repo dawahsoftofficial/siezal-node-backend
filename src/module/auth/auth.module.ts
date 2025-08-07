@@ -9,7 +9,7 @@ import { FirebaseModule } from "src/shared/firebase/firebase.module";
   controllers: [AuthAdminController,AuthController],
   imports: [
     UserModule,
-    FirebaseModule
+    // FirebaseModule
   ],
   providers: [AuthService],
 })

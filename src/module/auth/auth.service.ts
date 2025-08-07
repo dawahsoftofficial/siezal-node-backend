@@ -12,7 +12,7 @@ import { ForgotPasswordDto } from "./dto/forget-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { TVerifyOtpResponse } from "./interface/response.interface";
 import { addMinuteToNow, isNotAfterNow } from "src/common/utils/date.util";
-import { FirebaseService } from "src/shared/firebase/firebase.service";
+// import { FirebaseService } from "src/shared/firebase/firebase.service";
 import { ResendOtpDto } from "./dto/resend-otp.dto";
 
 
@@ -21,7 +21,7 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   constructor(
     private readonly userService: UserService,
-    private readonly firebaseService: FirebaseService,
+    // private readonly firebaseService: FirebaseService,
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
     private readonly aesHelper: AesHelper,
@@ -105,7 +105,7 @@ export class AuthService {
     const otp = generateOtp();
     const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
 
-    const sent = await this.firebaseService.sendOtp(dto.phone, otp);
+    const sent = true; // await this.firebaseService.sendOtp(dto.phone, otp);
 
     if (!sent) {
       throw new HttpException('Failed to send OTP', HttpStatus.SERVICE_UNAVAILABLE);
@@ -129,7 +129,7 @@ export class AuthService {
     const otp = generateOtp();
     const expiresAt = addMinuteToNow(5);
 
-    const sent = await this.firebaseService.sendOtp(dto.phone, otp);
+    const sent = true; // await this.firebaseService.sendOtp(dto.phone, otp);
 
     if (!sent) {
       throw new HttpException('Failed to send OTP', HttpStatus.SERVICE_UNAVAILABLE);

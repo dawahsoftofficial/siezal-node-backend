@@ -40,6 +40,7 @@ import { Logger } from '@nestjs/common';
     'x-real-ip',
     'x-request-id',
     'x-api-key',
+    'dnt'
   ]);
   
   const HEADER_TRANSFORMERS: Record<string, (value: any) => any> = {};
