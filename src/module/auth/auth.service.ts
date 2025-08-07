@@ -102,7 +102,7 @@ export class AuthService {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    const otp = generateOtp();
+    const otp = "123456"; // generateOtp();
     const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
 
     const sent = true; // await this.firebaseService.sendOtp(dto.phone, otp);
@@ -126,7 +126,7 @@ export class AuthService {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    const otp = generateOtp();
+    const otp = "123456"; // generateOtp();
     const expiresAt = addMinuteToNow(5);
 
     const sent = true; // await this.firebaseService.sendOtp(dto.phone, otp);
