@@ -18,6 +18,11 @@ import { AuditLogModule } from './module/audit-log/audit-log.module';
 import { ensureDatabaseExists } from './common/utils/init-database.util';
 import { AuthModule } from './module/auth/auth.module';
 import { RedisModule } from './shared/redis/redis.module';
+import { ProductModule } from './module/product/product.module';
+import { CategoryModule } from './module/category/category.module';
+import { InventoryModule } from './module/inventory/inventory.module';
+import { OrderModule } from './module/order/order.module';
+import { SettingModule } from './module/setting/setting.module';
 
 @Module({
   imports: [
@@ -50,7 +55,12 @@ import { RedisModule } from './shared/redis/redis.module';
     AuditLogModule,
     AuthModule,
     HelperModule,
-    RedisModule
+    RedisModule,
+    ProductModule,
+    CategoryModule,
+    InventoryModule,
+    OrderModule,
+    SettingModule,
   ],
   controllers: [AppController],
   providers: [AppService,

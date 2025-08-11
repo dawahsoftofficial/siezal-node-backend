@@ -54,13 +54,16 @@ export class GuardHelper {
       throw new BadRequestException('Missing payload header');
     }
 
+    const expectedPayload = request.path + request.method + this.configService.get('PUB_Q');
 
-    const expectedPayload =
-      request.path + request.method + this.configService.get('PUB_Q');
     console.log(request.path, request.method, this.configService.get('PUB_Q'));
+
     console.log('Expected Payload:', this.aesHelper.encryptData(expectedPayload));
+
     const decryptedPayload = this.aesHelper.decryptData(payload);
+
     console.log('Decrypted Payload:', decryptedPayload);
+
     if (decryptedPayload !== expectedPayload) {
       throw new BadRequestException(
         'Public auth failed: payload mismatch',

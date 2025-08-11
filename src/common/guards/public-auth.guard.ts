@@ -17,9 +17,9 @@ import { BaseGuard } from 'src/core/base/guard/guard.base';
     }
   
     handleRequest(context: ExecutionContext) {
-      if (process.env.NODE_ENV === 'local') {
-        return true;
-      }
+      // if (process.env.NODE_ENV === 'local') {
+      //   return true;
+      // }
   
       const request = context.switchToHttp().getRequest();
       return this.guardHelper.validatePublicAuth(request);

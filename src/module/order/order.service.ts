@@ -16,7 +16,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     constructor(
         @InjectRepository(Order)
         private readonly orderRepository: Repository<Order>,
-        private readonly orderItemRepository: Repository<OrderItem>,
+        // private readonly orderItemRepository: Repository<OrderItem>,
         private readonly dataSource: DataSource
     ) {
         super(orderRepository)
