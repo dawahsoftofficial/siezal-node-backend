@@ -1,7 +1,24 @@
-import { ConflictException, ForbiddenException, HttpException, HttpStatus, Injectable, Logger, NotFoundException, UnauthorizedException, UnprocessableEntityException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 import { UserService } from "../user/user.service";
 import { ERole } from "src/common/enums/role.enum";
-import { generateOtp, generateRandomString, hashBcrypt, hashString, removeSensitiveData, verifyPassword } from "src/common/utils/app.util";
+import {
+  generateOtp,
+  generateRandomString,
+  hashBcrypt,
+  hashString,
+  removeSensitiveData,
+  verifyPassword,
+} from "src/common/utils/app.util";
 import { JwtService } from "src/shared/jwt/jwt.service";
 import { AesHelper } from "src/common/helpers/aes.helper";
 import { IUser } from "../user/interface/user.interface";
@@ -14,7 +31,7 @@ import { TVerifyOtpResponse } from "./interface/response.interface";
 import { addMinuteToNow, isNotAfterNow } from "src/common/utils/date.util";
 // import { FirebaseService } from "src/shared/firebase/firebase.service";
 import { ResendOtpDto } from "./dto/resend-otp.dto";
-
+import { UpdateUserDto } from "../user/dto/update-user.dto";
 
 @Injectable()
 export class AuthService {
@@ -24,14 +41,16 @@ export class AuthService {
     // private readonly firebaseService: FirebaseService,
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
-    private readonly aesHelper: AesHelper,
-  ) { }
+    private readonly aesHelper: AesHelper
+  ) {}
 
   signup = async (dto: SignupDto) => {
-    const existing = await this.userService.findOne({ where: { phone: dto.phone } });
+    const existing = await this.userService.findOne({
+      where: { phone: dto.phone },
+    });
 
     if (existing) {
-      throw new ConflictException('Phone already in use');
+      throw new ConflictException("Phone already in use");
     }
 
     const hashedPassword = await hashBcrypt(dto.password);
@@ -39,8 +58,11 @@ export class AuthService {
     const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
 
     const sent = true; // await sendOtp(dto.phone, otp);
- if (!sent) {
-      throw new HttpException('Failed to send OTP', HttpStatus.SERVICE_UNAVAILABLE);
+    if (!sent) {
+      throw new HttpException(
+        "Failed to send OTP",
+        HttpStatus.SERVICE_UNAVAILABLE
+      );
     }
 
     const user = await this.userService.create({
@@ -53,53 +75,58 @@ export class AuthService {
 
     const userData = removeSensitiveData(user);
 
-    return { message: 'User created successfully', userData };
-  }
+    return { message: "User created successfully", userData };
+  };
 
   login = async (
     identifier: string,
     password: string,
-    role:ERole = ERole.USER
-  ): Promise<IUser & {
-    token: {
-      accessToken: string;
-      refreshToken: string;
-    };
-  }> => {
+    role: ERole = ERole.USER
+  ): Promise<
+    IUser & {
+      token: {
+        accessToken: string;
+        refreshToken: string;
+      };
+    }
+  > => {
     this.logger.log(`Login attempt for identifier: ${identifier}`);
 
     // Here you would typically validate the user credentials and return a token
-    const user = await this.userService.loginVerify(identifier,role);
+    const user = await this.userService.loginVerify(identifier, role);
 
     if (!user || !(await verifyPassword(password, user.password!))) {
       this.logger.warn(`Invalid login attempt for identifier: ${identifier}`);
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     const { accessToken, encryptRefreshToken } =
       await this.generateUserJwtTokens(user);
 
-    const refreshToken = encryptRefreshToken
+    const refreshToken = encryptRefreshToken;
     await Promise.all([
       this.redisService.setUserData({ ...user, accessToken }), // Store user data in Redis with TTL
       await this.userService.updateById(user.id!, {
-        refreshToken
-      })
+        refreshToken,
+      }),
     ]);
     const userData = removeSensitiveData(user) as IUser;
     return {
-      ...userData, token: {
+      ...userData,
+      token: {
         accessToken,
-        refreshToken
-      }
+        refreshToken,
+      },
     };
-  }
+  };
 
   forgetPassword = async (dto: ForgotPasswordDto) => {
-    const user = await this.userService.findOne({ where: { phone: dto.phone } });
+    const user = await this.userService.findOne({
+      where: { phone: dto.phone },
+    });
 
     if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
     }
 
     const otp = "123456"; // generateOtp();
@@ -108,31 +135,10 @@ export class AuthService {
     const sent = true; // await this.firebaseService.sendOtp(dto.phone, otp);
 
     if (!sent) {
-      throw new HttpException('Failed to send OTP', HttpStatus.SERVICE_UNAVAILABLE);
-    }
-
-    await this.userService.updateById(user.id!, { otp: otp, otpExpiresAt: expiresAt });
-
-    return {
-      message: 'OTP sent successfully',
-      expiresAt,
-    };
-  };
-
-  resendOtp = async (dto: ResendOtpDto) => {
-    const user = await this.userService.findOne({ where: { phone: dto.phone } });
-
-    if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    }
-
-    const otp = "123456"; // generateOtp();
-    const expiresAt = addMinuteToNow(5);
-
-    const sent = true; // await this.firebaseService.sendOtp(dto.phone, otp);
-
-    if (!sent) {
-      throw new HttpException('Failed to send OTP', HttpStatus.SERVICE_UNAVAILABLE);
+      throw new HttpException(
+        "Failed to send OTP",
+        HttpStatus.SERVICE_UNAVAILABLE
+      );
     }
 
     await this.userService.updateById(user.id!, {
@@ -141,58 +147,90 @@ export class AuthService {
     });
 
     return {
-      message: 'OTP resent successfully',
+      message: "OTP sent successfully",
       expiresAt,
     };
   };
-  
 
-  verifyOtp = async (dto: VerifyOtpDto): Promise<
-    TVerifyOtpResponse
-  > => {
+  resendOtp = async (dto: ResendOtpDto) => {
+    const user = await this.userService.findOne({
+      where: { phone: dto.phone },
+    });
+
+    if (!user) {
+      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
+    }
+
+    const otp = "123456"; // generateOtp();
+    const expiresAt = addMinuteToNow(5);
+
+    const sent = true; // await this.firebaseService.sendOtp(dto.phone, otp);
+
+    if (!sent) {
+      throw new HttpException(
+        "Failed to send OTP",
+        HttpStatus.SERVICE_UNAVAILABLE
+      );
+    }
+
+    await this.userService.updateById(user.id!, {
+      otp: otp,
+      otpExpiresAt: expiresAt,
+    });
+
+    return {
+      message: "OTP resent successfully",
+      expiresAt,
+    };
+  };
+
+  verifyOtp = async (dto: VerifyOtpDto): Promise<TVerifyOtpResponse> => {
     const { phone, otp, forgotPassword } = dto;
 
     const user = await this.userService.findOne({ where: { phone } });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
     if (!user.otp || !user.otpExpiresAt) {
-      throw new NotFoundException('OTP not found');
+      throw new NotFoundException("OTP not found");
     }
     const isExpired = isNotAfterNow(user.otpExpiresAt);
     const isValid = user.otp === otp;
 
     if (!isValid || isExpired) {
-      throw new UnauthorizedException('Invalid or expired OTP');
+      throw new UnauthorizedException("Invalid or expired OTP");
     }
     const dataToUpdate: Partial<IUser> = {
       otp: null,
       otpExpiresAt: null,
       verifiedAt: new Date(),
-    }
+    };
 
-    let response: TVerifyOtpResponse = {}
+    let response: TVerifyOtpResponse = {};
     if (forgotPassword) {
       const randomString = generateRandomString(48);
       const resetPasswordToken = hashString(randomString);
-      await this.redisService.setResetPaswordToken(resetPasswordToken, user.id!, 3600); // Store reset token in Redis for 1 hour
+      await this.redisService.setResetPaswordToken(
+        resetPasswordToken,
+        user.id!,
+        3600
+      ); // Store reset token in Redis for 1 hour
       response = {
-        token: { resetPasswordToken: randomString }
+        token: { resetPasswordToken: randomString },
       };
-    }
-    else {
+    } else {
       const { accessToken, encryptRefreshToken } =
         await this.generateUserJwtTokens(user);
-      await this.redisService.setUserData({ ...user, accessToken })
+      await this.redisService.setUserData({ ...user, accessToken });
       dataToUpdate.refreshToken = encryptRefreshToken;
       const userData = removeSensitiveData(user) as IUser;
       response = {
         ...userData,
         token: {
           accessToken,
-          refreshToken: encryptRefreshToken
-        }
+          refreshToken: encryptRefreshToken,
+        },
       };
     }
 
@@ -205,18 +243,21 @@ export class AuthService {
     const { resetPasswordToken, newPassword } = dto;
 
     const hashedToken = hashString(resetPasswordToken);
-    const userId = await this.redisService.getUserIdResetPasswordToken(hashedToken);
+    const userId =
+      await this.redisService.getUserIdResetPasswordToken(hashedToken);
     if (!userId) {
-      throw new ForbiddenException('Invalid or expired reset password token');
+      throw new ForbiddenException("Invalid or expired reset password token");
     }
     const user = await this.userService.findById(userId);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     if (user.otp || user.otpExpiresAt) {
-      throw new ForbiddenException('OTP verification required before resetting password');
+      throw new ForbiddenException(
+        "OTP verification required before resetting password"
+      );
     }
 
     const hashedPassword = await hashBcrypt(newPassword);
@@ -226,14 +267,18 @@ export class AuthService {
     });
   };
 
-  accessToken = async (encryptRefreshToken: string): Promise<{ accessToken: string; refreshToken?: string }> => {
-    const decryptedRefreshToken = this.aesHelper.decryptData(encryptRefreshToken);
-    const result =
-      await this.jwtService.verifyRefreshToken(decryptedRefreshToken);
+  accessToken = async (
+    encryptRefreshToken: string
+  ): Promise<{ accessToken: string; refreshToken?: string }> => {
+    const decryptedRefreshToken =
+      this.aesHelper.decryptData(encryptRefreshToken);
+    const result = await this.jwtService.verifyRefreshToken(
+      decryptedRefreshToken
+    );
     if (!result) {
-      throw new UnauthorizedException('Invalid Token');
+      throw new UnauthorizedException("Invalid Token");
     }
-    const { id: userId, role } = result
+    const { id: userId, role } = result;
     let userUpdatedData = await this.redisService.getUserData(role, userId!);
     const cacheRefreshToken = userUpdatedData?.refreshToken;
 
@@ -243,47 +288,51 @@ export class AuthService {
     }
 
     if (!userUpdatedData) {
-      throw new UnauthorizedException('Token Not found');
+      throw new UnauthorizedException("Token Not found");
     }
-    const accessToken = this.jwtService.generateAccessToken(
-      userUpdatedData,
-    );
+    const accessToken = this.jwtService.generateAccessToken(userUpdatedData);
     const response: { accessToken: string; refreshToken?: string } = {
       accessToken: accessToken,
     };
-    await this.redisService.setUserData(
-      {
-        ...userUpdatedData,
-        refreshToken: encryptRefreshToken,
-        accessToken,
-      },
-    );
+    await this.redisService.setUserData({
+      ...userUpdatedData,
+      refreshToken: encryptRefreshToken,
+      accessToken,
+    });
 
     return response;
-  }
+  };
 
   getProfile = async (userId: number): Promise<IUser> => {
     const user = await this.userService.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
     return removeSensitiveData(user);
-    }
+  };
 
-
-    logout = async (role:ERole,userId: number): Promise<void> => {
+  update = async (userId: number, payload: UpdateUserDto): Promise<void> => {
     const user = await this.userService.updateById(userId, {
-      refreshToken: null});
+      ...payload,
+    });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
+    }
+  };
+
+  logout = async (role: ERole, userId: number): Promise<void> => {
+    const user = await this.userService.updateById(userId, {
+      refreshToken: null,
+    });
+    if (!user) {
+      throw new NotFoundException("User not found");
     }
     // Clear user data from Redis
     await this.redisService.deleteUserData(role!, userId);
-  }
-
+  };
 
   private generateUserJwtTokens = async (
-    user: IUser,
+    user: IUser
   ): Promise<{
     accessToken: string;
     encryptRefreshToken: string;
@@ -296,5 +345,4 @@ export class AuthService {
 
     return { accessToken, encryptRefreshToken };
   };
-
 }

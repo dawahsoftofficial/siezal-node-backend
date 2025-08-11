@@ -11,36 +11,39 @@ import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 
 @Injectable()
 export class SettingService extends BaseSqlService<Setting, ISetting> {
-    constructor(
-        @InjectRepository(Setting)
-        private readonly settingRepository: Repository<Setting>,
-        private readonly categoryService: CategoryService,
-        private readonly productService: ProductService,
-    ) {
-        super(settingRepository);
-    }
+  constructor(
+    @InjectRepository(Setting)
+    private readonly settingRepository: Repository<Setting>,
+    private readonly categoryService: CategoryService,
+    private readonly productService: ProductService
+  ) {
+    super(settingRepository);
+  }
 
-    async getHomepageSettings() {
-        const settings = await this.settingRepository.findOne({
-            where: { key: 'homepage' },
-        });
+  async getHomepageSettings() {
+    const settings = await this.settingRepository.findOne({
+      where: { key: "homepage" },
+    });
 
-        const homepageSettings = settings ? parseSettingValue(settings.value, settings.type) : [];
+    const homepageSettings = settings
+      ? parseSettingValue(settings.value, settings.type)
+      : [];
 
-        const categories = await this.categoryService.findAll({ where: { slideShow: true } });
+    const categories = await this.categoryService.findAll({
+      where: { slideShow: true },
+    });
 
-        const products = await this.productService.findAll({
-            where: {
-                status: EInventoryStatus.AVAILABLE,
-                stockQuantity: MoreThan(0),
-                categoryId: In(categories.map(category => category.id))
-            },
-            take: 12,
-        });
+    const products = await this.productService.findAll({
+      where: {
+        status: EInventoryStatus.AVAILABLE,
+        stockQuantity: MoreThan(0),
+        categoryId: In(categories.map((category) => category.id)),
+      },
+      take: 12,
+    });
 
-        return {
-            success: true,
-            data: { featuredSlider: homepageSettings, categories, products },
-        };
-    }
+    return {
+      data: { featuredSlider: homepageSettings, categories, products },
+    };
+  }
 }

@@ -1,4 +1,12 @@
-import { Body, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+  Put,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiExtraModels, ApiTags, getSchemaPath } from "@nestjs/swagger";
 import { AuthService } from "../auth.service";
 import { SignupDto } from "../dto/signup.dto";
@@ -23,11 +31,12 @@ import { AccessTokenDto } from "../dto/access-token.dto";
 import { IAuthRequest } from "src/common/interfaces/app.interface";
 import { LoginUserDto } from "../dto/login-user.dto";
 import { ResendOtpDto } from "../dto/resend-otp.dto";
+import { UpdateUserDto } from "src/module/user/dto/update-user.dto";
 
 @ApiTags("User Authentication")
 @UserRouteController("auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @GenerateSwaggerDoc({
     summary: "Register new user",
@@ -42,7 +51,6 @@ export class AuthController {
   })
   @Post("signup")
   @UseGuards(PublicAuthGuard)
-
   async signup(@Body() dto: SignupDto) {
     await this.authService.signup(dto);
     return SuccessResponse("Signup successful, OTP sent to phone");
@@ -82,7 +90,7 @@ export class AuthController {
     ],
   })
   @UseGuards(PublicAuthGuard)
-  @Post('resend-otp')
+  @Post("resend-otp")
   @HttpCode(HttpStatus.OK)
   async resendOtp(@Body() dto: ResendOtpDto) {
     await this.authService.resendOtp(dto);
@@ -166,8 +174,8 @@ export class AuthController {
   }
 
   @GenerateSwaggerDoc({
-    summary: 'Get updated access token on expiration',
-    security: [{ key: 'apiKey', name: 'payload' }],
+    summary: "Get updated access token on expiration",
+    security: [{ key: "apiKey", name: "payload" }],
     responses: [
       { status: HttpStatus.OK, type: SuccessResponseTokenDto },
       { status: HttpStatus.BAD_REQUEST },
@@ -177,16 +185,14 @@ export class AuthController {
   })
   @HttpCode(200)
   @UseGuards(PublicAuthGuard)
-  @Post('access-token')
-  async accessToken(
-    @Body() { refreshToken }: AccessTokenDto,
-  ) {
+  @Post("access-token")
+  async accessToken(@Body() { refreshToken }: AccessTokenDto) {
     const response = await this.authService.accessToken(refreshToken);
     return SuccessResponse("Token reset successful", {}, response);
   }
 
   @GenerateSwaggerDoc({
-    summary: 'Get my details',
+    summary: "Get my details",
     responses: [
       { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
       { status: HttpStatus.BAD_REQUEST },
@@ -195,16 +201,34 @@ export class AuthController {
     ],
   })
   @HttpCode(200)
-  @Post('my-profile')
-  async myProfile(
-    @AuthUser() { id }: IAuthRequest
-  ) {
+  @Post("my-profile")
+  async myProfile(@AuthUser() { id }: IAuthRequest) {
     const response = await this.authService.getProfile(id);
     return SuccessResponse("Data Fetched Succesfully!", response);
   }
 
   @GenerateSwaggerDoc({
-    summary: 'Logout user',
+    summary: "Update user details",
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.CONFLICT },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @Patch("update-profile")
+  @HttpCode(HttpStatus.OK)
+  async updateUser(
+    @AuthUser() { id }: IAuthRequest,
+    @Body() dto: UpdateUserDto
+  ) {
+    const response = await this.authService.update(id, dto);
+    return SuccessResponse("Data Updated Successfully", response);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Logout user",
     responses: [
       { status: HttpStatus.OK, type: SuccessResponseNoDataDto },
       { status: HttpStatus.BAD_REQUEST },
@@ -213,7 +237,7 @@ export class AuthController {
     ],
   })
   @HttpCode(200)
-  @Post('logout')
+  @Post("logout")
   async logout(@AuthUser() { id, role }: IAuthRequest) {
     await this.authService.logout(role, id);
     return SuccessResponse("Logged out successfully");
