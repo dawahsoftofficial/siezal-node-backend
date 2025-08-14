@@ -15,14 +15,16 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     super(categoryRepository);
   }
 
-  fetchParentAndChildCat = async ({
-    page,
-    limit,
-    parentSlug,
-  }: CategoryListQueryDto) => {
+  index = async ({ page, limit }: CategoryListQueryDto) => {
     return this.paginate<ICategory>(page, limit, {
-      where: parentSlug ? { slug: parentSlug } : { parentId: IsNull() },
-      ...(parentSlug ? { relations: ["subCategories"] } : {}),
+      where: { parentId: IsNull() },
+    });
+  };
+
+  detail = async (slug: string) => {
+    return this.findOne({
+      where: { slug },
+      relations: ["subCategories"],
     });
   };
 }
