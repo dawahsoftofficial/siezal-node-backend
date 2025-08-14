@@ -75,7 +75,7 @@ export class AuthService {
 
     const userData = removeSensitiveData(user);
 
-    return { message: "User created successfully", userData };
+    return { message: otp, userData };
   };
 
   login = async (
@@ -179,7 +179,7 @@ export class AuthService {
     });
 
     return {
-      message: "OTP resent successfully",
+      message: otp,
       expiresAt,
     };
   };

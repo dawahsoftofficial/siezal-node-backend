@@ -52,8 +52,8 @@ export class AuthController {
   @Post("signup")
   @UseGuards(PublicAuthGuard)
   async signup(@Body() dto: SignupDto) {
-    await this.authService.signup(dto);
-    return SuccessResponse("Signup successful, OTP sent to phone");
+    const { message } = await this.authService.signup(dto);
+    return SuccessResponse("Signup successful, OTP sent to phone", message);
   }
 
   @GenerateSwaggerDoc({
@@ -93,8 +93,8 @@ export class AuthController {
   @Post("resend-otp")
   @HttpCode(HttpStatus.OK)
   async resendOtp(@Body() dto: ResendOtpDto) {
-    await this.authService.resendOtp(dto);
-    return SuccessResponse("OTP resent to your phone");
+    const { message } = await this.authService.resendOtp(dto);
+    return SuccessResponse("OTP resent to your phone", message);
   }
 
   @GenerateSwaggerDoc({

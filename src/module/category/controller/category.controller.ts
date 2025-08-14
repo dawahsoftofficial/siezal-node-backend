@@ -20,6 +20,8 @@ import {
 import { CategoryListQueryDto } from "../dto/category-list-query.dto";
 import { GuestAuthGuard } from "src/common/guards/guest-auth.guard";
 import { SuccessResponse } from "src/common/utils/api-response.util";
+import { IsNull } from "typeorm";
+import { PaginationQueryParams } from "src/common/contants/swagger-queries.constant";
 
 @ApiTags("Category Listing and Details")
 @PublicRouteController("categories")
@@ -35,6 +37,15 @@ export class CategoryController {
         name: "bearerAuth",
       },
     ],
+    query: [
+      ...PaginationQueryParams,
+      {
+        name: "parentSlug",
+        type: "string",
+        description: "Filter categories by parent category slug",
+        required: false,
+      },
+    ],
     responses: [
       { status: HttpStatus.OK, type: SuccessResponseArrayDto },
       { status: HttpStatus.BAD_REQUEST },
@@ -47,7 +58,8 @@ export class CategoryController {
   @Get()
   @UseGuards(GuestAuthGuard)
   async getCategories(@Query() query: CategoryListQueryDto) {
-    const { data, pagination } = await this.categoryService.index(query);
+    const { data, pagination } =
+      await this.categoryService.fetchParentAndChildCat(query);
     return SuccessResponse(
       "Data fetch successfully",
       data,

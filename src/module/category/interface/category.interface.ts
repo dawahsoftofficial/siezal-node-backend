@@ -1,10 +1,12 @@
 import { IEntityBase } from "src/core/base/entity/interface/entity-interface.base";
 
 export interface ICategory extends IEntityBase {
-    name: string;
-    slug: string;
-    icon: string;
-    parentId?: number;
-    slideShow: boolean;
-    images: string[];
+  name: string;
+  slug: string;
+  icon: string;
+  parentId?: number;
+  parentCategory?: ICategory;
+  subCategories?: ICategory[];
+  slideShow: boolean;
+  images: string[];
 }
