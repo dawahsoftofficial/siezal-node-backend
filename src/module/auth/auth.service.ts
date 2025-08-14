@@ -32,6 +32,7 @@ import { addMinuteToNow, isNotAfterNow } from "src/common/utils/date.util";
 // import { FirebaseService } from "src/shared/firebase/firebase.service";
 import { ResendOtpDto } from "./dto/resend-otp.dto";
 import { UpdateUserDto } from "../user/dto/update-user.dto";
+import { PhoneDto } from "./dto/phone-dto";
 
 @Injectable()
 export class AuthService {
@@ -44,6 +45,10 @@ export class AuthService {
     private readonly aesHelper: AesHelper
   ) {}
 
+  exists = async ({ phone }: PhoneDto) => {
+    const existing = await this.userService.exists({ phone: phone });
+    return existing;
+  };
   signup = async (dto: SignupDto) => {
     const existing = await this.userService.findOne({
       where: { phone: dto.phone },

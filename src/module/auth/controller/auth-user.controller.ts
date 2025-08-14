@@ -32,6 +32,7 @@ import { IAuthRequest } from "src/common/interfaces/app.interface";
 import { LoginUserDto } from "../dto/login-user.dto";
 import { ResendOtpDto } from "../dto/resend-otp.dto";
 import { UpdateUserDto } from "src/module/user/dto/update-user.dto";
+import { PhoneDto } from "../dto/phone-dto";
 
 @ApiTags("User Authentication")
 @UserRouteController("auth")
@@ -78,6 +79,23 @@ export class AuthController {
     return SuccessResponse("Login successful", user, token);
   }
 
+  @GenerateSwaggerDoc({
+    summary: "Check Account exists",
+    security: [{ key: "apiKey", name: "payload" }],
+    responses: [
+      { status: HttpStatus.OK },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+      { status: HttpStatus.BAD_REQUEST },
+    ],
+  })
+  @UseGuards(PublicAuthGuard)
+  @Post("exists")
+  @HttpCode(HttpStatus.OK)
+  async exists(@Body() dto: PhoneDto) {
+    const status = await this.authService.exists(dto);
+    return SuccessResponse<boolean>("Request Successfully hit!", status);
+  }
   @GenerateSwaggerDoc({
     summary: "Resend OTP for password reset",
     security: [{ key: "apiKey", name: "payload" }],
