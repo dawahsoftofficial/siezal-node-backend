@@ -11,8 +11,9 @@ export class GetOrdersQueryDto extends PaginationDto {
     status?: EOrderStatus;
 
     @ApiPropertyOptional({ example: 1, description: 'Filter by user id' })
+    @IsOptional()
     @Type(() => Number)
     @IsInt()
     @Min(1)
-    userId: number;
+    userId?: number;
 }

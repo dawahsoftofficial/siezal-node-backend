@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
+import { Body, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { AuthService } from "../auth.service";
 import { GenerateSwaggerDoc } from "src/common/decorators/swagger-generate.decorator";
@@ -11,10 +11,10 @@ import { PublicRouteHeaderDto } from "src/common/dto/public-route-header.dto";
 import { ERole } from "src/common/enums/role.enum";
 import { IAuthRequest } from "src/common/interfaces/app.interface";
 
-  @ApiTags('Admin/uthentication')
+@ApiTags('Admin Authentication')
 @AdminRouteController('auth')
 export class AuthAdminController {
-  constructor(private readonly service: AuthService) {}
+  constructor(private readonly service: AuthService) { }
   @GenerateSwaggerDoc({
     summary: 'Logged In Admin User',
     security: [{ key: 'apiKey', name: 'payload' }],
@@ -29,26 +29,26 @@ export class AuthAdminController {
   @UseGuards(PublicAuthGuard)
   @ApplyHeader(PublicRouteHeaderDto) //no header validation
   @Post('login')
-  async login(@Body() {email,password}: LoginAdminDto) {
-    const {token,...response} = await this.service.login(email, password,ERole.ADMIN);
-  
-    return SuccessResponse('Logged In Successfully', response,token);
+  async login(@Body() { email, password }: LoginAdminDto) {
+    const { token, ...response } = await this.service.login(email, password, ERole.ADMIN);
+
+    return SuccessResponse('Logged In Successfully', response, token);
   }
 
-    @GenerateSwaggerDoc({
-      summary: 'Logout user',
-      responses: [
-        { status: HttpStatus.OK , type: SuccessResponseNoDataDto },
-        { status: HttpStatus.BAD_REQUEST },
-        { status: HttpStatus.UNPROCESSABLE_ENTITY },
-        { status: HttpStatus.INTERNAL_SERVER_ERROR },
-      ],
-    })
-    @HttpCode(200)
-    @Post('logout')
-    async logout(@AuthUser() {id,role}:IAuthRequest) {
-      await this.service.logout(role,id);
-      return SuccessResponse("Logged out successfully");
-      }
+  @GenerateSwaggerDoc({
+    summary: 'Logout user',
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseNoDataDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @HttpCode(200)
+  @Post('logout')
+  async logout(@AuthUser() { id, role }: IAuthRequest) {
+    await this.service.logout(role, id);
+    return SuccessResponse("Logged out successfully");
+  }
 
 }

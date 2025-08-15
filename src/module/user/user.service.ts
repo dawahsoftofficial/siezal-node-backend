@@ -1,13 +1,11 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
-import { Repository } from "typeorm";
+import { FindOptionsWhere, Like, Repository } from "typeorm";
 import { IUser } from "./interface/user.interface";
 import { User } from "src/database/entities/user.entity";
 import { ERole } from "src/common/enums/role.enum";
 import { instanceToPlain } from "class-transformer";
-import { UpdateUserDto } from "./dto/update-user.dto";
-import { hashBcrypt } from "src/common/utils/app.util";
 
 @Injectable()
 export class UserService extends BaseSqlService<User, IUser> {
@@ -29,9 +27,28 @@ export class UserService extends BaseSqlService<User, IUser> {
     ) as IUser | null;
   }
 
-  findByRefreshToken = async (refreshToken: string) => {
+  async findByRefreshToken(refreshToken: string) {
     return (await this.userRepository.findOne({
       where: { refreshToken },
     })) as IUser;
   };
+
+  async list(page: number, limit: number, query?: string) {
+    let where: FindOptionsWhere<User>[] = [];
+
+    if (query) {
+      const search = `%${query}%`;
+      
+      where = [
+        { firstName: Like(search) },
+        { lastName: Like(search) },
+        { email: Like(search) },
+        { phone: Like(search) }
+      ];
+    }
+
+    return this.paginate<IUser>(page, limit, {
+      where: where.length > 0 ? where : {},
+    });
+  }
 }

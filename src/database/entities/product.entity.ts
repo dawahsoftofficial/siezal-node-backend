@@ -4,6 +4,7 @@ import { IProduct } from 'src/module/product/interface/product.interface';
 import { EInventoryStatus } from 'src/common/enums/inventory-status.enum';
 import { Inventory } from './inventory.entity';
 import { ProductAttributePivot } from './product-attributes.entity';
+import { Category } from './category.entity';
 
 @Entity({ name: 'products' })
 export class Product extends BaseEntity implements IProduct {
@@ -46,6 +47,10 @@ export class Product extends BaseEntity implements IProduct {
 
     @Column({ name: 'category_id', type: 'int' })
     categoryId: number;
+
+    @ManyToOne(() => Category)
+    @JoinColumn({ name: "category_id" })
+    category: Category;
 
     @ManyToOne(() => Inventory)
     @JoinColumn({ name: 'inventory_id' })

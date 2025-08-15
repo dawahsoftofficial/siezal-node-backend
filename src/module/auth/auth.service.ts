@@ -43,7 +43,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
     private readonly aesHelper: AesHelper
-  ) {}
+  ) { }
 
   exists = async ({ phone }: PhoneDto) => {
     const existing = await this.userService.exists({ phone: phone });

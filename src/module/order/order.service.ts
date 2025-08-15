@@ -24,9 +24,10 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
     async list(query: GetOrdersQueryDto) {
         const { page, limit } = query;
-        const where: FindOptionsWhere<Order> = { userId: query.userId };
+        const where: FindOptionsWhere<Order> = {};
 
         if (query.status) where.status = query.status;
+        if (query.userId) where.userId = query.userId;
 
         return this.paginate<IOrder>(page, limit, {
             relations: ['items'],
