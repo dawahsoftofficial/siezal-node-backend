@@ -4,17 +4,17 @@ import {
   BadRequestException,
   OnModuleInit,
   Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { v4 as uuidv4 } from 'uuid';
-import * as sharp from 'sharp';
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { v4 as uuidv4 } from "uuid";
+import * as sharp from "sharp";
 
 @Injectable()
 export class S3Service implements OnModuleInit {
@@ -22,20 +22,31 @@ export class S3Service implements OnModuleInit {
   private s3Client: S3Client;
   private bucketName: string;
   private region: string;
-
+  private endpoint: string;
+  private subFolder: string;
   constructor(private configService: ConfigService) {}
 
   async onModuleInit() {
     try {
-      this.bucketName = this.configService.getOrThrow<string>('AWS_S3_BUCKET');
-      this.region = this.configService.getOrThrow<string>('AWS_S3_REGION');
+      this.bucketName = this.configService.getOrThrow<string>("DO_BUCKET_NAME");
+      this.region = this.configService.getOrThrow<string>("DO_SPACES_REGION");
+      this.endpoint =
+        this.configService.getOrThrow<string>("DO_SPACES_ENDPOINT");
+      this.subFolder = this.configService.getOrThrow<string>("DO_SUB_FOLDER");
 
       this.s3Client = new S3Client({
         region: this.region,
+        endpoint: this.endpoint, // 👈 DigitalOcean Spaces requires endpoint
+        forcePathStyle: false, // 👈 false = use virtual-hosted-style URLs
+        credentials: {
+          accessKeyId: this.configService.getOrThrow<string>("DO_SPACES_KEY"),
+          secretAccessKey:
+            this.configService.getOrThrow<string>("DO_SPACES_SECRET"),
+        },
       });
-      this.logger.log('S3 Service initialized successfully');
+      this.logger.log("S3 Service initialized successfully");
     } catch (error) {
-      this.logger.error('Failed to initialize S3 Service', error.stack);
+      this.logger.error("Failed to initialize S3 Service", error.stack);
       throw error;
     }
   }
@@ -49,33 +60,33 @@ export class S3Service implements OnModuleInit {
    */
   async uploadImage(
     file: Express.Multer.File,
-    folder: string = 'uploads',
+    folder: string = "uploads",
     options?: {
       compress?: boolean;
       width?: number;
       height?: number;
-      format?: 'jpeg' | 'png' | 'webp';
+      format?: "jpeg" | "png" | "webp";
       quality?: number;
-    },
+    }
   ): Promise<{ key: string; url: string }> {
-    if (!file.mimetype.startsWith('image/')) {
-      throw new BadRequestException('File must be an image');
+    if (!file.mimetype.startsWith("image/")) {
+      throw new BadRequestException("File must be an image");
     }
 
     try {
       // Generate unique filename
-      const extension = file.originalname.split('.').pop() || 'jpg';
-      const key = `${folder}/${uuidv4()}_${this.configService.get('NODE_ENV')}.${extension}`;
+      const extension = file.originalname.split(".").pop() || "jpg";
+      const key = `${this.subFolder}/${folder}/${uuidv4()}_${this.configService.get("NODE_ENV")}.${extension}`;
 
       // Process image if options provided
       let imageBuffer = file.buffer;
       if (options?.compress || options?.width || options?.height) {
         imageBuffer = await sharp(file.buffer)
           .resize(options.width, options.height, {
-            fit: 'inside',
+            fit: "inside",
             withoutEnlargement: true,
           })
-          .toFormat(options.format || 'jpeg', {
+          .toFormat(options.format || "jpeg", {
             quality: options.quality || 80,
           })
           .toBuffer();
@@ -89,8 +100,8 @@ export class S3Service implements OnModuleInit {
           Key: key,
           Body: imageBuffer,
           ContentType: file.mimetype,
-          ACL: this.configService.get('AWS_S3_ACL') ?? 'public-read',
-        }),
+          ACL: this.configService.get("AWS_S3_ACL") ?? "public-read",
+        })
       );
 
       return {
@@ -102,7 +113,7 @@ export class S3Service implements OnModuleInit {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new Error('Failed to process image upload');
+      throw new Error("Failed to process image upload");
     }
   }
 
@@ -128,15 +139,15 @@ export class S3Service implements OnModuleInit {
       new DeleteObjectCommand({
         Bucket: this.bucketName,
         Key: key,
-      }),
+      })
     );
   }
 
   private getPublicUrl(key: string): string {
-    const cdnUrl = this.configService.get<string>('AWS_S3_CDN');
+    const cdnUrl = this.configService.get<string>("DO_SPACES_CDN");
     if (cdnUrl) {
       return `${cdnUrl}/${key}`;
     }
-    return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+    return `https://${this.bucketName}.${this.region}.digitaloceanspaces.com/${key}`;
   }
 }

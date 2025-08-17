@@ -2,21 +2,31 @@
  * Common custom decorators for authentication, header validation, and repository/entity injection.
  * These decorators help standardize controller and service patterns across the app.
  */
-import { Inject, SetMetadata, Type, createParamDecorator, ExecutionContext, Controller } from '@nestjs/common';
-import { EntityClassOrSchema } from '@nestjs/typeorm/dist/interfaces/entity-class-or-schema.type';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Entity, EntityOptions } from 'typeorm';
-import { NO_HEADERS_KEY } from '../contants/app.constant';
-import { IAuthRequest } from '../interfaces/app.interface';
-import { ClassConstructor } from 'class-transformer';
-import { EDBConnectionName } from '../enums/app.enum';
-import { BaseHeaderDto } from 'src/core/base/dto/dto-header.base';
+import {
+  Inject,
+  SetMetadata,
+  Type,
+  createParamDecorator,
+  ExecutionContext,
+  Controller,
+  applyDecorators,
+} from "@nestjs/common";
+import { EntityClassOrSchema } from "@nestjs/typeorm/dist/interfaces/entity-class-or-schema.type";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Entity, EntityOptions } from "typeorm";
+import { NO_HEADERS_KEY } from "../contants/app.constant";
+import { IAuthRequest } from "../interfaces/app.interface";
+import { ClassConstructor } from "class-transformer";
+import { EDBConnectionName } from "../enums/app.enum";
+import { BaseHeaderDto } from "src/core/base/dto/dto-header.base";
+import { ApiProperty } from "@nestjs/swagger";
+import { IsOptional } from "class-validator";
 
 /**
  * Decorator to mark a route as not requiring authentication guard.
  * Usage: @NoGuard()
  */
-export const NoGuard = () => SetMetadata('isNoGuard', true);
+export const NoGuard = () => SetMetadata("isNoGuard", true);
 
 /**
  * Decorator to apply header validation DTO to a controller or route.
@@ -31,7 +41,6 @@ export const ApplyHeader = (dto: ClassConstructor<any> = BaseHeaderDto) => {
   return SetMetadata(NO_HEADERS_KEY, dto);
 };
 
-
 /**
  * Parameter decorator to extract the authenticated user from the request.
  * Usage: @AuthUser() or @AuthUser('id')
@@ -41,7 +50,7 @@ export const AuthUser = createParamDecorator(
     const request = ctx.switchToHttp().getRequest();
     const user: IAuthRequest = request.user;
     return data ? user?.[data] : user;
-  },
+  }
 );
 
 /**
@@ -53,7 +62,7 @@ export const ValidatedHeaders = createParamDecorator(
     const request = ctx.switchToHttp().getRequest();
     const headers: any = request.validatedHeaders;
     return data ? headers?.[data] : headers;
-  },
+  }
 );
 
 /**
@@ -66,7 +75,7 @@ export const ValidatedHeaders = createParamDecorator(
  * @example
  * @AdminController('users') // => @Controller('v1/admin/users')
  */
-export function AdminRouteController(path: string = ''): ClassDecorator {
+export function AdminRouteController(path: string = ""): ClassDecorator {
   return Controller(`v1/admin/${path}`);
 }
 
@@ -80,7 +89,7 @@ export function AdminRouteController(path: string = ''): ClassDecorator {
  * @example
  * @UserController('profile') // => @Controller('v1/user/profile')
  */
-export function UserRouteController(path: string = ''): ClassDecorator {
+export function UserRouteController(path: string = ""): ClassDecorator {
   return Controller(`v1/user/${path}`);
 }
 
@@ -94,6 +103,35 @@ export function UserRouteController(path: string = ''): ClassDecorator {
  * @example
  * @PublicController('auth') // => @Controller('v1/auth')
  */
-export function PublicRouteController(path: string = ''): ClassDecorator {
+export function PublicRouteController(path: string = ""): ClassDecorator {
   return Controller(`v1/${path}`);
+}
+
+export function FileField(
+  name: string,
+  options?: {
+    required?: boolean;
+    description?: string;
+    multiple?: boolean;
+  }
+) {
+  return applyDecorators(
+    ApiProperty({
+      ...(options?.multiple
+        ? {
+            type: "array",
+            items: { type: "string", format: "binary" },
+          }
+        : {
+            type: "string",
+            format: "binary",
+          }),
+      description:
+        options?.description ??
+        "Upload file (if you select the wrong file, refresh the page to reset the form).",
+      required: options?.required ?? false,
+      name,
+    }),
+    IsOptional()
+  );
 }
