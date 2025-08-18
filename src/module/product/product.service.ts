@@ -37,33 +37,43 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       where = [
         { title: Like(`%${filters.q}%`) },
         { sku: Like(`%${filters.q}%`) },
-        { category: { name: Like(`%${filters.q}%`), slug: Like(`%${filters.q}%`) } },
+        {
+          category: {
+            name: Like(`%${filters.q}%`),
+            slug: Like(`%${filters.q}%`),
+          },
+        },
       ];
     }
 
     const [data, total] = await this.productRepository.findAndCount({
       where,
-      relations: ["inventory", "attributePivots", "attributePivots.attribute", "category"],
+      relations: [
+        "inventory",
+        "attributePivots",
+        "attributePivots.attribute",
+        "category",
+      ],
       skip: (page - 1) * limit,
       take: limit,
       order: { createdAt: "DESC" },
       select: onlyList
         ? {
-          id: true,
-          sku: true,
-          title: true,
-          description: true,
-          price: true,
-          salePrice: true,
-          stockQuantity: true,
-          status: true,
-          createdAt: true,
-          category: {
             id: true,
-            slug: true,
-            name: true
-          },
-        }
+            sku: true,
+            title: true,
+            description: true,
+            price: true,
+            salePrice: true,
+            stockQuantity: true,
+            status: true,
+            createdAt: true,
+            category: {
+              id: true,
+              slug: true,
+              name: true,
+            },
+          }
         : undefined,
     });
 
@@ -80,7 +90,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       pagination,
     };
   }
-  
+
   async index(
     page: number,
     limit: number,
@@ -92,7 +102,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       .leftJoinAndSelect("product.inventory", "inventory")
       .leftJoinAndSelect("product.attributePivots", "pivot")
       .leftJoinAndSelect("pivot.attribute", "attribute")
-      .leftJoinAndSelect("product.category", "category");
+      .leftJoin("product.category", "category");
 
     if (filters.categoryId) {
       qb.andWhere("product.categoryId = :categoryId", {
@@ -152,17 +162,24 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     };
   }
 
-  async createProduct(body: CreateProductBodyDto, image: Express.Multer.File): Promise<IProduct> {
+  async createProduct(
+    body: CreateProductBodyDto,
+    image: Express.Multer.File
+  ): Promise<IProduct> {
     if (image.buffer instanceof Buffer) {
       const { key, url } = await this.s3Service.uploadImage(image);
 
-      return await this.create({ ...body, image: url })
+      return await this.create({ ...body, image: url });
     }
 
     throw new NotFoundException(`Product image is not a valid file`);
   }
 
-  async update(id: number, body: UpdateProductBodyDto, image: Express.Multer.File): Promise<IProduct> {
+  async update(
+    id: number,
+    body: UpdateProductBodyDto,
+    image: Express.Multer.File
+  ): Promise<IProduct> {
     const product = await this.productRepository.findOne({ where: { id } });
 
     if (!product) {
@@ -172,7 +189,10 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     if (image.buffer instanceof Buffer) {
       const { key, url } = await this.s3Service.uploadImage(image);
 
-      const updatedProduct = this.productRepository.merge(product, { ...body, image: url });
+      const updatedProduct = this.productRepository.merge(product, {
+        ...body,
+        image: url,
+      });
 
       return await this.productRepository.save(updatedProduct);
     }

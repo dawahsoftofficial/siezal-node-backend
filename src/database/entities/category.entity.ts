@@ -1,6 +1,8 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
 import { BaseEntity } from "src/core/base/entity/entity.base";
 import { ICategory } from "src/module/category/interface/category.interface";
+import { IProduct } from "src/module/product/interface/product.interface";
+import { Product } from "./product.entity";
 
 @Entity({ name: "categories" })
 export class Category extends BaseEntity implements ICategory {
@@ -33,4 +35,9 @@ export class Category extends BaseEntity implements ICategory {
     cascade: true,
   })
   subCategories?: ICategory[];
+
+  @OneToMany(() => Product, (data) => data.category, {
+    cascade: true,
+  })
+  products?: IProduct[];
 }

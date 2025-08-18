@@ -33,17 +33,26 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
       where: { slideShow: true },
     });
 
-    const products = await this.productService.findAll({
-      where: {
-        status: EInventoryStatus.AVAILABLE,
-        stockQuantity: MoreThan(0),
-        categoryId: In(categories.map((category) => category.id)),
-      },
-      take: 12,
-    });
+    // Then for each category, fetch its limited products
+    const categoryWithProducts = await Promise.all(
+      categories.map(async (category) => {
+        const products = await this.productService.findAll({
+          where: {
+            categoryId: category.id,
+            status: EInventoryStatus.AVAILABLE,
+            stockQuantity: MoreThan(0),
+          },
+          order: { updatedAt: "DESC" },
+          take: 10,
+        });
+
+        return { ...category, products };
+      })
+    );
 
     return {
-      data: { featuredSlider: homepageSettings, categories, products },
+      featuredSlider: homepageSettings,
+      categories: categoryWithProducts,
     };
   }
 }

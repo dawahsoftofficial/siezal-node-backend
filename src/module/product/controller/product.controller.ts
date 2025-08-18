@@ -15,9 +15,10 @@ import {
   SuccessResponseSingleObjectDto,
 } from "src/common/dto/app.dto";
 import { GetProductParamDto } from "../dto/product-show.dto";
-import { GetProductsQueryDtoUser } from "../dto/product-index.dto";
+
 import { GuestAuthGuard } from "src/common/guards/guest-auth.guard";
 import { SuccessResponse } from "src/common/utils/api-response.util";
+import { GetProductsQueryDtoUser } from "../dto/product-index.dto";
 
 @ApiTags("Product Listing and Details")
 @PublicRouteController("products")
@@ -45,6 +46,7 @@ export class ProductController {
   @Get()
   @UseGuards(GuestAuthGuard)
   async getProducts(@Query() query: GetProductsQueryDtoUser) {
+    console.log("quer", query);
     const { data, pagination } = await this.productService.index(
       query.page,
       query.limit,
