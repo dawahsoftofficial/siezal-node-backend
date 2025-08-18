@@ -15,6 +15,6 @@ export interface IProduct extends IEntityBase {
     status: EInventoryStatus;
     categoryId: number;
     inventoryId: number;
-    image?: string;
-    gallery?: string[];
+    image: string;
+    // gallery?: string[];
 }

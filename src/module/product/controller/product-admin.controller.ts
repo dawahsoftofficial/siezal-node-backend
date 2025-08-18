@@ -1,14 +1,16 @@
 import {
     Get,
     Post,
-    Put,
     Delete,
     Body,
     HttpCode,
     HttpStatus,
     Param,
     Query,
-    UseGuards,
+    UseInterceptors,
+    UploadedFile,
+    ParseFilePipe,
+    Patch,
 } from "@nestjs/common";
 import { ProductService } from "../product.service";
 import { AdminRouteController } from "src/common/decorators/app.decorator";
@@ -19,11 +21,11 @@ import {
     SuccessResponseSingleObjectDto,
 } from "src/common/dto/app.dto";
 import { GetProductParamDto } from "../dto/product-show.dto";
-import { GetProductsQueryDto } from "../dto/product-index.dto";
-import { CreateProductBodyDto } from "../dto/product-create.dto"; 
-import { UpdateProductBodyDto } from "../dto/product-update.dto"; 
+import { GetProductsQueryDtoAdmin } from "../dto/product-index.dto";
+import { CreateProductBodyDto } from "../dto/product-create.dto";
+import { UpdateProductBodyDto } from "../dto/product-update.dto";
 import { SuccessResponse } from "src/common/utils/api-response.util";
-import { PublicAuthGuard } from "src/common/guards/public-auth.guard";
+import { FileInterceptor } from "@nestjs/platform-express";
 
 @ApiTags("Products Inventory Management")
 @AdminRouteController("products")
@@ -32,10 +34,6 @@ export class AdminProductController {
 
     @GenerateSwaggerDoc({
         summary: "Get list of products",
-        security: [
-            { key: "apiKey", name: "payload" },
-            { key: "bearerAuth", name: "bearerAuth" },
-        ],
         responses: [
             { status: HttpStatus.OK, type: SuccessResponseArrayDto },
             { status: HttpStatus.BAD_REQUEST },
@@ -46,15 +44,12 @@ export class AdminProductController {
     })
     @HttpCode(200)
     @Get("/list")
-    @UseGuards(PublicAuthGuard)
-    async getProducts(@Query() query: GetProductsQueryDto) {
-        const { data, pagination } = await this.productService.index(
+    async getProducts(@Query() query: GetProductsQueryDtoAdmin) {
+        const { data, pagination } = await this.productService.indexAdmin(
             query.page,
             query.limit,
             {
-                categoryId: query.categoryId,
                 q: query.q,
-                tags: query.tags,
             },
             true
         );
@@ -68,10 +63,6 @@ export class AdminProductController {
 
     @GenerateSwaggerDoc({
         summary: "Get product details by ID",
-        security: [
-            { key: "apiKey", name: "payload" },
-            { key: "bearerAuth", name: "bearerAuth" },
-        ],
         responses: [
             { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
             { status: HttpStatus.BAD_REQUEST },
@@ -82,7 +73,6 @@ export class AdminProductController {
     })
     @HttpCode(200)
     @Get("/show/:id")
-    @UseGuards(PublicAuthGuard)
     async getProduct(@Param() params: GetProductParamDto) {
         const response = await this.productService.show(params.id);
         return SuccessResponse("Data Found Successfully!", response);
@@ -90,10 +80,8 @@ export class AdminProductController {
 
     @GenerateSwaggerDoc({
         summary: "Create new product",
-        security: [
-            { key: "apiKey", name: "payload" },
-            { key: "bearerAuth", name: "bearerAuth" },
-        ],
+        isOpenRoute: true,
+        consumesMultipart: true,
         responses: [
             { status: HttpStatus.CREATED, type: SuccessResponseSingleObjectDto },
             { status: HttpStatus.BAD_REQUEST },
@@ -104,17 +92,24 @@ export class AdminProductController {
     })
     @HttpCode(HttpStatus.CREATED)
     @Post("/create")
-    async createProduct(@Body() body: CreateProductBodyDto) {
-        const created = await this.productService.create(body);
+    @UseInterceptors(FileInterceptor("image"))
+    async createProduct(
+        @Body() body: CreateProductBodyDto,
+        @UploadedFile(
+            new ParseFilePipe({
+                fileIsRequired: true,
+            })
+        )
+        image: Express.Multer.File
+    ) {
+        const created = await this.productService.createProduct(body, image);
         return SuccessResponse("Product created successfully", created);
     }
 
     @GenerateSwaggerDoc({
         summary: "Update product by ID",
-        security: [
-            { key: "apiKey", name: "payload" },
-            { key: "bearerAuth", name: "bearerAuth" },
-        ],
+        isOpenRoute: true,
+        consumesMultipart: true,
         responses: [
             { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
             { status: HttpStatus.BAD_REQUEST },
@@ -124,21 +119,24 @@ export class AdminProductController {
         ],
     })
     @HttpCode(HttpStatus.OK)
-    @Put("/update/:id")
+    @Patch("/update/:id")
+    @UseInterceptors(FileInterceptor("image"))
     async updateProduct(
         @Param() params: GetProductParamDto,
-        @Body() body: UpdateProductBodyDto
+        @Body() body: UpdateProductBodyDto,
+        @UploadedFile(
+            new ParseFilePipe({
+                fileIsRequired: true,
+            })
+        )
+        image: Express.Multer.File
     ) {
-        const updated = await this.productService.update(params.id, body);
+        const updated = await this.productService.update(params.id, body, image);
         return SuccessResponse("Product updated successfully", updated);
     }
 
     @GenerateSwaggerDoc({
         summary: "Delete product by ID",
-        security: [
-            { key: "apiKey", name: "payload" },
-            { key: "bearerAuth", name: "bearerAuth" },
-        ],
         responses: [
             { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
             { status: HttpStatus.BAD_REQUEST },

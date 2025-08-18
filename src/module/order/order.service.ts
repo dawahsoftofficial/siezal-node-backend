@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/database/entities/order.entity";
 import { FindOptionsWhere, Repository } from "typeorm";
-import { GetOrdersQueryDto } from "./dto/order-list.dto";
+import { GetOrdersQueryDto, GetOrdersQueryDtoAdmin } from "./dto/order-list.dto";
 import { IOrder } from "./interface/order.interface";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
@@ -22,12 +22,24 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
         super(orderRepository)
     }
 
-    async list(query: GetOrdersQueryDto) {
+    async list(query: GetOrdersQueryDtoAdmin) {
         const { page, limit } = query;
         const where: FindOptionsWhere<Order> = {};
 
         if (query.status) where.status = query.status;
         if (query.userId) where.userId = query.userId;
+
+        return this.paginate<IOrder>(page, limit, {
+            relations: ['items'],
+            where,
+        });
+    };
+
+    async listByUser(userId: number, query: GetOrdersQueryDto) {
+        const { page, limit } = query;
+        const where: FindOptionsWhere<Order> = { userId: userId };
+
+        if (query.status) where.status = query.status;
 
         return this.paginate<IOrder>(page, limit, {
             relations: ['items'],

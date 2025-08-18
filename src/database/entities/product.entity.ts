@@ -59,11 +59,11 @@ export class Product extends BaseEntity implements IProduct {
     @Column({ name: 'inventory_id', type: 'int' })
     inventoryId: number;
 
-    @Column({ name: 'image', type: 'varchar', length: 1000, nullable: true })
-    image?: string;
+    @Column({ name: 'image', type: 'varchar', length: 1000, })
+    image: string;
 
-    @Column({ name: 'gallery', type: 'json', nullable: true })
-    gallery?: string[];
+    // @Column({ name: 'gallery', type: 'json', nullable: true })
+    // gallery?: string[];
 
     @OneToMany(() => ProductAttributePivot, pivot => pivot.product)
     attributePivots: ProductAttributePivot[];

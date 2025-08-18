@@ -7,7 +7,8 @@ import { GetOrderParamDto } from 'src/module/order/dto/order-show.dto';
 import { OrderService } from '../order.service';
 import { GetOrdersQueryDto } from '../dto/order-list.dto';
 import { CreateOrderDto } from '../dto/create-order.dto';
-import { UserRouteController } from 'src/common/decorators/app.decorator';
+import { AuthUser, UserRouteController } from 'src/common/decorators/app.decorator';
+import { IAuthRequest } from 'src/common/interfaces/app.interface';
 
 @ApiTags('Orders Managment')
 @UserRouteController('orders')
@@ -31,8 +32,8 @@ export class UserOrderController {
     @HttpCode(HttpStatus.OK)
     @Get()
     @UseGuards(PublicAuthGuard)
-    async getOrders(@Query() query: GetOrdersQueryDto) {
-        return this.orderService.list(query);
+    async getOrders(@AuthUser() { id }: IAuthRequest, @Query() query: GetOrdersQueryDto) {
+        return this.orderService.listByUser(id, query);
     }
 
     @GenerateSwaggerDoc({

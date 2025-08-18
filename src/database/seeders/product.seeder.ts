@@ -70,7 +70,7 @@ export default class ProductSeeder {
                                 categoryId,
                                 inventoryId: 1,
                                 image: `/products/${slug}.jpg`,
-                                gallery: [`/products/${slug}-1.jpg`, `/products/${slug}-2.jpg`],
+                                // gallery: [`/products/${slug}-1.jpg`, `/products/${slug}-2.jpg`],
                             })
                         );
 

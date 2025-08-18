@@ -9,6 +9,9 @@ export class GetOrdersQueryDto extends PaginationDto {
     @IsOptional()
     @IsEnum(EOrderStatus)
     status?: EOrderStatus;
+}
+
+export class GetOrdersQueryDtoAdmin extends GetOrdersQueryDto {
 
     @ApiPropertyOptional({ example: 1, description: 'Filter by user id' })
     @IsOptional()

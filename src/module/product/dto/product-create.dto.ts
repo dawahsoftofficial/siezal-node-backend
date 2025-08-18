@@ -8,10 +8,9 @@ import {
   Min,
   IsEnum,
   IsArray,
-  ArrayNotEmpty,
-  IsUrl
 } from "class-validator";
-import { EInventoryStatus } from "src/common/enums/inventory-status.enum"; 
+import { FileField } from "src/common/decorators/app.decorator";
+import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 
 export class CreateProductBodyDto {
   @ApiProperty({ example: "SKU-001", description: "Stock Keeping Unit" })
@@ -80,14 +79,12 @@ export class CreateProductBodyDto {
   @IsInt()
   inventoryId: number;
 
-  @ApiProperty({ example: "https://example.com/image.jpg", description: "Main product image URL" })
-  @IsString()
-  @IsOptional()
-  image?: string;
+  @FileField("image", { required: true })
+  image: Express.Multer.File;
 
-  @ApiProperty({ example: ["https://example.com/img1.jpg", "https://example.com/img2.jpg"], description: "Gallery image URLs" })
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  gallery?: string[];
+  // @ApiProperty({ example: ["https://example.com/img1.jpg", "https://example.com/img2.jpg"], description: "Gallery image URLs" })
+  // @IsArray()
+  // @IsString({ each: true })
+  // @IsOptional()
+  // gallery?: string[];
 }

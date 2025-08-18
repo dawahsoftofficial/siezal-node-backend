@@ -30,7 +30,7 @@ export class GuardHelper {
     private readonly redisService: RedisService,
 
     private readonly aesHelper: AesHelper
-  ) {}
+  ) { }
 
   /**
    * validatePublicAuth
@@ -65,6 +65,8 @@ export class GuardHelper {
       "Expected Payload:",
       this.aesHelper.encryptData(expectedPayload)
     );
+
+    console.log("Request Payload:", payload)
 
     const decryptedPayload = this.aesHelper.decryptData(payload);
 

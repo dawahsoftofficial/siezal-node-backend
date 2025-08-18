@@ -2,10 +2,9 @@ import { UserService } from '../user.service';
 import { AdminRouteController } from 'src/common/decorators/app.decorator';
 import { ApiTags } from '@nestjs/swagger';
 import { GenerateSwaggerDoc } from 'src/common/decorators/swagger-generate.decorator';
-import { Get, HttpCode, HttpStatus, Query, UseGuards } from '@nestjs/common';
+import { Get, HttpCode, HttpStatus, Query } from '@nestjs/common';
 import { SuccessResponseArrayDto } from 'src/common/dto/app.dto';
 import { SuccessResponse } from 'src/common/utils/api-response.util';
-import { PublicAuthGuard } from 'src/common/guards/public-auth.guard';
 import { GetCustomersQueryDto } from '../dto/list-user.dto';
 
 @ApiTags('Admin users')
@@ -15,10 +14,6 @@ export class AdminUserController {
 
   @GenerateSwaggerDoc({
     summary: "Get list of customers",
-    security: [
-      { key: "apiKey", name: "payload", },
-      { key: "bearerAuth", name: "bearerAuth" },
-    ],
     responses: [
       { status: HttpStatus.OK, type: SuccessResponseArrayDto },
       { status: HttpStatus.BAD_REQUEST },
@@ -29,7 +24,6 @@ export class AdminUserController {
   })
   @HttpCode(200)
   @Get("/list")
-  @UseGuards(PublicAuthGuard)
   async getProducts(@Query() query: GetCustomersQueryDto) {
     const { data, pagination } = await this.userService.list(query.page, query.limit, query.query);
 
