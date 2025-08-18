@@ -12,7 +12,6 @@ export class GetOrdersQueryDto extends PaginationDto {
 }
 
 export class GetOrdersQueryDtoAdmin extends GetOrdersQueryDto {
-
     @ApiPropertyOptional({ example: 1, description: 'Filter by user id' })
     @IsOptional()
     @Type(() => Number)

@@ -16,10 +16,6 @@ export class AdminOrderController {
 
     @GenerateSwaggerDoc({
         summary: "Get orders for a user",
-        security: [{ key: "apiKey", name: "payload" }, {
-            key: "bearerAuth",
-            name: "bearerAuth",
-        }],
         responses: [
             { status: HttpStatus.OK, type: SuccessResponseArrayDto },
             { status: HttpStatus.BAD_REQUEST },
@@ -30,7 +26,6 @@ export class AdminOrderController {
     })
     @HttpCode(HttpStatus.OK)
     @Get("/list")
-    @UseGuards(PublicAuthGuard)
     async getOrders(@Query() query: GetOrdersQueryDtoAdmin) {
         const { data, pagination } = await this.orderService.list(query);
 
@@ -44,10 +39,6 @@ export class AdminOrderController {
 
     @GenerateSwaggerDoc({
         summary: "Get order details by ID",
-        security: [{ key: "apiKey", name: "payload" }, {
-            key: "bearerAuth",
-            name: "bearerAuth",
-        }],
         responses: [
             { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
             { status: HttpStatus.BAD_REQUEST },
@@ -58,7 +49,6 @@ export class AdminOrderController {
     })
     @HttpCode(HttpStatus.OK)
     @Get('/show/:id')
-    @UseGuards(PublicAuthGuard)
     async getOrder(@Param() params: GetOrderParamDto) {
         const response = await this.orderService.show(params.id);
 
