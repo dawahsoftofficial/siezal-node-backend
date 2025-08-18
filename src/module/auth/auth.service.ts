@@ -92,6 +92,7 @@ export class AuthService {
       token: {
         accessToken: string;
         refreshToken: string;
+        expiry: number;
       };
     }
   > => {
@@ -115,12 +116,16 @@ export class AuthService {
         refreshToken,
       }),
     ]);
+
+    const decoded = this.jwtService.decodeToken(accessToken);
+
     const userData = removeSensitiveData(user) as IUser;
     return {
       ...userData,
       token: {
         accessToken,
         refreshToken,
+        expiry: decoded?.exp! * 1000
       },
     };
   };
@@ -296,9 +301,13 @@ export class AuthService {
       throw new UnauthorizedException("Token Not found");
     }
     const accessToken = this.jwtService.generateAccessToken(userUpdatedData);
-    const response: { accessToken: string; refreshToken?: string } = {
+    const decoded = this.jwtService.decodeToken(accessToken);
+
+    const response: { accessToken: string; refreshToken?: string; expiry: number } = {
       accessToken: accessToken,
+      expiry: decoded?.exp! * 1000
     };
+
     await this.redisService.setUserData({
       ...userUpdatedData,
       refreshToken: encryptRefreshToken,
