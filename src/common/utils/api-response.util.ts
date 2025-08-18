@@ -15,6 +15,7 @@ export function SuccessResponse<T>(
     accessToken?: string;
     refreshToken?: string;
     resetPasswordToken?: string;
+    expiry?: number;
   },
   pagination?: IPaginationMetadata,
   extra?: any
