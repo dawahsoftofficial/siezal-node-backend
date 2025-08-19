@@ -10,7 +10,6 @@ import {
 } from "src/common/interfaces/app.interface";
 import { instanceToPlain } from "class-transformer";
 import { getPaginationMetadata } from "src/common/utils/pagination.utils";
-import { ICategory } from "../category/interface/category.interface";
 import { UpdateProductBodyDto } from "./dto/product-update.dto";
 import { CreateProductBodyDto } from "./dto/product-create.dto";
 import { S3Service } from "src/shared/aws/s3.service";
@@ -178,7 +177,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
   async update(
     id: number,
     body: UpdateProductBodyDto,
-    image: Express.Multer.File
+    image?: Express.Multer.File
   ): Promise<IProduct> {
     const product = await this.productRepository.findOne({ where: { id } });
 
@@ -186,18 +185,20 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    if (image.buffer instanceof Buffer) {
-      const { key, url } = await this.s3Service.uploadImage(image);
+    let updatedProduct;
 
-      const updatedProduct = this.productRepository.merge(product, {
+    if (image && image.buffer instanceof Buffer) {
+      const { url } = await this.s3Service.uploadImage(image);
+
+      updatedProduct = this.productRepository.merge(product, {
         ...body,
         image: url,
       });
-
-      return await this.productRepository.save(updatedProduct);
+    } else {
+      updatedProduct = this.productRepository.merge(product, body);
     }
 
-    throw new NotFoundException(`Product image is not a valid file`);
+    return await this.productRepository.save(updatedProduct);
   }
 
   async show(id: number) {

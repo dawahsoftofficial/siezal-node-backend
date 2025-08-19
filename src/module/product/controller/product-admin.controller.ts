@@ -126,10 +126,10 @@ export class AdminProductController {
         @Body() body: UpdateProductBodyDto,
         @UploadedFile(
             new ParseFilePipe({
-                fileIsRequired: true,
+                fileIsRequired: false,
             })
         )
-        image: Express.Multer.File
+        image?: Express.Multer.File
     ) {
         const updated = await this.productService.update(params.id, body, image);
         return SuccessResponse("Product updated successfully", updated);

@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsInt,
@@ -7,9 +7,7 @@ import {
   IsString,
   Min,
   IsEnum,
-  IsArray,
 } from "class-validator";
-import { FileField } from "src/common/decorators/app.decorator";
 import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 
 export class CreateProductBodyDto {
@@ -79,8 +77,11 @@ export class CreateProductBodyDto {
   @IsInt()
   inventoryId: number;
 
-  @FileField("image", { required: true })
-  image: Express.Multer.File;
+  @ApiPropertyOptional({ type: String, description: "Image URL" })
+  image?: string;
+
+  // @FileField("image", { required: true })
+  // image: Express.Multer.File;
 
   // @ApiProperty({ example: ["https://example.com/img1.jpg", "https://example.com/img2.jpg"], description: "Gallery image URLs" })
   // @IsArray()

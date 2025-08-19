@@ -5,6 +5,7 @@ import ProductSeeder from "./product.seeder";
 import AttributeSeeder from "./attribute.seeder";
 import ProductAttributePivotSeeder from "./product-attributes.seeder";
 import { InventorySeeder } from "./inventory.seeder";
+import OrderSeeder from "./order.seeder";
 
 (async () => {
   try {
@@ -17,6 +18,7 @@ import { InventorySeeder } from "./inventory.seeder";
     await ProductSeeder.run(AppDataSource);
     await AttributeSeeder.run(AppDataSource);
     await ProductAttributePivotSeeder.run(AppDataSource);
+    await OrderSeeder.run(AppDataSource);
 
     console.log("✅ Seeders executed successfully");
 

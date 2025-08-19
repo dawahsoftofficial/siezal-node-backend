@@ -10,5 +10,7 @@ export interface ICategory extends IEntityBase {
   subCategories?: ICategory[];
   products?: IProduct[];
   slideShow: boolean;
+  isFeatured: boolean;
+  position: number;
   images: string[];
 }

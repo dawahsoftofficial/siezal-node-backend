@@ -7,6 +7,8 @@ type CategoryDefinition = {
   icon?: string;
   slideShow?: boolean;
   images?: string[];
+  isFeatured?: boolean;
+  position?: number;
   children?: Omit<CategoryDefinition, 'children'>[];
 };
 
@@ -23,12 +25,14 @@ export default class CategorySeeder {
           icon: '/icons/fruits.png',
           slideShow: true,
           images: ['/banners/fruits-banner.jpg'],
+          isFeatured: true,
+          position: 1,
           children: [
-            { name: 'Apples', icon: '/icons/apples.png' },
-            { name: 'Bananas', icon: '/icons/bananas.png' },
-            { name: 'Berries', icon: '/icons/berries.png' },
-            { name: 'Citrus', icon: '/icons/citrus.png' },
-            { name: 'Tropical', icon: '/icons/tropical.png' },
+            { name: 'Apples', icon: '/icons/apples.png', position: 1 },
+            { name: 'Bananas', icon: '/icons/bananas.png', position: 2 },
+            { name: 'Berries', icon: '/icons/berries.png', position: 3 },
+            { name: 'Citrus', icon: '/icons/citrus.png', position: 4 },
+            { name: 'Tropical', icon: '/icons/tropical.png', position: 5 },
           ],
         },
         {
@@ -36,74 +40,86 @@ export default class CategorySeeder {
           icon: '/icons/vegetables.png',
           slideShow: true,
           images: ['/banners/vegetables-banner.jpg'],
+          isFeatured: true,
+          position: 2,
           children: [
-            { name: 'Leafy Greens', icon: '/icons/leafy-greens.png' },
-            { name: 'Root Vegetables', icon: '/icons/root-vegetables.png' },
-            { name: 'Tomatoes & Cucumbers', icon: '/icons/tomatoes-cucumbers.png' },
-            { name: 'Peppers', icon: '/icons/peppers.png' },
-            { name: 'Mushrooms', icon: '/icons/mushrooms.png' },
+            { name: 'Leafy Greens', icon: '/icons/leafy-greens.png', position: 1 },
+            { name: 'Root Vegetables', icon: '/icons/root-vegetables.png', position: 2 },
+            { name: 'Tomatoes & Cucumbers', icon: '/icons/tomatoes-cucumbers.png', position: 3 },
+            { name: 'Peppers', icon: '/icons/peppers.png', position: 4 },
+            { name: 'Mushrooms', icon: '/icons/mushrooms.png', position: 5 },
           ],
         },
         {
           name: 'Dairy & Eggs',
           icon: '/icons/dairy-eggs.png',
+          isFeatured: false,
+          position: 3,
           children: [
-            { name: 'Milk', icon: '/icons/milk.png' },
-            { name: 'Cheese', icon: '/icons/cheese.png' },
-            { name: 'Yogurt', icon: '/icons/yogurt.png' },
-            { name: 'Butter', icon: '/icons/butter.png' },
-            { name: 'Eggs', icon: '/icons/eggs.png' },
+            { name: 'Milk', icon: '/icons/milk.png', position: 1 },
+            { name: 'Cheese', icon: '/icons/cheese.png', position: 2 },
+            { name: 'Yogurt', icon: '/icons/yogurt.png', position: 3 },
+            { name: 'Butter', icon: '/icons/butter.png', position: 4 },
+            { name: 'Eggs', icon: '/icons/eggs.png', position: 5 },
           ],
         },
         {
           name: 'Beverages',
           icon: '/icons/beverages.png',
+          isFeatured: true,
+          position: 4,
           children: [
-            { name: 'Water', icon: '/icons/water.png' },
-            { name: 'Juices', icon: '/icons/juices.png' },
-            { name: 'Soft Drinks', icon: '/icons/soft-drinks.png' },
-            { name: 'Tea & Coffee', icon: '/icons/tea-coffee.png' },
+            { name: 'Water', icon: '/icons/water.png', position: 1 },
+            { name: 'Juices', icon: '/icons/juices.png', position: 2 },
+            { name: 'Soft Drinks', icon: '/icons/soft-drinks.png', position: 3 },
+            { name: 'Tea & Coffee', icon: '/icons/tea-coffee.png', position: 4 },
           ],
         },
         {
           name: 'Bakery',
           icon: '/icons/bakery.png',
+          isFeatured: false,
+          position: 5,
           children: [
-            { name: 'Bread', icon: '/icons/bread.png' },
-            { name: 'Pastries', icon: '/icons/pastries.png' },
-            { name: 'Cakes', icon: '/icons/cakes.png' },
-            { name: 'Cookies', icon: '/icons/cookies.png' },
+            { name: 'Bread', icon: '/icons/bread.png', position: 1 },
+            { name: 'Pastries', icon: '/icons/pastries.png', position: 2 },
+            { name: 'Cakes', icon: '/icons/cakes.png', position: 3 },
+            { name: 'Cookies', icon: '/icons/cookies.png', position: 4 },
           ],
         },
         {
           name: 'Meat & Poultry',
           icon: '/icons/meat-poultry.png',
+          isFeatured: true,
+          position: 6,
           children: [
-            { name: 'Beef', icon: '/icons/beef.png' },
-            { name: 'Chicken', icon: '/icons/chicken.png' },
-            { name: 'Pork', icon: '/icons/pork.png' },
-            { name: 'Lamb', icon: '/icons/lamb.png' },
+            { name: 'Beef', icon: '/icons/beef.png', position: 1 },
+            { name: 'Chicken', icon: '/icons/chicken.png', position: 2 },
+            { name: 'Pork', icon: '/icons/pork.png', position: 3 },
+            { name: 'Lamb', icon: '/icons/lamb.png', position: 4 },
           ],
         },
         {
           name: 'Seafood',
           icon: '/icons/seafood.png',
+          isFeatured: false,
+          position: 7,
           children: [
-            { name: 'Fish', icon: '/icons/fish.png' },
-            { name: 'Shrimp', icon: '/icons/shrimp.png' },
-            { name: 'Shellfish', icon: '/icons/shellfish.png' },
-            { name: 'Crab & Lobster', icon: '/icons/crab-lobster.png' },
+            { name: 'Fish', icon: '/icons/fish.png', position: 1 },
+            { name: 'Shrimp', icon: '/icons/shrimp.png', position: 2 },
+            { name: 'Shellfish', icon: '/icons/shellfish.png', position: 3 },
+            { name: 'Crab & Lobster', icon: '/icons/crab-lobster.png', position: 4 },
           ],
         },
       ];
 
       const flatCategories: CategoryDefinition[] = [
-        { name: 'Frozen Foods', icon: '/icons/frozen-foods.png' },
-        { name: 'Canned Goods', icon: '/icons/canned-goods.png' },
-        { name: 'Snacks', icon: '/icons/snacks.png' },
-        { name: 'Pasta & Rice', icon: '/icons/pasta-rice.png' },
-        { name: 'Cereals', icon: '/icons/cereals.png' },
-        { name: 'Spices & Seasonings', icon: '/icons/spices-seasonings.png' },
+        { name: 'Frozen Foods', icon: '/icons/frozen-foods.png', isFeatured: false, position: 8 },
+        { name: 'Canned Goods', icon: '/icons/canned-goods.png', isFeatured: false, position: 9 },
+        { name: 'Snacks', icon: '/icons/snacks.png', isFeatured: true, position: 10 },
+        { name: 'Pasta & Rice', icon: '/icons/pasta-rice.png', isFeatured: false, position: 11 },
+        { name: 'Cereals', icon: '/icons/cereals.png', isFeatured: false, position: 12 },
+        { name: 'Spices & Seasonings', icon: '/icons/spices-seasonings.png', isFeatured: true, position: 13 },
       ];
 
       const makeSlug = (name: string) =>
@@ -117,6 +133,8 @@ export default class CategorySeeder {
             icon: def.icon || '',
             slideShow: def.slideShow ?? false,
             images: def.images || [],
+            isFeatured: def.isFeatured ?? false,
+            position: def.position ?? 0,
             parentId: parentId ?? undefined,
           });
 

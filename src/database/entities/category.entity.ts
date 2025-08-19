@@ -18,6 +18,12 @@ export class Category extends BaseEntity implements ICategory {
   @Column({ name: "slide_show", type: "boolean", default: false })
   slideShow: boolean;
 
+  @Column({ name: "is_featured", type: "boolean", default: false })
+  isFeatured: boolean;
+
+  @Column({ name: "position", type: "int" })
+  position: number;
+
   @Column({ name: "images", type: "json", nullable: true })
   images: string[];
 
