@@ -33,6 +33,7 @@ import { addMinuteToNow, isNotAfterNow } from "src/common/utils/date.util";
 import { ResendOtpDto } from "./dto/resend-otp.dto";
 import { UpdateUserDto } from "../user/dto/update-user.dto";
 import { PhoneDto } from "./dto/phone-dto";
+import { ChangePasswordDto } from "../user/dto/change-password.dto";
 
 @Injectable()
 export class AuthService {
@@ -43,7 +44,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
     private readonly aesHelper: AesHelper
-  ) { }
+  ) {}
 
   exists = async ({ phone }: PhoneDto) => {
     const existing = await this.userService.exists({ phone: phone });
@@ -125,7 +126,7 @@ export class AuthService {
       token: {
         accessToken,
         refreshToken,
-        expiry: decoded?.exp! * 1000
+        expiry: decoded?.exp! * 1000,
       },
     };
   };
@@ -303,9 +304,13 @@ export class AuthService {
     const accessToken = this.jwtService.generateAccessToken(userUpdatedData);
     const decoded = this.jwtService.decodeToken(accessToken);
 
-    const response: { accessToken: string; refreshToken?: string; expiry: number } = {
+    const response: {
+      accessToken: string;
+      refreshToken?: string;
+      expiry: number;
+    } = {
       accessToken: accessToken,
-      expiry: decoded?.exp! * 1000
+      expiry: decoded?.exp! * 1000,
     };
 
     await this.redisService.setUserData({
@@ -325,13 +330,36 @@ export class AuthService {
     return removeSensitiveData(user);
   };
 
-  update = async (userId: number, payload: UpdateUserDto): Promise<void> => {
+  update = async (userId: number, payload: Partial<IUser>): Promise<void> => {
     const user = await this.userService.updateById(userId, {
       ...payload,
     });
     if (!user) {
       throw new NotFoundException("User not found");
     }
+  };
+
+  changePassword = async (
+    userId: number,
+    { currentPassword, newPassword }: ChangePasswordDto
+  ) => {
+    const user = await this.userService.findById(userId);
+    const verifyOldPassword = user
+      ? await verifyPassword(currentPassword, user.password!)
+      : false;
+    if (!verifyOldPassword) {
+      throw new UnprocessableEntityException({
+        message: "Validation failed",
+        errors: {
+          currentPassword: ["does not match our records"],
+        },
+        statusCode: 422,
+      });
+    }
+    const hashP = await hashBcrypt(newPassword);
+    await this.userService.updateById(userId, {
+      password: hashP,
+    });
   };
 
   logout = async (role: ERole, userId: number): Promise<void> => {

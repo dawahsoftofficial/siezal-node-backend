@@ -33,6 +33,7 @@ import { LoginUserDto } from "../dto/login-user.dto";
 import { ResendOtpDto } from "../dto/resend-otp.dto";
 import { UpdateUserDto } from "src/module/user/dto/update-user.dto";
 import { PhoneDto } from "../dto/phone-dto";
+import { ChangePasswordDto } from "src/module/user/dto/change-password.dto";
 
 @ApiTags("User Authentication")
 @UserRouteController("auth")
@@ -243,6 +244,26 @@ export class AuthController {
   ) {
     const response = await this.authService.update(id, dto);
     return SuccessResponse("Data Updated Successfully", response);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Update user details",
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.CONFLICT },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @Patch("change-password")
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @AuthUser() { id }: IAuthRequest,
+    @Body() dto: ChangePasswordDto
+  ) {
+    const response = await this.authService.changePassword(id, dto);
+    return SuccessResponse("Data Updated Successfully");
   }
 
   @GenerateSwaggerDoc({

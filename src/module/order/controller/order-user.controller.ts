@@ -22,6 +22,7 @@ import {
   UserRouteController,
 } from "src/common/decorators/app.decorator";
 import { IAuthRequest } from "src/common/interfaces/app.interface";
+import { SuccessResponse } from "src/common/utils/api-response.util";
 
 @ApiTags("Orders Management")
 @UserRouteController("orders")
@@ -44,7 +45,8 @@ export class UserOrderController {
     @AuthUser() { id }: IAuthRequest,
     @Query() query: GetOrdersQueryDto
   ) {
-    return this.orderService.listByUser(id, query);
+    const { data, pagination } = await this.orderService.listByUser(id, query);
+    return SuccessResponse("Order Item fetched", data, undefined, pagination);
   }
 
   @GenerateSwaggerDoc({
@@ -60,7 +62,8 @@ export class UserOrderController {
   @HttpCode(HttpStatus.OK)
   @Get(":id")
   async getOrder(@Param() params: GetOrderParamDto) {
-    return this.orderService.show(params.id);
+    const response = await this.orderService.show(params.id);
+    return SuccessResponse("order Data fetched", response);
   }
 
   @GenerateSwaggerDoc({
