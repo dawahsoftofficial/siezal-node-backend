@@ -33,7 +33,7 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
       : [];
 
     const categories = await this.categoryService.findAll({
-      where: { slideShow: true },
+      where: { isFeatured: true },
     });
 
     // Then for each category, fetch its limited products
