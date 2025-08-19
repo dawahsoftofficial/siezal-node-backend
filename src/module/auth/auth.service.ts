@@ -60,7 +60,7 @@ export class AuthService {
     }
 
     const hashedPassword = await hashBcrypt(dto.password);
-    const otp = generateOtp();
+    const otp = "123456"; // generateOtp();
     const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
 
     const sent = true; // await sendOtp(dto.phone, otp);
