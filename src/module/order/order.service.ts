@@ -71,28 +71,30 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       const orderRepo = manager.getRepository(Order);
       const orderItemRepo = manager.getRepository(OrderItem);
 
+      const { items, ...rest } = dto;
+
       const order = orderRepo.create({
         orderUID: v4(),
         userId,
-        ...dto,
+        ...rest,
         status: EOrderStatus.PENDING,
       });
 
       const savedOrder = await orderRepo.save(order);
 
-      const items = dto.items.map((item) =>
+      const finalItems = items.map((item) =>
         orderItemRepo.create({
           orderId: savedOrder.id,
           ...item,
         })
       );
 
-      await orderItemRepo.save(items);
+      await orderItemRepo.save(finalItems);
 
       return {
         success: true,
         message: "Order created successfully",
-        data: { ...savedOrder, items },
+        data: { ...savedOrder, items: finalItems },
       };
     });
   }

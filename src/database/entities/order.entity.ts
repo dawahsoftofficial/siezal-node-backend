@@ -24,7 +24,7 @@ export class Order extends BaseEntity implements IOrder {
     @Column({ name: 'shipping_address_line1', type: 'varchar', length: 255 })
     shippingAddressLine1: string;
 
-    @Column({ name: 'shipping_address_line2', type: 'varchar', length: 255 })
+    @Column({ name: 'shipping_address_line2', type: 'varchar', length: 255, nullable: true })
     shippingAddressLine2: string;
 
     @Column({ name: 'shipping_city', type: 'varchar', length: 100 })
