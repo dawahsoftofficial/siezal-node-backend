@@ -1,4 +1,5 @@
 import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
+import { EProductUnit } from "src/common/enums/product-unit.enum";
 import { IEntityBase } from "src/core/base/entity/interface/entity-interface.base";
 
 export interface IProduct extends IEntityBase {
@@ -16,5 +17,7 @@ export interface IProduct extends IEntityBase {
     categoryId: number;
     inventoryId: number;
     image: string;
+    unit: EProductUnit;
+    isGSTEnabled: boolean;
     // gallery?: string[];
 }

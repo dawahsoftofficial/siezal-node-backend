@@ -7,8 +7,10 @@ import {
   IsString,
   Min,
   IsEnum,
+  IsBoolean,
 } from "class-validator";
 import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
+import { EProductUnit } from "src/common/enums/product-unit.enum";
 
 export class CreateProductBodyDto {
   @ApiProperty({ example: "SKU-001", description: "Stock Keeping Unit" })
@@ -79,6 +81,14 @@ export class CreateProductBodyDto {
 
   @ApiPropertyOptional({ type: String, description: "Image URL" })
   image?: string;
+
+  @ApiProperty({ enum: EProductUnit, example: EProductUnit.PIECE, description: "Unit of measurement for the product" })
+  @IsEnum(EProductUnit)
+  unit: EProductUnit;
+
+  @ApiProperty({ example: true, description: "Whether GST is applicable" })
+  @IsBoolean()
+  isGSTEnabled: boolean;
 
   // @FileField("image", { required: true })
   // image: Express.Multer.File;

@@ -114,6 +114,26 @@ export class AdminCategoryController {
             data
         );
     }
+    
+    @GenerateSwaggerDoc({
+        summary: "Get list of child categories names only",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseArrayDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(200)
+    @Get("/child-list")
+    async listChildCategories() {
+        const data = await this.categoryService.listChilds();
+        return SuccessResponse(
+            "Data fetch successfully",
+            data
+        );
+    }
 
     @GenerateSwaggerDoc({
         summary: "Get list of categories",

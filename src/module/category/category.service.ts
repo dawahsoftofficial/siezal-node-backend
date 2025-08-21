@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
-import { FindOptionsWhere, IsNull, Like, Repository } from "typeorm";
+import { FindOptionsWhere, IsNull, Like, Not, Repository } from "typeorm";
 import { ICategory } from "./interface/category.interface";
 import { Category } from "src/database/entities/category.entity";
 import { CategoryListQueryDto, CategoryListQueryDtoAdmin } from "./dto/category-list-query.dto";
@@ -93,6 +93,13 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
   list = async () => {
     return this.findAll({
       where: { parentId: IsNull() },
+      select: ['id', 'name']
+    });
+  }
+  
+  listChilds = async () => {
+    return this.findAll({
+      where: { parentId: Not(IsNull()) },
       select: ['id', 'name']
     });
   }

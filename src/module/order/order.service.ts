@@ -13,6 +13,7 @@ import { v4 } from "uuid";
 import { EOrderStatus } from "src/common/enums/order-status.enum";
 import { OrderItem } from "src/database/entities/order-item.entity";
 import { DataSource } from "typeorm";
+import { UpdateOrderDto } from "./dto/update-order.dto";
 
 @Injectable()
 export class OrderService extends BaseSqlService<Order, IOrder> {
@@ -97,5 +98,17 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
         data: { ...savedOrder, items: finalItems },
       };
     });
+  }
+
+  async update(id: number, body: UpdateOrderDto) {
+    const order = await this.orderRepository.findOne({ where: { id } });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    const updatedProduct = this.orderRepository.merge(order, body);
+
+    return await this.orderRepository.save(updatedProduct);
   }
 }

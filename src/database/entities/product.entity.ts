@@ -5,6 +5,7 @@ import { EInventoryStatus } from 'src/common/enums/inventory-status.enum';
 import { Inventory } from './inventory.entity';
 import { ProductAttributePivot } from './product-attributes.entity';
 import { Category } from './category.entity';
+import { EProductUnit } from 'src/common/enums/product-unit.enum';
 
 @Entity({ name: 'products' })
 export class Product extends BaseEntity implements IProduct {
@@ -37,6 +38,20 @@ export class Product extends BaseEntity implements IProduct {
 
     @Column({ name: 'stock_quantity', type: 'int' })
     stockQuantity: number;
+
+    @Column({
+        name: 'unit',
+        type: 'enum',
+        enum: EProductUnit,
+    })
+    unit: EProductUnit;
+
+    @Column({
+        name: 'is_gst_enabled',
+        type: 'boolean',
+        default: false,
+    })
+    isGSTEnabled: boolean;
 
     @Column({
         name: 'status',
