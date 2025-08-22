@@ -1,24 +1,28 @@
 import { AppDataSource } from "src/core/data-source/app.data-source";
-import { UserSeeder } from "./user.seeder";
-import CategorySeeder from "./category.seeder";
-import ProductSeeder from "./product.seeder";
-import AttributeSeeder from "./attribute.seeder";
-import ProductAttributePivotSeeder from "./product-attributes.seeder";
-import { InventorySeeder } from "./inventory.seeder";
-import OrderSeeder from "./order.seeder";
+// import { UserSeeder } from "./user.seeder";
+// import CategorySeeder from "./category.seeder";
+// import ProductSeeder from "./product.seeder";
+// import AttributeSeeder from "./attribute.seeder";
+// import ProductAttributePivotSeeder from "./product-attributes.seeder";
+// import { InventorySeeder } from "./inventory.seeder";
+// import OrderSeeder from "./order.seeder";
+
+// import RealProductSeeder from "./real-product.seeder";
 
 (async () => {
   try {
     await AppDataSource.initialize();
     console.log("📦 DataSource initialized");
 
-    await UserSeeder.run(AppDataSource);
-    await CategorySeeder.run(AppDataSource);
-    await InventorySeeder.run(AppDataSource);
-    await ProductSeeder.run(AppDataSource);
-    await AttributeSeeder.run(AppDataSource);
-    await ProductAttributePivotSeeder.run(AppDataSource);
-    await OrderSeeder.run(AppDataSource);
+    // await UserSeeder.run(AppDataSource);
+    // await CategorySeeder.run(AppDataSource);
+    // await InventorySeeder.run(AppDataSource);
+    // await ProductSeeder.run(AppDataSource);
+    // await AttributeSeeder.run(AppDataSource);
+    // await ProductAttributePivotSeeder.run(AppDataSource);
+    // await OrderSeeder.run(AppDataSource);
+
+    // await RealProductSeeder.run(AppDataSource)
 
     console.log("✅ Seeders executed successfully");
 

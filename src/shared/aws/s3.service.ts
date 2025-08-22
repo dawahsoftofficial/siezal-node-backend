@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as sharp from "sharp";
 
 @Injectable()
+//! ALSO REMOVE THIS IMPLEMENTATION FOR DIRECT USE
 export class S3Service implements OnModuleInit {
   private readonly logger = new Logger(S3Service.name);
   private s3Client: S3Client;
@@ -24,6 +25,7 @@ export class S3Service implements OnModuleInit {
   private region: string;
   private endpoint: string;
   private subFolder: string;
+
   constructor(private configService: ConfigService) {}
 
   async onModuleInit() {
@@ -50,6 +52,26 @@ export class S3Service implements OnModuleInit {
       throw error;
     }
   }
+
+  //! IF YOU WANT TO USE THIS SERVICE DIRECTLY WITHOUT MODULAR APPROACH, UNCOMMENT THIS & COMMENT THE ABOVE CODE
+  // constructor(private readonly configService: ConfigService) {
+  //   this.bucketName = this.configService.getOrThrow<string>("DO_BUCKET_NAME");
+  //   this.region = this.configService.getOrThrow<string>("DO_SPACES_REGION");
+  //   this.endpoint = this.configService.getOrThrow<string>("DO_SPACES_ENDPOINT");
+  //   this.subFolder = this.configService.getOrThrow<string>("DO_SUB_FOLDER");
+
+  //   this.s3Client = new S3Client({
+  //     region: this.region,
+  //     endpoint: this.endpoint,
+  //     forcePathStyle: false,
+  //     credentials: {
+  //       accessKeyId: this.configService.getOrThrow<string>("DO_SPACES_KEY"),
+  //       secretAccessKey: this.configService.getOrThrow<string>("DO_SPACES_SECRET"),
+  //     },
+  //   });
+
+  //   this.logger.log("S3 Service initialized successfully");
+  // }
 
   /**
    * Upload image to S3 with optional compression and resizing
