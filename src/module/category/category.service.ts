@@ -54,9 +54,17 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     files: { icon?: Express.Multer.File[]; images?: Express.Multer.File[] }
   ) {
     const category = await this.categoryRepository.findOneBy({ id });
+
     if (!category) {
       throw new NotFoundException("Category not found");
     }
+
+    Object.assign(category, {
+      name: body.name,
+      slug: body.slug,
+      slideShow: body.slideShow,
+      isFeatured: body.isFeatured
+    })
 
     // Handle icon update
     if (files.icon?.[0]) {
@@ -67,6 +75,7 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     // Handle images update (decide replace vs append)
     if (files.images?.length) {
       const newUrls: string[] = [];
+
       for (const file of files.images) {
         const { url } = await this.s3Service.uploadImage(file);
         newUrls.push(url);
@@ -85,7 +94,7 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
       await this.categoryRepository.update({ position: body.position }, { position: category.position })
     }
 
-    Object.assign(category, { ...body, parentId: body.parentId !== -1 ? body.parentId : undefined });
+    Object.assign(category, { parentId: body.parentId !== -1 ? body.parentId : undefined });
 
     return this.categoryRepository.save(category);
   }
@@ -96,7 +105,7 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
       select: ['id', 'name']
     });
   }
-  
+
   listChilds = async () => {
     return this.findAll({
       where: { parentId: Not(IsNull()) },

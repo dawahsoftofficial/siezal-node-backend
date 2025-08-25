@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
-import { MoreThan, Repository } from "typeorm";
+import { MoreThan, Not, Repository } from "typeorm";
 import { ISetting } from "./interface/setting.interface";
 import { Setting } from "src/database/entities/setting.entity";
 import { parseSettingValue } from "src/common/utils/app.util";
@@ -10,6 +10,7 @@ import { ProductService } from "../product/product.service";
 import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { S3Service } from "src/shared/aws/s3.service";
 import { ESettingType } from "src/common/enums/setting-type.enum";
+import { UpdateSettingsDto } from "./dto/update-setting.dto";
 
 @Injectable()
 export class SettingService extends BaseSqlService<Setting, ISetting> {
@@ -59,6 +60,16 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
     };
   }
 
+  async getGeneralSettings(key?: string) {
+    const settings = await this.settingRepository.find(key ? {
+      where: { key },
+    } : { where: { key: Not("homepage") } });
+
+    // const parsedSettings = settings.map((item) => parseSettingValue(item.value, item.type))
+
+    return settings;
+  }
+
   async getHomepageSettingsAdmin() {
     const settings = await this.settingRepository.findOne({
       where: { key: "homepage" },
@@ -86,8 +97,6 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
 
     const finalList = [...existingUrls, ...uploadedUrls];
 
-    console.log(finalList)
-
     let setting = await this.settingRepository.findOne({
       where: { key: "homepage" },
     });
@@ -105,5 +114,24 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
     }
 
     return finalList;
+  }
+
+  async updateGeneralSettings(body: UpdateSettingsDto): Promise<Setting> {
+    let setting = await this.settingRepository.findOne({
+      where: { key: body.key },
+    });
+
+    if (setting) {
+      setting.value = body.value
+      return await this.settingRepository.save(setting);
+    } else {
+      setting = this.settingRepository.create({
+        title: body.title || 'General',
+        key: body.key,
+        type: body.type,
+        value: body.value,
+      });
+      return await this.settingRepository.save(setting);
+    }
   }
 }

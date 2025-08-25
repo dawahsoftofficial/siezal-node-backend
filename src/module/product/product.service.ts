@@ -166,7 +166,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     image: Express.Multer.File
   ): Promise<IProduct> {
     if (image.buffer instanceof Buffer) {
-      const { key, url } = await this.s3Service.uploadImage(image);
+      const { url } = await this.s3Service.uploadImage(image);
 
       return await this.create({ ...body, image: url });
     }

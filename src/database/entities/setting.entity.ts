@@ -5,6 +5,9 @@ import { ESettingType } from 'src/common/enums/setting-type.enum';
 
 @Entity({ name: 'settings' })
 export class Setting extends BaseEntity implements ISetting {
+    @Column({ name: 'title', type: 'varchar', length: 100, default: 'General' })
+    title?: string;
+    
     @Column({ name: 'key', type: 'varchar', length: 100 })
     key: string;
 

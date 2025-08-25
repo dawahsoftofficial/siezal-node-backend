@@ -1,4 +1,6 @@
 export enum EOrderStatus {
+    NEW = 'new',
+    REFUNDED = 'refunded',
     PENDING = 'pending',
     PROCESSING = 'processing',
     SHIPPED = 'shipped',

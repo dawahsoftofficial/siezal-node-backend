@@ -114,7 +114,7 @@ export default class RealProductSeeder {
                 const imageFilePath = imageMap.get(title.toLowerCase());
 
                 if (!imageFilePath) {
-                    console.warn(`⚠️ Image not found for product: ${title}`);
+                    console.warn(`Image not found for product: ${title}`);
                     continue;
                 }
 

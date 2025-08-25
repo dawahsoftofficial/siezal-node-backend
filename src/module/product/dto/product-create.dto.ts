@@ -11,6 +11,7 @@ import {
 } from "class-validator";
 import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { EProductUnit } from "src/common/enums/product-unit.enum";
+import { ToBoolean } from "src/common/utils/app.util";
 
 export class CreateProductBodyDto {
   @ApiProperty({ example: "SKU-001", description: "Stock Keeping Unit" })
@@ -79,14 +80,16 @@ export class CreateProductBodyDto {
   @IsInt()
   inventoryId: number;
 
-  @ApiPropertyOptional({ type: String, description: "Image URL" })
-  image?: string;
+  // @ApiProperty({ description: "Image URL" })
+  // @IsOptional()
+  // image?: string;
 
   @ApiProperty({ enum: EProductUnit, example: EProductUnit.PIECE, description: "Unit of measurement for the product" })
   @IsEnum(EProductUnit)
   unit: EProductUnit;
 
   @ApiProperty({ example: true, description: "Whether GST is applicable" })
+  @ToBoolean()
   @IsBoolean()
   isGSTEnabled: boolean;
 

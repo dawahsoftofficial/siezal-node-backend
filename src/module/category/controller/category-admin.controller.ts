@@ -92,6 +92,7 @@ export class AdminCategoryController {
         }
     ) {
         const updated = await this.categoryService.updateCategory(id, body, files);
+        
         return SuccessResponse("Category updated successfully", updated);
     }
 

@@ -8,7 +8,7 @@ import * as haversineDistance from 'haversine-distance';
 import * as _ from 'lodash';
 import { ValidationError } from 'class-validator';
 import { ICordinate } from '../interfaces/app.interface';
-import { instanceToPlain } from 'class-transformer';
+import { instanceToPlain, Transform } from 'class-transformer';
 import { ESettingType } from '../enums/setting-type.enum';
 
 /**
@@ -82,7 +82,7 @@ export const calculateDistance = (
  */
 export const removeSensitiveData = (data: any): any => {
   const field = ['accessToken', 'refreshToken', 'password', 'otp'];
-    let plainData: any;
+  let plainData: any;
   if (Array.isArray(data)) {
     plainData = data.map(item =>
       typeof item === 'object' ? instanceToPlain(item) : item
@@ -93,7 +93,7 @@ export const removeSensitiveData = (data: any): any => {
     plainData = data;
   }
   const response = filterSensitiveData(plainData, field, true);
-  
+
   return response;
 };
 
@@ -119,13 +119,13 @@ export function filterSensitiveData(
     if (Array.isArray(value)) {
       return value.map((item) => clean(item));
     }
-    
+
 
     if (_.isPlainObject(value)) {
       const result: Record<string, any> = {};
 
       for (const [key, val] of Object.entries(value)) {
-     
+
         if (!Object.prototype.hasOwnProperty.call(value, key)) continue;
 
         if (lowerCaseSensitiveFields.includes(key.toLowerCase())) {
@@ -233,4 +233,33 @@ export function parseSettingValue(value: string, type: ESettingType) {
     default:
       return value;
   }
+}
+
+function coerceBoolean(raw: unknown): boolean {
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "string") {
+    const v = raw.trim().toLowerCase();
+    if (["true", "1", "yes", "on"].includes(v)) return true;
+    if (["false", "0", "no", "off", ""].includes(v)) return false;
+  }
+  if (typeof raw === "number") return raw === 1;
+  return false;
+}
+
+export const ToBoolean = () =>
+  Transform(({ value, obj, key }) => {
+    // Use the *raw* incoming value to bypass implicit conversion
+    const raw = obj?.[key as keyof typeof obj];
+    return coerceBoolean(raw ?? value);
+  }, { toClassOnly: true });
+
+export const generateOrderUID = (): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+
+  for (let i = 0; i < 9; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  
+  return `SZ-${result}`;
 }

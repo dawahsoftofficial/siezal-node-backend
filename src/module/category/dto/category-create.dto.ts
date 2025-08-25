@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { Allow, IsBoolean, IsInt, IsOptional, IsString, Min } from "class-validator";
+import { ToBoolean } from "src/common/utils/app.util";
 
 export class CreateCategoryBodyDto {
   @ApiProperty({ example: "Gaming Laptops", description: "Category name" })
@@ -24,10 +25,12 @@ export class CreateCategoryBodyDto {
   parentId?: number;
 
   @ApiProperty({ example: true, description: "Whether category should appear in slideshow" })
+  @ToBoolean()
   @IsBoolean()
   slideShow: boolean;
 
   @ApiProperty({ example: false, description: "Whether category is featured" })
+  @ToBoolean()
   @IsBoolean()
   isFeatured: boolean;
 

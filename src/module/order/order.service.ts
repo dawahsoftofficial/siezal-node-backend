@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/database/entities/order.entity";
-import { FindOptionsWhere, Repository } from "typeorm";
+import { FindOptionsWhere, Like, Repository } from "typeorm";
 import {
   GetOrdersQueryDto,
   GetOrdersQueryDtoAdmin,
@@ -9,11 +9,11 @@ import {
 import { IOrder } from "./interface/order.interface";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
-import { v4 } from "uuid";
 import { EOrderStatus } from "src/common/enums/order-status.enum";
 import { OrderItem } from "src/database/entities/order-item.entity";
 import { DataSource } from "typeorm";
 import { UpdateOrderDto } from "./dto/update-order.dto";
+import { generateOrderUID } from "src/common/utils/app.util";
 
 @Injectable()
 export class OrderService extends BaseSqlService<Order, IOrder> {
@@ -28,10 +28,22 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
   async list(query: GetOrdersQueryDtoAdmin) {
     const { page, limit } = query;
-    const where: FindOptionsWhere<Order> = {};
+    const where: FindOptionsWhere<Order>[] = [];
 
-    if (query.status) where.status = query.status;
-    if (query.userId) where.userId = query.userId;
+    const baseWhere: FindOptionsWhere<Order> = {};
+    
+    if (query.status) baseWhere.status = query.status;
+    if (query.userId) baseWhere.userId = query.userId;
+
+    if (query.q) {
+      where.push(
+        { ...baseWhere, userFullName: Like(`%${query.q}%`) },
+        { ...baseWhere, userPhone: Like(`%${query.q}%`) },
+        { ...baseWhere, orderUID: Like(`%${query.q}%`) }
+      );
+    } else {
+      where.push(baseWhere);
+    }
 
     return this.paginate<IOrder>(page, limit, {
       relations: ["items"],
@@ -75,10 +87,10 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       const { items, ...rest } = dto;
 
       const order = orderRepo.create({
-        orderUID: v4(),
+        orderUID: generateOrderUID(),
         userId,
         ...rest,
-        status: EOrderStatus.PENDING,
+        status: EOrderStatus.NEW,
       });
 
       const savedOrder = await orderRepo.save(order);
