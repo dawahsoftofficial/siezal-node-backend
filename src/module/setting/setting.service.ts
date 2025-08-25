@@ -123,6 +123,10 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
 
     if (setting) {
       setting.value = body.value
+      setting.key = body.key
+      setting.type = body.type
+      setting.title = body.title
+      
       return await this.settingRepository.save(setting);
     } else {
       setting = this.settingRepository.create({
