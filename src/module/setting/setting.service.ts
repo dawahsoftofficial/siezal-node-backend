@@ -34,6 +34,7 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
       : [];
 
     const categories = await this.categoryService.findAll({
+      relations: ["parentCategory"],
       where: { isFeatured: true },
     });
 
@@ -61,9 +62,13 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
   }
 
   async getGeneralSettings(key?: string) {
-    const settings = await this.settingRepository.find(key ? {
-      where: { key },
-    } : { where: { key: Not("homepage") } });
+    const settings = await this.settingRepository.find(
+      key
+        ? {
+            where: { key },
+          }
+        : { where: { key: Not("homepage") } }
+    );
 
     // const parsedSettings = settings.map((item) => parseSettingValue(item.value, item.type))
 
@@ -79,12 +84,12 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
       ? parseSettingValue(settings.value, settings.type)
       : [];
 
-    return homepageSettings
+    return homepageSettings;
   }
 
   async saveHomepageSettingsAdmin(
     existingUrls: string[],
-    newFiles: Express.Multer.File[],
+    newFiles: Express.Multer.File[]
   ): Promise<string[]> {
     const uploadedUrls: string[] = [];
 
@@ -122,15 +127,15 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
     });
 
     if (setting) {
-      setting.value = body.value
-      setting.key = body.key
-      setting.type = body.type
-      setting.title = body.title
-      
+      setting.value = body.value;
+      setting.key = body.key;
+      setting.type = body.type;
+      setting.title = body.title;
+
       return await this.settingRepository.save(setting);
     } else {
       setting = this.settingRepository.create({
-        title: body.title || 'General',
+        title: body.title || "General",
         key: body.key,
         type: body.type,
         value: body.value,

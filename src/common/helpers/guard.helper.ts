@@ -30,7 +30,7 @@ export class GuardHelper {
     private readonly redisService: RedisService,
 
     private readonly aesHelper: AesHelper
-  ) { }
+  ) {}
 
   /**
    * validatePublicAuth
@@ -46,9 +46,9 @@ export class GuardHelper {
    * @returns true if payload matches
    */
   validatePublicAuth = async (request: any): Promise<boolean> => {
-    // if (process.env.NODE_ENV === "local") {
-    //   return true;
-    // }
+    if (process.env.NODE_ENV === "local") {
+      return true;
+    }
 
     const payload = request.headers["payload"];
 
@@ -66,7 +66,7 @@ export class GuardHelper {
       this.aesHelper.encryptData(expectedPayload)
     );
 
-    console.log("Request Payload:", payload)
+    console.log("Request Payload:", payload);
 
     const decryptedPayload = this.aesHelper.decryptData(payload);
 
@@ -138,7 +138,7 @@ export class GuardHelper {
       );
     }
 
-    console.log(payload, authorization)
+    console.log(payload, authorization);
 
     if (payload) {
       return this.validatePublicAuth(request);
