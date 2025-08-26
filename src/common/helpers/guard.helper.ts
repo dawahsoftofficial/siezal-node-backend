@@ -46,7 +46,7 @@ export class GuardHelper {
    * @returns true if payload matches
    */
   validatePublicAuth = async (request: any): Promise<boolean> => {
-    if (process.env.NODE_ENV === "local") {
+    if (process.env.NODE_ENV === "local" || process.env.NODE_ENV === "dev") {
       return true;
     }
 
@@ -127,9 +127,12 @@ export class GuardHelper {
     const payload = request.headers["payload"];
     const authorization = request.headers["authorization"];
 
-    // if (!authorization && process.env.NODE_ENV === "local") {
-    //   return true;
-    // }
+    if (
+      !authorization &&
+      (process.env.NODE_ENV === "local" || process.env.NODE_ENV === "dev")
+    ) {
+      return true;
+    }
 
     // Check if both or neither are provided
     if (!!payload === !!authorization) {
@@ -137,8 +140,6 @@ export class GuardHelper {
         "Either payload or authorization must be provided, not both or neither."
       );
     }
-
-    console.log(payload, authorization);
 
     if (payload) {
       return this.validatePublicAuth(request);
