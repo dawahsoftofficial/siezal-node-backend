@@ -8,6 +8,8 @@ import {
   Min,
   IsEnum,
   IsBoolean,
+  ValidateIf,
+  IsDefined,
 } from "class-validator";
 import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { EProductUnit } from "src/common/enums/product-unit.enum";
@@ -27,22 +29,34 @@ export class CreateProductBodyDto {
   @IsString()
   slug: string;
 
-  @ApiProperty({ example: "High-performance gaming laptop", description: "Short description of the product" })
+  @ApiProperty({
+    example: "High-performance gaming laptop",
+    description: "Short description of the product",
+  })
   @IsString()
   @IsOptional()
   shortDescription?: string;
 
-  @ApiProperty({ example: "A detailed description of the product", description: "Full product description" })
+  @ApiProperty({
+    example: "A detailed description of the product",
+    description: "Full product description",
+  })
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ example: "Best Gaming Laptop 2025", description: "SEO title for the product" })
+  @ApiProperty({
+    example: "Best Gaming Laptop 2025",
+    description: "SEO title for the product",
+  })
   @IsString()
   @IsOptional()
   seoTitle?: string;
 
-  @ApiProperty({ example: "This gaming laptop offers unmatched performance...", description: "SEO description for the product" })
+  @ApiProperty({
+    example: "This gaming laptop offers unmatched performance...",
+    description: "SEO description for the product",
+  })
   @IsString()
   @IsOptional()
   seoDescription?: string;
@@ -66,7 +80,11 @@ export class CreateProductBodyDto {
   @Min(0)
   stockQuantity: number;
 
-  @ApiProperty({ enum: EInventoryStatus, example: EInventoryStatus.AVAILABLE, description: "Inventory status" })
+  @ApiProperty({
+    enum: EInventoryStatus,
+    example: EInventoryStatus.AVAILABLE,
+    description: "Inventory status",
+  })
   @IsEnum(EInventoryStatus)
   status: EInventoryStatus;
 
@@ -84,14 +102,29 @@ export class CreateProductBodyDto {
   // @IsOptional()
   // image?: string;
 
-  @ApiProperty({ enum: EProductUnit, example: EProductUnit.PIECE, description: "Unit of measurement for the product" })
+  @ApiProperty({
+    enum: EProductUnit,
+    example: EProductUnit.PIECE,
+    description: "Unit of measurement for the product",
+  })
   @IsEnum(EProductUnit)
   unit: EProductUnit;
 
   @ApiProperty({ example: true, description: "Whether GST is applicable" })
   @ToBoolean()
   @IsBoolean()
-  isGSTEnabled: boolean;
+  isGstEnabled: boolean;
+
+  @ApiProperty({
+    example: 18,
+    description: "Gst Fee Percentage of the product (required if GST enabled)",
+  })
+  @ValidateIf((o) => o.isGstEnabled === true) // only validate if GST is enabled
+  @IsDefined({ message: "gstFee is required when GST is enabled" })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  gstFee?: number;
 
   // @FileField("image", { required: true })
   // image: Express.Multer.File;

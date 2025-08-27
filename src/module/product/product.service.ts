@@ -67,6 +67,8 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
             stockQuantity: true,
             status: true,
             createdAt: true,
+            gstFee: true,
+            isGstEnabled: true,
             category: {
               id: true,
               slug: true,
