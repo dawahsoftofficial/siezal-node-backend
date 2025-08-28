@@ -1,13 +1,12 @@
-import { Injectable, LoggerService } from '@nestjs/common';
+import { Injectable, LoggerService } from "@nestjs/common";
 
-
-import pino from 'pino';
-import { ELogLevel, ELogType } from 'src/common/enums/app.enum';
-import { BaseSqlService } from 'src/core/base/services/sql.base.service';
-import { AuditLog } from 'src/database/entities/audit-log.entity';
-import { IAuditLog } from './interface/audit-log.interface';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import pino from "pino";
+import { ELogLevel, ELogType } from "src/common/enums/app.enum";
+import { BaseSqlService } from "src/core/base/services/sql.base.service";
+import { AuditLog } from "src/database/entities/audit-log.entity";
+import { IAuditLog } from "./interface/audit-log.interface";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 
 @Injectable()
 export class AuditLogService
@@ -15,18 +14,22 @@ export class AuditLogService
   implements LoggerService
 {
   private readonly logger;
-  constructor( @InjectRepository(AuditLog) private logModel: Repository<AuditLog>) {
+  constructor(
+    @InjectRepository(AuditLog) private logModel: Repository<AuditLog>
+  ) {
     super(logModel);
     this.logger = pino({
       level: ELogLevel.INFO,
       hooks: {
         logMethod: async (inputArgs, method, level) => {
           const [message, meta] = inputArgs;
-          const { type, ElogLevel, exception } = meta;
+          const type = meta?.type;
+          const ElogLevel = meta?.ElogLevel;
+          const exception = meta?.exception;
           this.create({
             message,
-            level: ElogLevel,
-            type: type,
+            level: ElogLevel || ELogLevel.INFO,
+            type: type || ELogType.GENERAL,
             stacktrace: exception,
           });
         },
