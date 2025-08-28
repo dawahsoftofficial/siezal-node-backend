@@ -69,6 +69,15 @@ export class CreateOrderDto {
   @IsNumber()
   gstAmount: number;
 
+  @ApiPropertyOptional({
+    example: 900,
+    description:
+      "Total Discount Amount for that if discount enabled at that time",
+  })
+  @IsOptional()
+  @IsNumber()
+  totalDiscountAmount?: number;
+
   @ApiProperty({ example: 200, description: "Shipping amount" })
   @IsNumber()
   shippingAmount: number;

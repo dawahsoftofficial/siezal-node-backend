@@ -48,6 +48,16 @@ export class Order extends BaseEntity implements IOrder {
     @Column({ name: 'total_amount', type: 'decimal', precision: 10, scale: 2 })
     totalAmount: number;
 
+      @Column({
+        name: "total_discount_amount",
+        type: "decimal",
+        precision: 10,
+        scale: 2,
+        nullable: true,
+        comment: "Total discount if discount enable from setting",
+      })
+      totalDiscountAmount?: number;
+
     @Column({
         name: 'status',
         type: 'enum',

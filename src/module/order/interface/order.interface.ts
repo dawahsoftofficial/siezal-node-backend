@@ -20,6 +20,7 @@ export interface IOrder extends IEntityBase {
   gstAmount: number;
   shippingAmount: number;
   totalAmount: number;
+  totalDiscountAmount?: number;
 
   status: EOrderStatus;
   items?: IOrderItem[];
