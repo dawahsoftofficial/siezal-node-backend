@@ -225,7 +225,7 @@ export class AuthService {
       await this.redisService.setResetPaswordToken(
         resetPasswordToken,
         user.id!,
-        3600
+        3600000
       ); // Store reset token in Redis for 1 hour
       response = {
         token: { resetPasswordToken: randomString },
