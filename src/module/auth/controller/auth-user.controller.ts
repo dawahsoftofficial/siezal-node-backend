@@ -175,7 +175,7 @@ export class AuthController {
 
   @GenerateSwaggerDoc({
     summary: "Reset password using OTP",
-    security: [{ key: "apiKey", name: "resetpassword" }],
+    security: [{ key: "apiKey", name: "payload" }],
     responses: [
       { status: HttpStatus.OK },
       { status: HttpStatus.BAD_REQUEST },
