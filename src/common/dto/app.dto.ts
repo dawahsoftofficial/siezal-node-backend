@@ -69,6 +69,30 @@ export class SuccessResponseSingleObjectWithTokenDto {
   // extra: KeyDto;
 }
 
+
+export class SuccessResponseResetTokenDto {
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  success: boolean;
+
+  @ApiProperty({ example: 'Request successful' })
+  @IsString()
+  message: string;
+
+  @ApiProperty({ example: '11/03/2025 12:54:06 PM' })
+  @IsDateString()
+  timestamp: string;
+
+  @ApiProperty({ example: 'reset-password-token' })
+  @IsString()
+  resetPasswordToken: string;
+  // TODO: Define and import KeyDto if needed in the future
+  // @ApiProperty({ type: KeyDto })
+  // @IsObject()
+  // @Type(() => KeyDto)
+  // extra: KeyDto;
+}
+
 /**
  * Success response for an array of objects.
  */

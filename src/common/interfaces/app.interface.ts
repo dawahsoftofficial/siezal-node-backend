@@ -6,7 +6,7 @@ import { Types } from 'mongoose';
 import { ERole } from '../enums/role.enum';
 
 // Represents the authenticated user attached to a request (e.g., after JWT validation)
-export type IAuthRequest = { id: number; username: string,role:ERole };
+export type IAuthRequest = { id: number; phone:string,email?: string,role:ERole };
 
 // Extends the Express Request interface to include the authenticated user
 // Usage: req.user will be available in controllers/middleware
@@ -35,3 +35,9 @@ export interface IPaginationMetadata {
   hasPreviousPage: boolean; // True if there is a previous page
 }
   
+
+
+export interface IPaginatedResponse<T> {
+  data: T[];
+  pagination: IPaginationMetadata;
+}

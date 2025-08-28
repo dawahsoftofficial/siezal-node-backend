@@ -1,7 +1,6 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { EDBConnectionName } from 'src/common/enums/app.enum';
-import { BaseSubscriber } from '../base/subscribers/subscriber.base';
 import { QueryLogger } from '../loggers/query.logger';
 
 // Function to generate DB config for different databases
@@ -21,7 +20,7 @@ export const getDatabaseConfig = (
       synchronize: false,
       timezone: '+05:00',
       logging: true,
-      subscribers: [BaseSubscriber],
+      // subscribers: [BaseSubscriber],
       logger: new QueryLogger(),
     },
   };

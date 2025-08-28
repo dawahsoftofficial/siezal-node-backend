@@ -2,7 +2,8 @@
  * Utility class for building standardized API responses.
  * Use these static methods to format success and custom responses consistently.
  */
-import { currentDateTime } from './date.util';
+import { IPaginationMetadata } from "../interfaces/app.interface";
+import { currentDateTime } from "./date.util";
 
 /**
  * Builds a standard success response with optional data, tokens, and extra fields.
@@ -10,8 +11,14 @@ import { currentDateTime } from './date.util';
 export function SuccessResponse<T>(
   message: string,
   data?: T,
-  tokens?: { accessToken?: string; refreshToken?: string },
-  extra?: any,
+  tokens?: {
+    accessToken?: string;
+    refreshToken?: string;
+    resetPasswordToken?: string;
+    expiry?: number;
+  },
+  pagination?: IPaginationMetadata,
+  extra?: any
 ) {
   return {
     success: true,
@@ -19,7 +26,7 @@ export function SuccessResponse<T>(
     data,
     ...(tokens ?? {}),
     ...(extra ? { extra } : {}),
+    ...(pagination ? { pagination } : {}),
     timestamp: currentDateTime(),
   };
 }
-

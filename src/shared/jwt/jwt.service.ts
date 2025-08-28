@@ -4,6 +4,7 @@ import {
   JwtService as DefaultJwtService,
   TokenExpiredError,
 } from '@nestjs/jwt';
+import { ERole } from 'src/common/enums/role.enum';
 import { IAuthRequest, IJwtResponse } from 'src/common/interfaces/app.interface';
 import { IUser } from 'src/module/user/interface/user.interface';
 
@@ -18,10 +19,11 @@ export class JwtService {
   ) {}
 
   generateAccessToken(user: Partial<IUser>): string {
-    const payload = {
+    const payload :IAuthRequest= {
       id: user.id!,
-      username: user.email,
-      role: user.role,
+      email: user?.email,
+          phone:user.phone!,
+      role: user.role || ERole.USER,
     };
     const expiresIn = this.configService.getOrThrow(
       'JWT_ACCESS_SECRET_EXPIRES_IN',
@@ -36,10 +38,11 @@ export class JwtService {
   }
 
   generateRefreshToken(user: Partial<IUser>): string {
-    const payload = {
+    const payload :IAuthRequest= {
       id: user.id!,
-      username: user.email,
-         role: user.role,
+      email: user?.email,
+      phone:user.phone!,
+      role: user.role || ERole.USER,
     };
     const expiresIn = this.configService.getOrThrow(
       'JWT_REFRESH_SECRET_EXPIRES_IN',

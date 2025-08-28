@@ -1,12 +1,16 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, OneToMany } from 'typeorm';
 import { BaseEntity } from 'src/core/base/entity/entity.base';
 import { IOrder } from 'src/module/order/interface/order.interface';
 import { EOrderStatus } from 'src/common/enums/order-status.enum';
+import { OrderItem } from './order-item.entity';
 
 @Entity({ name: 'orders' })
 export class Order extends BaseEntity implements IOrder {
     @Column({ name: 'order_uid', type: 'varchar', length: 100, unique: true })
     orderUID: string;
+
+    @Column({ name: 'user_id', type: 'int' })
+    userId: number;
 
     @Column({ name: 'user_full_name', type: 'varchar', length: 255 })
     userFullName: string;
@@ -20,7 +24,7 @@ export class Order extends BaseEntity implements IOrder {
     @Column({ name: 'shipping_address_line1', type: 'varchar', length: 255 })
     shippingAddressLine1: string;
 
-    @Column({ name: 'shipping_address_line2', type: 'varchar', length: 255 })
+    @Column({ name: 'shipping_address_line2', type: 'varchar', length: 255, nullable: true })
     shippingAddressLine2: string;
 
     @Column({ name: 'shipping_city', type: 'varchar', length: 100 })
@@ -44,10 +48,23 @@ export class Order extends BaseEntity implements IOrder {
     @Column({ name: 'total_amount', type: 'decimal', precision: 10, scale: 2 })
     totalAmount: number;
 
+      @Column({
+        name: "total_discount_amount",
+        type: "decimal",
+        precision: 10,
+        scale: 2,
+        nullable: true,
+        comment: "Total discount if discount enable from setting",
+      })
+      totalDiscountAmount?: number;
+
     @Column({
         name: 'status',
         type: 'enum',
         enum: EOrderStatus,
     })
     status: EOrderStatus;
+
+    @OneToMany(() => OrderItem, item => item.order, { cascade: true })
+    items: OrderItem[];
 }

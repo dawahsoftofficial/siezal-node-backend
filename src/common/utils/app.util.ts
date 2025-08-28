@@ -8,6 +8,8 @@ import * as haversineDistance from 'haversine-distance';
 import * as _ from 'lodash';
 import { ValidationError } from 'class-validator';
 import { ICordinate } from '../interfaces/app.interface';
+import { instanceToPlain, Transform } from 'class-transformer';
+import { ESettingType } from '../enums/setting-type.enum';
 
 /**
  * Generates a random 5-digit integer between 10000 and 99999.
@@ -80,9 +82,18 @@ export const calculateDistance = (
  */
 export const removeSensitiveData = (data: any): any => {
   const field = ['accessToken', 'refreshToken', 'password', 'otp'];
+  let plainData: any;
+  if (Array.isArray(data)) {
+    plainData = data.map(item =>
+      typeof item === 'object' ? instanceToPlain(item) : item
+    );
+  } else if (typeof data === 'object' && data !== null) {
+    plainData = instanceToPlain(data);
+  } else {
+    plainData = data;
+  }
+  const response = filterSensitiveData(plainData, field, true);
 
-  const response = filterSensitiveData(data, field, true);
-  
   return response;
 };
 
@@ -108,13 +119,13 @@ export function filterSensitiveData(
     if (Array.isArray(value)) {
       return value.map((item) => clean(item));
     }
-    
+
 
     if (_.isPlainObject(value)) {
       const result: Record<string, any> = {};
 
       for (const [key, val] of Object.entries(value)) {
-     
+
         if (!Object.prototype.hasOwnProperty.call(value, key)) continue;
 
         if (lowerCaseSensitiveFields.includes(key.toLowerCase())) {
@@ -178,3 +189,80 @@ export const hashString = (input: string) => {
   return crypto.createHash('sha256').update(input).digest('hex');
 };
 
+/**
+ * Generates a numeric One-Time Password (OTP) of a specified length.
+ *
+ * This function creates a secure OTP using cryptographically strong random numbers.
+ * The OTP consists only of digits (0–9).
+ *
+ * @param {number} [length=6] - The length of the OTP to generate. Defaults to 6 digits.
+ * @returns {string} A string representing the generated numeric OTP.
+ *
+ * @example
+ * generateOtp();       // "483920"
+ * generateOtp(4);      // "1947"
+ */
+export function generateOtp(length = 6): string {
+  const digits = '0123456789';
+  let otp = '';
+  for (let i = 0; i < length; i++) {
+    otp += digits[crypto.randomInt(0, 10)];
+  }
+  return otp;
+}
+
+/**
+ * Parses a setting value based on its type.
+ * @param value The raw value from the setting.
+ * @param type The type of the setting (e.g., STRING, NUMBER, BOOLEAN, JSON).
+ * @returns The parsed value in the appropriate format.
+ */
+export function parseSettingValue(value: string, type: ESettingType) {
+  switch (type) {
+    case ESettingType.NUMBER:
+      return Number(value);
+    case ESettingType.BOOLEAN:
+      return value === 'true';
+    case ESettingType.JSON:
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    case ESettingType.STRING:
+    default:
+      return value;
+  }
+}
+
+function coerceBoolean(raw: unknown): boolean {
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "string") {
+    const v = raw.trim().toLowerCase();
+    if (["true", "1", "yes", "on"].includes(v)) return true;
+    if (["false", "0", "no", "off", ""].includes(v)) return false;
+  }
+  if (typeof raw === "number") return raw === 1;
+  return false;
+}
+
+export const ToBoolean = () =>
+  Transform(({ value, obj, key }) => {
+    // Use the *raw* incoming value to bypass implicit conversion
+    const raw = obj?.[key as keyof typeof obj];
+    return coerceBoolean(raw ?? value);
+  }, { toClassOnly: true });
+
+export const generateOrderUID = (): string => {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const digits = '0123456789';
+
+  let result = '';
+
+  for (let i = 0; i < 3; i++) {
+    result += letters.charAt(Math.floor(Math.random() * letters.length));
+    result += digits.charAt(Math.floor(Math.random() * digits.length));
+  }
+
+  return `SZ-${result}`;
+};

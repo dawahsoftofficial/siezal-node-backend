@@ -19,15 +19,38 @@ export class RedisService {
    */
    async setUserData(value: IUser, ttl = 3600000): Promise<void> {
     const key = `${ERedisKey.USER_ACCESS}:${value.role}:${value.id}`;
+    console.log(`Setting user data for key: ${key} with TTL: ${ttl}`,value);
     await this.mainCache.set(key, value, ttl);
   }
+   
+   async setResetPaswordToken(
+    key: string,
+    value: number,
+    ttl = 1800, // 30 minutes
+  ): Promise<void> {
+    const redisKey = `${ERedisKey.RESET_PASSWORD}:${key}`;
+    await this.mainCache.set(redisKey, value, ttl);
+    this.logger.log(`Set reset password token for user ${key} with TTL ${ttl} seconds`);
+  }
 
+  async getUserIdResetPasswordToken(key: string): Promise<number | undefined> {
+    const redisKey = `${ERedisKey.RESET_PASSWORD}:${key}`;
+    const token = await this.mainCache.get<number>(redisKey);
+    this.logger.log(`Get reset password token for user ${key}: ${token}`);
+    return token;
+  }
   /**
    * Get a value from Redis by key
    */
   async getUserData<T>(role:ERole,id:number): Promise<IUser | undefined> {
      const key = `${ERedisKey.USER_ACCESS}:${role}:${id}`;
     return this.mainCache.get<IUser>(key);
+  }
+
+  async deleteUserData(role:ERole,id:number): Promise<void> {
+    const key = `${ERedisKey.USER_ACCESS}:${role}:${id}`;
+    this.logger.log(`Deleting user data for key: ${key}`);
+    await this.mainCache.del(key);
   }
 
 
