@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { Product } from "src/database/entities/product.entity";
-import { FindOptionsWhere, Like, Repository } from "typeorm";
+import { Brackets, Repository } from "typeorm";
 import { IProduct } from "./interface/product.interface";
 import {
   IPaginatedResponse,
@@ -30,66 +30,38 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     filters: any,
     onlyList = false
   ): Promise<IPaginatedResponse<IProduct>> {
-    let where: FindOptionsWhere<Product>[] = [];
+    const qb = this.productRepository
+      .createQueryBuilder("product")
+      .leftJoinAndSelect("product.inventory", "inventory")
+      .leftJoinAndSelect("product.attributePivots", "attributePivots")
+      .leftJoinAndSelect("attributePivots.attribute", "attribute")
+      .leftJoinAndSelect("product.category", "category");
 
     if (filters.q) {
-      where = [
-        { title: Like(`%${filters.q}%`) },
-        { sku: Like(`%${filters.q}%`) },
-        {
-          category: {
-            name: Like(`%${filters.q}%`),
-            slug: Like(`%${filters.q}%`),
-          },
-        },
-      ];
+      qb.andWhere(
+        new Brackets((qb) => {
+          qb.where("product.title LIKE :q", { q: `%${filters.q}%` })
+            .orWhere("product.sku LIKE :q", { q: `%${filters.q}%` })
+            .orWhere("category.name LIKE :q", { q: `%${filters.q}%` })
+            .orWhere("category.slug LIKE :q", { q: `%${filters.q}%` });
+        })
+      );
     }
 
-    const [data, total] = await this.productRepository.findAndCount({
-      where,
-      relations: [
-        "inventory",
-        "attributePivots",
-        "attributePivots.attribute",
-        "category",
-      ],
-      skip: (page - 1) * limit,
-      take: limit,
-      order: { createdAt: "DESC" },
-      select: onlyList
-        ? {
-            id: true,
-            sku: true,
-            title: true,
-            description: true,
-            price: true,
-            salePrice: true,
-            stockQuantity: true,
-            status: true,
-            createdAt: true,
-            gstFee: true,
-            isGstEnabled: true,
-            category: {
-              id: true,
-              slug: true,
-              name: true,
-            },
-          }
-        : undefined,
-    });
+    if (filters.category) {
+      qb.andWhere("category.slug = :slug", { slug: filters.category });
+    }
+
+    qb.skip((page - 1) * limit)
+      .take(limit)
+      .orderBy("product.createdAt", "DESC");
+
+    const [data, total] = await qb.getManyAndCount();
 
     const plainObjects = instanceToPlain(data) as IProduct[];
+    const pagination: IPaginationMetadata = getPaginationMetadata(total, page, limit);
 
-    const pagination: IPaginationMetadata = getPaginationMetadata(
-      total,
-      page,
-      limit
-    );
-
-    return {
-      data: plainObjects,
-      pagination,
-    };
+    return { data: plainObjects, pagination };
   }
 
   async index(

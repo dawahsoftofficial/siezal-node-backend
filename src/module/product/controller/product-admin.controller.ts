@@ -50,6 +50,7 @@ export class AdminProductController {
             query.limit,
             {
                 q: query.q,
+                category: query.category
             },
             true
         );

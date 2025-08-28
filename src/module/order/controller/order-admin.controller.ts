@@ -1,4 +1,4 @@
-import { Body, Get, HttpCode, HttpStatus, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Delete, Get, HttpCode, HttpStatus, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { GenerateSwaggerDoc } from 'src/common/decorators/swagger-generate.decorator';
 import { SuccessResponseArrayDto, SuccessResponseSingleObjectDto } from 'src/common/dto/app.dto';
@@ -9,6 +9,7 @@ import { GetOrdersQueryDto, GetOrdersQueryDtoAdmin } from '../dto/order-list.dto
 import { AdminRouteController } from 'src/common/decorators/app.decorator';
 import { SuccessResponse } from 'src/common/utils/api-response.util';
 import { UpdateOrderDto } from '../dto/update-order.dto';
+import { EOrderStatus } from 'src/common/enums/order-status.enum';
 
 @ApiTags('Admin Orders Managment')
 @AdminRouteController('orders')
@@ -28,13 +29,14 @@ export class AdminOrderController {
     @HttpCode(HttpStatus.OK)
     @Get("/list")
     async getOrders(@Query() query: GetOrdersQueryDtoAdmin) {
-        const { data, pagination } = await this.orderService.list(query);
+        const { data, pagination, counts } = await this.orderService.list(query);
 
         return SuccessResponse(
             "Data fetch successfully",
             data,
             undefined,
-            pagination
+            pagination,
+            counts
         );
     }
 
@@ -67,9 +69,9 @@ export class AdminOrderController {
         ],
     })
     @HttpCode(HttpStatus.OK)
-    @Get('/delete/:id')
+    @Delete('/delete/:id')
     async cancelOrder(@Param() params: GetOrderParamDto) {
-        const response = await this.orderService.show(params.id);
+        const response = await this.orderService.update(params.id, { status: EOrderStatus.CANCELLED });
 
         return SuccessResponse("Data Found Successfully!", response);
     }

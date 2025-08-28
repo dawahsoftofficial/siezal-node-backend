@@ -31,7 +31,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     const where: FindOptionsWhere<Order>[] = [];
 
     const baseWhere: FindOptionsWhere<Order> = {};
-    
+
     if (query.status) baseWhere.status = query.status;
     if (query.userId) baseWhere.userId = query.userId;
 
@@ -45,10 +45,28 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       where.push(baseWhere);
     }
 
-    return this.paginate<IOrder>(page, limit, {
+    const data = await this.paginate<IOrder>(page, limit, {
       relations: ["items"],
       where,
+      order: { createdAt: "DESC" },
     });
+
+    const countsRaw = await this.orderRepository
+      .createQueryBuilder("order")
+      .select("order.status", "status")
+      .addSelect("COUNT(order.id)", "count")
+      .groupBy("order.status")
+      .getRawMany<{ status: string; count: string }>();
+
+    const counts: Record<string, number> = {};
+    for (const row of countsRaw) {
+      counts[row.status] = Number(row.count);
+    }
+
+    return {
+      ...data,
+      counts,
+    };
   }
 
   async listByUser(userId: number, query: GetOrdersQueryDto) {
@@ -119,8 +137,8 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
 
-    const updatedProduct = this.orderRepository.merge(order, body);
+    const updatedOrder = this.orderRepository.merge(order, body);
 
-    return await this.orderRepository.save(updatedProduct);
+    return await this.orderRepository.save(updatedOrder);
   }
 }

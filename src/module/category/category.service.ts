@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
-import { FindOptionsWhere, IsNull, Like, Not, Repository } from "typeorm";
+import { FindOptionsOrder, FindOptionsWhere, IsNull, Like, Not, Repository } from "typeorm";
 import { ICategory } from "./interface/category.interface";
 import { Category } from "src/database/entities/category.entity";
 import { CategoryListQueryDto, CategoryListQueryDtoAdmin } from "./dto/category-list-query.dto";
@@ -102,14 +102,14 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
   list = async () => {
     return this.findAll({
       where: { parentId: IsNull() },
-      select: ['id', 'name']
+      select: ['id', 'name', 'slug']
     });
   }
 
   listChilds = async () => {
     return this.findAll({
       where: { parentId: Not(IsNull()) },
-      select: ['id', 'name']
+      select: ['id', 'name', 'slug']
     });
   }
 
@@ -119,18 +119,30 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     });
   };
 
-  indexAdmin = async ({ page, limit, q }: CategoryListQueryDtoAdmin) => {
-    let where: FindOptionsWhere<Category>[] = []
+  indexAdmin = async ({ page, limit, q, sortBy, sortDirection }: CategoryListQueryDtoAdmin) => {
+    let where: FindOptionsWhere<Category>[] = [];
 
     if (q) {
       where = [
         { name: Like(`%${q}%`) },
         { slug: Like(`%${q}%`) },
-      ]
+      ];
     }
 
+    const sortField =
+      sortBy === 'time'
+        ? 'createdAt'
+        : sortBy === 'name'
+          ? 'name'
+          : 'isFeatured';
+
+    const sort: FindOptionsOrder<Category> = {
+      [sortField]: (sortDirection || (sortBy === 'time' ? 'DESC' : 'ASC')) as 'ASC' | 'DESC',
+    };
+
     return this.paginate<ICategory>(page, limit, {
-      where: where,
+      where,
+      order: sort,
     });
   };
 

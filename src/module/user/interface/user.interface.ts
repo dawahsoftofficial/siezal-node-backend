@@ -20,4 +20,6 @@ export interface IUser extends IEntityBase {
 
   otp?: string | null;
   otpExpiresAt?: Date | null;
+
+  isBanned: boolean
 }

@@ -254,12 +254,15 @@ export const ToBoolean = () =>
   }, { toClassOnly: true });
 
 export const generateOrderUID = (): string => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const digits = '0123456789';
+
   let result = '';
 
-  for (let i = 0; i < 9; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < 3; i++) {
+    result += letters.charAt(Math.floor(Math.random() * letters.length));
+    result += digits.charAt(Math.floor(Math.random() * digits.length));
   }
-  
+
   return `SZ-${result}`;
-}
+};

@@ -20,6 +20,9 @@ export class User extends BaseEntity implements IUser {
   @Column()
   password: string;
 
+  @Column({ name: 'is_banned', type: 'boolean', default: false })
+  isBanned: boolean;
+
   @Column({
     type: 'enum',
     enum: ERole,
@@ -36,7 +39,7 @@ export class User extends BaseEntity implements IUser {
   @Column({ name: 'google_id', nullable: true })
   googleId?: string;
 
-  @Column({ nullable: true,  type: 'varchar' })
+  @Column({ nullable: true, type: 'varchar' })
   otp?: string | null;
 
   @Column({ name: 'otp_expires_at', nullable: true, type: 'timestamp' })

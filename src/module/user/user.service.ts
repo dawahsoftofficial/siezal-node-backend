@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { FindOptionsWhere, Like, Repository } from "typeorm";
@@ -6,6 +6,7 @@ import { IUser } from "./interface/user.interface";
 import { User } from "src/database/entities/user.entity";
 import { ERole } from "src/common/enums/role.enum";
 import { instanceToPlain } from "class-transformer";
+import { UpdateUserDto } from "./dto/update-user.dto";
 
 @Injectable()
 export class UserService extends BaseSqlService<User, IUser> {
@@ -38,7 +39,7 @@ export class UserService extends BaseSqlService<User, IUser> {
 
     if (query) {
       const search = `%${query}%`;
-      
+
       where = [
         { firstName: Like(search) },
         { lastName: Like(search) },
@@ -49,6 +50,29 @@ export class UserService extends BaseSqlService<User, IUser> {
 
     return this.paginate<IUser>(page, limit, {
       where: where.length > 0 ? where : {},
+      order: { createdAt: 'DESC' }
     });
+  }
+
+  async show(id: number) {
+    const user = await this.userRepository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    return user;
+  }
+
+  async update(id: number, body: UpdateUserDto) {
+    const user = await this.userRepository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    const updatedUser = this.userRepository.merge(user, body);
+
+    return await this.userRepository.save(updatedUser);
   }
 }

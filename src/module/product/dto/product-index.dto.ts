@@ -11,6 +11,14 @@ export class GetProductsQueryDtoAdmin extends PaginationDto {
     @IsOptional()
     @IsString()
     q?: string;
+    
+    @ApiPropertyOptional({
+        description: 'Category Slug to filter with',
+        example: 'dairy',
+    })
+    @IsOptional()
+    @IsString()
+    category?: string;
 }
 
 export class GetProductsQueryDtoUser extends GetProductsQueryDtoAdmin {
