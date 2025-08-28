@@ -22,7 +22,7 @@ export class AuditLogService
       level: ELogLevel.INFO,
       hooks: {
         logMethod: async (inputArgs, method, level) => {
-          const [message, meta] = inputArgs;
+          const [message, meta = {} as any] = inputArgs;
           const type = meta?.type;
           const ElogLevel = meta?.ElogLevel;
           const exception = meta?.exception;
