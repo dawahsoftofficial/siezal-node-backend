@@ -2,14 +2,14 @@
  * Utility functions for common operations such as hashing, random generation, validation, and data transformation.
  * These helpers are used throughout the application for security, formatting, and data processing.
  */
-import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
-import * as haversineDistance from 'haversine-distance';
-import * as _ from 'lodash';
-import { ValidationError } from 'class-validator';
-import { ICordinate } from '../interfaces/app.interface';
-import { instanceToPlain, Transform } from 'class-transformer';
-import { ESettingType } from '../enums/setting-type.enum';
+import * as bcrypt from "bcrypt";
+import * as crypto from "crypto";
+import * as haversineDistance from "haversine-distance";
+import * as _ from "lodash";
+import { ValidationError } from "class-validator";
+import { ICordinate } from "../interfaces/app.interface";
+import { instanceToPlain, Transform } from "class-transformer";
+import { ESettingType } from "../enums/setting-type.enum";
 
 /**
  * Generates a random 5-digit integer between 10000 and 99999.
@@ -25,9 +25,9 @@ export const generateRandomInteger = (): number => {
  */
 export const generateRandomString = (length = 10): string => {
   const characters =
-    '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const charactersLength = characters.length;
-  let randomString = '';
+  let randomString = "";
   for (let i = 0; i < length; i++) {
     randomString += characters[Math.floor(Math.random() * charactersLength)];
   }
@@ -43,7 +43,7 @@ export const generateRandomString = (length = 10): string => {
  */
 export const hashBcrypt = async (
   password: string,
-  saltRounds: number = 12,
+  saltRounds: number = 12
 ): Promise<string> => {
   return await bcrypt.hash(password, saltRounds);
 };
@@ -56,7 +56,7 @@ export const hashBcrypt = async (
  */
 export const verifyPassword = async (
   password: string,
-  hashedPassword: string,
+  hashedPassword: string
 ): Promise<boolean> => {
   return await bcrypt.compare(password, hashedPassword);
 };
@@ -69,7 +69,7 @@ export const verifyPassword = async (
  */
 export const calculateDistance = (
   point1: ICordinate,
-  point2: ICordinate,
+  point2: ICordinate
 ): number => {
   const distanceInMeters = haversineDistance(point1, point2);
   return distanceInMeters / 1000; // Convert meters to kilometers
@@ -81,13 +81,13 @@ export const calculateDistance = (
  * @returns The data with sensitive fields removed or masked.
  */
 export const removeSensitiveData = (data: any): any => {
-  const field = ['accessToken', 'refreshToken', 'password', 'otp'];
+  const field = ["accessToken", "refreshToken", "password", "otp"];
   let plainData: any;
   if (Array.isArray(data)) {
-    plainData = data.map(item =>
-      typeof item === 'object' ? instanceToPlain(item) : item
+    plainData = data.map((item) =>
+      typeof item === "object" ? instanceToPlain(item) : item
     );
-  } else if (typeof data === 'object' && data !== null) {
+  } else if (typeof data === "object" && data !== null) {
     plainData = instanceToPlain(data);
   } else {
     plainData = data;
@@ -107,12 +107,12 @@ export const removeSensitiveData = (data: any): any => {
 export function filterSensitiveData(
   data: any, // Accept any input type (object, array, etc.)
   sensitiveFields: string[],
-  removeField = false,
+  removeField = false
 ): any {
   if (data === null || data === undefined) return data;
 
   const lowerCaseSensitiveFields = sensitiveFields.map((field) =>
-    field.toLowerCase(),
+    field.toLowerCase()
   );
 
   const clean = (value: any): any => {
@@ -120,17 +120,15 @@ export function filterSensitiveData(
       return value.map((item) => clean(item));
     }
 
-
     if (_.isPlainObject(value)) {
       const result: Record<string, any> = {};
 
       for (const [key, val] of Object.entries(value)) {
-
         if (!Object.prototype.hasOwnProperty.call(value, key)) continue;
 
         if (lowerCaseSensitiveFields.includes(key.toLowerCase())) {
           if (!removeField) {
-            result[key] = '****'; // Mask sensitive value
+            result[key] = "****"; // Mask sensitive value
           }
           // else: skip adding the key (i.e., remove it)
         } else {
@@ -144,8 +142,6 @@ export function filterSensitiveData(
     return value; // Return primitives as-is
   };
 
-
-
   return clean(_.cloneDeep(data));
 }
 
@@ -157,7 +153,7 @@ export function filterSensitiveData(
  */
 export const formatValidationErrors = (
   errors: ValidationError[],
-  parentPath = '',
+  parentPath = ""
 ): string[] => {
   const messages: string[] = [];
 
@@ -186,7 +182,7 @@ export const formatValidationErrors = (
  * @returns The resulting hash as a hex string.
  */
 export const hashString = (input: string) => {
-  return crypto.createHash('sha256').update(input).digest('hex');
+  return crypto.createHash("sha256").update(input).digest("hex");
 };
 
 /**
@@ -203,8 +199,8 @@ export const hashString = (input: string) => {
  * generateOtp(4);      // "1947"
  */
 export function generateOtp(length = 6): string {
-  const digits = '0123456789';
-  let otp = '';
+  const digits = "0123456789";
+  let otp = "";
   for (let i = 0; i < length; i++) {
     otp += digits[crypto.randomInt(0, 10)];
   }
@@ -222,7 +218,7 @@ export function parseSettingValue(value: string, type: ESettingType) {
     case ESettingType.NUMBER:
       return Number(value);
     case ESettingType.BOOLEAN:
-      return value === 'true';
+      return value === "true";
     case ESettingType.JSON:
       try {
         return JSON.parse(value);
@@ -247,17 +243,20 @@ function coerceBoolean(raw: unknown): boolean {
 }
 
 export const ToBoolean = () =>
-  Transform(({ value, obj, key }) => {
-    // Use the *raw* incoming value to bypass implicit conversion
-    const raw = obj?.[key as keyof typeof obj];
-    return coerceBoolean(raw ?? value);
-  }, { toClassOnly: true });
+  Transform(
+    ({ value, obj, key }) => {
+      // Use the *raw* incoming value to bypass implicit conversion
+      const raw = obj?.[key as keyof typeof obj];
+      return coerceBoolean(raw ?? value);
+    },
+    { toClassOnly: true }
+  );
 
 export const generateOrderUID = (): string => {
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const digits = '0123456789';
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const digits = "0123456789";
 
-  let result = '';
+  let result = "";
 
   for (let i = 0; i < 3; i++) {
     result += letters.charAt(Math.floor(Math.random() * letters.length));
@@ -266,3 +265,32 @@ export const generateOrderUID = (): string => {
 
   return `SZ-${result}`;
 };
+
+export const normalizePakistaniPhone = (phone: string): string | null => {
+  if (!phone) return null;
+
+  // remove spaces, dashes, etc.
+  let cleaned = phone.replace(/\D/g, "");
+
+  // if starts with 92 and length is 12 -> valid
+  if (cleaned.startsWith("92") && cleaned.length === 12) {
+    return "+" + cleaned;
+  }
+
+  // if starts with 0 -> replace with +92
+  if (cleaned.startsWith("0") && cleaned.length === 11) {
+    return "+92" + cleaned.slice(1);
+  }
+
+  // if missing 0 and length is 10 -> add +92
+  if (cleaned.length === 10) {
+    return "+92" + cleaned;
+  }
+
+  return null; // invalid format
+};
+
+export function generateOtpMessage(otp: string): string {
+  return `Your Siezal verification code is ${otp}. 
+Do not share this code with anyone.`;
+}
