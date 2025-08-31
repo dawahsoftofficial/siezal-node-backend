@@ -24,6 +24,8 @@ import { InventoryModule } from "./module/inventory/inventory.module";
 import { OrderModule } from "./module/order/order.module";
 import { SettingModule } from "./module/setting/setting.module";
 import { AwsModule } from "./shared/aws/aws.module";
+import { TwilioModule } from "./shared/twilio/twilio.module";
+import { TwilioService } from "./shared/twilio/twilio.service";
 
 @Module({
   imports: [
@@ -63,6 +65,7 @@ import { AwsModule } from "./shared/aws/aws.module";
     OrderModule,
     SettingModule,
     AwsModule,
+    TwilioModule,
   ],
   controllers: [AppController],
   providers: [

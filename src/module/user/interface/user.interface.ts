@@ -6,13 +6,13 @@ export interface IUser extends IEntityBase {
   lastName?: string;
 
   phone: string;
-  email?: string;
+  email?: string | null;
 
   password?: string;
   role?: ERole;
 
   verifiedAt?: Date;
-  
+
   refreshToken?: string | null;
   accessToken?: string;
 
@@ -21,5 +21,5 @@ export interface IUser extends IEntityBase {
   otp?: string | null;
   otpExpiresAt?: Date | null;
 
-  isBanned: boolean
+  isBanned: boolean;
 }

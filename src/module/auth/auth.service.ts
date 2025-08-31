@@ -13,9 +13,11 @@ import { UserService } from "../user/user.service";
 import { ERole } from "src/common/enums/role.enum";
 import {
   generateOtp,
+  generateOtpMessage,
   generateRandomString,
   hashBcrypt,
   hashString,
+  normalizePakistaniPhone,
   removeSensitiveData,
   verifyPassword,
 } from "src/common/utils/app.util";
@@ -34,6 +36,7 @@ import { ResendOtpDto } from "./dto/resend-otp.dto";
 import { UpdateUserDto } from "../user/dto/update-user.dto";
 import { PhoneDto } from "./dto/phone-dto";
 import { ChangePasswordDto } from "../user/dto/change-password.dto";
+import { TwilioService } from "src/shared/twilio/twilio.service";
 
 @Injectable()
 export class AuthService {
@@ -43,7 +46,8 @@ export class AuthService {
     // private readonly firebaseService: FirebaseService,
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
-    private readonly aesHelper: AesHelper
+    private readonly aesHelper: AesHelper,
+    private readonly twilioService: TwilioService
   ) {}
 
   exists = async ({ phone }: PhoneDto) => {
@@ -60,11 +64,14 @@ export class AuthService {
     }
 
     const hashedPassword = await hashBcrypt(dto.password);
-    const otp = "123456"; // generateOtp();
+
+    const otp = generateOtp();
+    const otpMessage = generateOtpMessage(otp);
+    const phoneNumber = normalizePakistaniPhone(dto.phone);
+    const sendOtp = await this.twilioService.sendSms(phoneNumber!, otpMessage);
     const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
 
-    const sent = true; // await sendOtp(dto.phone, otp);
-    if (!sent) {
+    if (!sendOtp) {
       throw new HttpException(
         "Failed to send OTP",
         HttpStatus.SERVICE_UNAVAILABLE
@@ -140,7 +147,10 @@ export class AuthService {
       throw new HttpException("User not found", HttpStatus.NOT_FOUND);
     }
 
-    const otp = "123456"; // generateOtp();
+    const otp = generateOtp();
+    const otpMessage = generateOtpMessage(otp);
+    const phoneNumber = normalizePakistaniPhone(dto.phone);
+    const sendOtp = await this.twilioService.sendSms(phoneNumber!, otpMessage);
     const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
 
     const sent = true; // await this.firebaseService.sendOtp(dto.phone, otp);
@@ -172,12 +182,13 @@ export class AuthService {
       throw new HttpException("User not found", HttpStatus.NOT_FOUND);
     }
 
-    const otp = "123456"; // generateOtp();
+    const otp = generateOtp();
+    const otpMessage = generateOtpMessage(otp);
+    const phoneNumber = normalizePakistaniPhone(dto.phone);
+    const sendOtp = await this.twilioService.sendSms(phoneNumber!, otpMessage);
     const expiresAt = addMinuteToNow(5);
 
-    const sent = true; // await this.firebaseService.sendOtp(dto.phone, otp);
-
-    if (!sent) {
+    if (!sendOtp) {
       throw new HttpException(
         "Failed to send OTP",
         HttpStatus.SERVICE_UNAVAILABLE
