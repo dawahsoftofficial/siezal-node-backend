@@ -69,7 +69,6 @@ export class AppController {
     )
     profileImage: Express.Multer.File
   ) {
-    console.log(profileImage);
     const data = await this.appService.uploadImageExample(profileImage!);
     return SuccessResponse("image", data);
   }

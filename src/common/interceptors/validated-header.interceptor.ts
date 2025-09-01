@@ -76,7 +76,6 @@ export class ValidatedHeadersInterceptor implements NestInterceptor {
       return GuestHeaderDto;
     }
 
-    console.log("Authenticated headers interceptor");
     return AuthenticatedHeaderDto;
   }
 

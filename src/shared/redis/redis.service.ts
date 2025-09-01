@@ -20,7 +20,7 @@ export class RedisService {
     ttl = 3600000
   ): Promise<void> {
     const key = `${ERedisKey.USER_ACCESS}:${value.role}:${value.id}:${sessionId}`;
-    console.log(`Setting user data for key: ${key} with TTL: ${ttl}`, value);
+    console.log(`Setting user data for key: ${key} with TTL: ${ttl}`);
     await this.mainCache.set(key, value, ttl);
   }
 
