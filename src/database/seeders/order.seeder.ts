@@ -24,8 +24,8 @@ export default class OrderSeeder {
         ];
 
         const statuses = [
-            EOrderStatus.PENDING,
-            EOrderStatus.PROCESSING,
+            EOrderStatus.IN_REVIEW,
+            EOrderStatus.PREPARING,
             EOrderStatus.SHIPPED,
             EOrderStatus.DELIVERED,
             EOrderStatus.CANCELLED,

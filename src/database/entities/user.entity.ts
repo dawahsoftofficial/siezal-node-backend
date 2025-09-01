@@ -1,7 +1,9 @@
 import { ERole } from "src/common/enums/role.enum";
 import { BaseEntity } from "src/core/base/entity/entity.base";
 import { IUser } from "src/module/user/interface/user.interface";
-import { Entity, Column } from "typeorm";
+import { Entity, Column, OneToMany } from "typeorm";
+import { UserSession } from "./user-session.entity";
+import { IUserSession } from "src/module/user-session/interface/user-session.interface";
 
 @Entity({ name: "users" })
 export class User extends BaseEntity implements IUser {
@@ -33,9 +35,6 @@ export class User extends BaseEntity implements IUser {
   @Column({ name: "verified_at", nullable: true, type: "timestamp" })
   verifiedAt?: Date;
 
-  @Column({ name: "refresh_token", nullable: true, type: "text" })
-  refreshToken?: string | null;
-
   @Column({ name: "google_id", nullable: true })
   googleId?: string;
 
@@ -44,4 +43,9 @@ export class User extends BaseEntity implements IUser {
 
   @Column({ name: "otp_expires_at", nullable: true, type: "timestamp" })
   otpExpiresAt?: Date | null;
+
+  @OneToMany(() => UserSession, (data) => data.user, {
+    cascade: true,
+  })
+  sessions?: Partial<IUserSession[]> | null;
 }

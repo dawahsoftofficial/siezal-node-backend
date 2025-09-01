@@ -15,6 +15,7 @@ import {
   generateOtp,
   generateOtpMessage,
   generateRandomString,
+  generateSessionId,
   hashBcrypt,
   hashString,
   normalizePakistaniPhone,
@@ -37,6 +38,7 @@ import { UpdateUserDto } from "../user/dto/update-user.dto";
 import { PhoneDto } from "./dto/phone-dto";
 import { ChangePasswordDto } from "../user/dto/change-password.dto";
 import { TwilioService } from "src/shared/twilio/twilio.service";
+import { UserSessionService } from "../user-session/user-session.service";
 
 @Injectable()
 export class AuthService {
@@ -47,7 +49,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
     private readonly aesHelper: AesHelper,
-    private readonly twilioService: TwilioService
+    private readonly twilioService: TwilioService,
+    private readonly userSessionService: UserSessionService
   ) {}
 
   exists = async ({ phone }: PhoneDto) => {
@@ -114,13 +117,23 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
-    const { accessToken, encryptRefreshToken } =
-      await this.generateUserJwtTokens(user);
+    const {
+      accessToken,
+      encryptRefreshToken: refreshToken,
+      sessionId,
+      expiresAt,
+    } = await this.generateUserJwtTokens(user);
 
-    const refreshToken = encryptRefreshToken;
     await Promise.all([
-      this.redisService.setUserData({ ...user, accessToken }), // Store user data in Redis with TTL
-      await this.userService.updateById(user.id!, {
+      this.redisService.setUserData(sessionId, {
+        ...user,
+        accessToken,
+        refreshToken,
+      }), // Store user data in Redis with TTL
+      await this.userSessionService.create({
+        sessionId,
+        userId: user.id!,
+        expiresAt,
         refreshToken,
       }),
     ]);
@@ -242,16 +255,31 @@ export class AuthService {
         token: { resetPasswordToken: randomString },
       };
     } else {
-      const { accessToken, encryptRefreshToken } =
-        await this.generateUserJwtTokens(user);
-      await this.redisService.setUserData({ ...user, accessToken });
-      dataToUpdate.refreshToken = encryptRefreshToken;
+      const {
+        accessToken,
+        encryptRefreshToken: refreshToken,
+        sessionId,
+        expiresAt,
+      } = await this.generateUserJwtTokens(user);
+      await Promise.all([
+        this.redisService.setUserData(sessionId, {
+          ...user,
+          accessToken,
+          refreshToken,
+        }),
+        this.userSessionService.create({
+          sessionId,
+          userId: user.id!,
+          expiresAt,
+          refreshToken,
+        }),
+      ]);
       const userData = removeSensitiveData(user) as IUser;
       response = {
         ...userData,
         token: {
           accessToken,
-          refreshToken: encryptRefreshToken,
+          refreshToken,
         },
       };
     }
@@ -292,6 +320,7 @@ export class AuthService {
   accessToken = async (
     encryptRefreshToken: string
   ): Promise<{ accessToken: string; refreshToken?: string }> => {
+    this.logger.log("access token route running Decrypting refresh token");
     const decryptedRefreshToken =
       this.aesHelper.decryptData(encryptRefreshToken);
     const result = await this.jwtService.verifyRefreshToken(
@@ -300,19 +329,33 @@ export class AuthService {
     if (!result) {
       throw new UnauthorizedException("Invalid Token");
     }
-    const { id: userId, role } = result;
-    let userUpdatedData = await this.redisService.getUserData(role, userId!);
+    const { id: userId, role, sessionId } = result;
+    let userUpdatedData = await this.redisService.getUserData(
+      sessionId,
+      role,
+      userId!
+    );
     const cacheRefreshToken = userUpdatedData?.refreshToken;
 
     if (!userUpdatedData || cacheRefreshToken !== encryptRefreshToken) {
-      userUpdatedData =
-        await this.userService.findByRefreshToken(encryptRefreshToken);
+      const sessionData =
+        await this.userSessionService.findBySessionIdAndRefreshToken(
+          sessionId,
+          encryptRefreshToken
+        );
+      if (!sessionData) {
+        throw new UnauthorizedException("Token Not found");
+      }
+      userUpdatedData = sessionData?.user;
     }
 
     if (!userUpdatedData) {
-      throw new UnauthorizedException("Token Not found");
+      throw new UnauthorizedException("User Data Not found");
     }
-    const accessToken = this.jwtService.generateAccessToken(userUpdatedData);
+    const accessToken = this.jwtService.generateAccessToken(
+      sessionId,
+      userUpdatedData
+    );
     const decoded = this.jwtService.decodeToken(accessToken);
 
     const response: {
@@ -324,7 +367,7 @@ export class AuthService {
       expiry: decoded?.exp! * 1000,
     };
 
-    await this.redisService.setUserData({
+    await this.redisService.setUserData(sessionId, {
       ...userUpdatedData,
       refreshToken: encryptRefreshToken,
       accessToken,
@@ -373,15 +416,17 @@ export class AuthService {
     });
   };
 
-  logout = async (role: ERole, userId: number): Promise<void> => {
-    const user = await this.userService.updateById(userId, {
-      refreshToken: null,
-    });
+  logout = async (
+    sessionId: string,
+    role: ERole,
+    userId: number
+  ): Promise<void> => {
+    const user = await this.userSessionService.deleteSession(sessionId, userId);
     if (!user) {
-      throw new NotFoundException("User not found");
+      throw new NotFoundException("User Session not found");
     }
     // Clear user data from Redis
-    await this.redisService.deleteUserData(role!, userId);
+    await this.redisService.deleteUserData(sessionId, role!, userId);
   };
 
   private generateUserJwtTokens = async (
@@ -389,13 +434,17 @@ export class AuthService {
   ): Promise<{
     accessToken: string;
     encryptRefreshToken: string;
+    sessionId: string;
+    expiresAt: Date;
   }> => {
     // ✅ Generate Tokens
-    const accessToken = this.jwtService.generateAccessToken(user);
-    const refreshToken = this.jwtService.generateRefreshToken(user);
+    const sessionId = generateSessionId();
+    const accessToken = this.jwtService.generateAccessToken(sessionId, user);
+    const { token: refreshToken, expiresAt } =
+      this.jwtService.generateRefreshToken(sessionId, user);
 
     const encryptRefreshToken = this.aesHelper.encryptData(refreshToken);
 
-    return { accessToken, encryptRefreshToken };
+    return { accessToken, encryptRefreshToken, sessionId, expiresAt };
   };
 }

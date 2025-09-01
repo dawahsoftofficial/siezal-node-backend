@@ -1,5 +1,6 @@
 import { ERole } from "src/common/enums/role.enum";
 import { IEntityBase } from "src/core/base/entity/interface/entity-interface.base";
+import { IUserSession } from "src/module/user-session/interface/user-session.interface";
 
 export interface IUser extends IEntityBase {
   firstName: string;
@@ -13,13 +14,11 @@ export interface IUser extends IEntityBase {
 
   verifiedAt?: Date;
 
-  refreshToken?: string | null;
-  accessToken?: string;
-
   googleId?: string;
 
   otp?: string | null;
   otpExpiresAt?: Date | null;
 
   isBanned: boolean;
+  sessions?: Partial<IUserSession[]> | null;
 }

@@ -114,8 +114,8 @@ export class GuardHelper {
     if (!decoded) {
       throw new UnauthorizedException("Invalid or expired token");
     }
-
-    const data = await this.redisService.getUserData(decoded.role, decoded.id);
+    const { role, id, sessionId } = decoded;
+    const data = await this.redisService.getUserData(sessionId, role, id);
     if (!data || data?.accessToken !== token) {
       throw new UnauthorizedException("Session expired or invalid token");
     }

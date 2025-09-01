@@ -1,13 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
   JwtService as DefaultJwtService,
   TokenExpiredError,
-} from '@nestjs/jwt';
-import { ERole } from 'src/common/enums/role.enum';
-import { IAuthRequest, IJwtResponse } from 'src/common/interfaces/app.interface';
-import { IUser } from 'src/module/user/interface/user.interface';
-
+} from "@nestjs/jwt";
+import { ERole } from "src/common/enums/role.enum";
+import {
+  IAuthRequest,
+  IJwtResponse,
+} from "src/common/interfaces/app.interface";
+import { calculateExpiry } from "src/common/utils/date.util";
+import { IUser } from "src/module/user/interface/user.interface";
 
 @Injectable()
 export class JwtService {
@@ -15,43 +18,53 @@ export class JwtService {
 
   constructor(
     private readonly defaultJwtService: DefaultJwtService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService
   ) {}
 
-  generateAccessToken(user: Partial<IUser>): string {
-    const payload :IAuthRequest= {
+  generateAccessToken(sessionId: string, user: Partial<IUser>): string {
+    const payload: IAuthRequest = {
       id: user.id!,
       email: user?.email,
-          phone:user.phone!,
+      phone: user.phone!,
       role: user.role || ERole.USER,
+      sessionId,
     };
     const expiresIn = this.configService.getOrThrow(
-      'JWT_ACCESS_SECRET_EXPIRES_IN',
+      "JWT_ACCESS_SECRET_EXPIRES_IN"
     );
     return this.defaultJwtService.sign(
       { ...payload },
       {
-        secret: this.configService.get('JWT_ACCESS_SECRET'),
+        secret: this.configService.get("JWT_ACCESS_SECRET"),
         expiresIn: expiresIn,
-      },
+      }
     );
   }
 
-  generateRefreshToken(user: Partial<IUser>): string {
-    const payload :IAuthRequest= {
+  generateRefreshToken(
+    sessionId: string,
+    user: Partial<IUser>
+  ): {
+    token: string;
+    expiresAt: Date;
+  } {
+    const payload: IAuthRequest = {
       id: user.id!,
       email: user?.email,
-      phone:user.phone!,
+      phone: user.phone!,
       role: user.role || ERole.USER,
+      sessionId,
     };
     const expiresIn = this.configService.getOrThrow(
-      'JWT_REFRESH_SECRET_EXPIRES_IN',
+      "JWT_REFRESH_SECRET_EXPIRES_IN"
     );
 
-    return this.defaultJwtService.sign(
+    const expiresAt = calculateExpiry(expiresIn);
+    const token = this.defaultJwtService.sign(
       { ...payload },
-      { secret: this.configService.get('JWT_REFRESH_SECRET'), expiresIn },
+      { secret: this.configService.get("JWT_REFRESH_SECRET"), expiresIn }
     );
+    return { token, expiresAt };
   }
 
   async verifyRefreshTokenExpiry(refreshToken: string): Promise<{
@@ -63,15 +76,15 @@ export class JwtService {
       const decoded = this.defaultJwtService.verify<IJwtResponse>(
         refreshToken,
         {
-          secret: this.configService.get('JWT_REFRESH_SECRET'),
-        },
+          secret: this.configService.get("JWT_REFRESH_SECRET"),
+        }
       );
 
       const { iat, exp, ...rest } = decoded;
       return { expiry: false, error: false, user: rest }; // ✅ Token is valid
     } catch (error) {
       if (error instanceof TokenExpiredError) {
-        this.logger.warn('⚠️ Token Expired. Attempting to Decode...');
+        this.logger.warn("⚠️ Token Expired. Attempting to Decode...");
         return this.decodeExpiredToken(refreshToken);
       }
       return { expiry: false, error: true }; // ❌ Invalid token
@@ -81,7 +94,7 @@ export class JwtService {
   async verifyAccessToken(accessToken: string): Promise<null | IAuthRequest> {
     try {
       const decoded = this.defaultJwtService.verify<IJwtResponse>(accessToken, {
-        secret: this.configService.get('JWT_ACCESS_SECRET'),
+        secret: this.configService.get("JWT_ACCESS_SECRET"),
       });
       const { iat, exp, ...rest } = decoded;
       return rest;
@@ -123,8 +136,8 @@ export class JwtService {
       const decoded = this.defaultJwtService.verify<IJwtResponse>(
         refreshToken,
         {
-          secret: this.configService.get('JWT_REFRESH_SECRET'),
-        },
+          secret: this.configService.get("JWT_REFRESH_SECRET"),
+        }
       );
       const { iat, exp, ...rest } = decoded;
       return rest;
@@ -132,5 +145,4 @@ export class JwtService {
       return null;
     }
   }
-
 }

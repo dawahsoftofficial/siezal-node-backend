@@ -28,12 +28,6 @@ export class UserService extends BaseSqlService<User, IUser> {
     ) as IUser | null;
   }
 
-  async findByRefreshToken(refreshToken: string) {
-    return (await this.userRepository.findOne({
-      where: { refreshToken },
-    })) as IUser;
-  };
-
   async list(page: number, limit: number, query?: string) {
     let where: FindOptionsWhere<User>[] = [];
 
@@ -44,13 +38,13 @@ export class UserService extends BaseSqlService<User, IUser> {
         { firstName: Like(search) },
         { lastName: Like(search) },
         { email: Like(search) },
-        { phone: Like(search) }
+        { phone: Like(search) },
       ];
     }
 
     return this.paginate<IUser>(page, limit, {
       where: where.length > 0 ? where : {},
-      order: { createdAt: 'DESC' }
+      order: { createdAt: "DESC" },
     });
   }
 
