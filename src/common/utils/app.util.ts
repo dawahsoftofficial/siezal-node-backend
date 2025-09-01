@@ -4,6 +4,7 @@
  */
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
 import * as haversineDistance from "haversine-distance";
 import * as _ from "lodash";
 import { ValidationError } from "class-validator";
@@ -294,3 +295,7 @@ export function generateOtpMessage(otp: string): string {
   return `Your Siezal verification code is ${otp}. 
 Do not share this code with anyone.`;
 }
+
+export const generateSessionId = () => {
+  return uuidv4();
+};

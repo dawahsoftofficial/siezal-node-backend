@@ -277,8 +277,8 @@ export class AuthController {
   })
   @HttpCode(200)
   @Post("logout")
-  async logout(@AuthUser() { id, role }: IAuthRequest) {
-    await this.authService.logout(role, id);
+  async logout(@AuthUser() { id, role, sessionId }: IAuthRequest) {
+    await this.authService.logout(sessionId, role, id);
     return SuccessResponse("Logged out successfully");
   }
 }

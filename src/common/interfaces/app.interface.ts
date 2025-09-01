@@ -7,6 +7,7 @@ import { ERole } from "../enums/role.enum";
 
 // Represents the authenticated user attached to a request (e.g., after JWT validation)
 export type IAuthRequest = {
+  sessionId: string;
   id: number;
   phone: string;
   email?: string | null;
