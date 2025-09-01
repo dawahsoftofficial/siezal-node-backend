@@ -1,9 +1,13 @@
 export enum EOrderStatus {
+    // ongoing statuses
     NEW = 'new',
-    REFUNDED = 'refunded',
-    PENDING = 'pending',
-    PROCESSING = 'processing',
+    IN_REVIEW = 'in_review',
+    PREPARING = 'preparing',
     SHIPPED = 'shipped',
+
+    // completed statuses
     DELIVERED = 'delivered',
+    COMPLETED = 'completed',
     CANCELLED = 'cancelled',
+    REFUNDED = 'refunded',
 }

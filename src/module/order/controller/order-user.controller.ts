@@ -63,7 +63,7 @@ export class UserOrderController {
   @Get(":id")
   async getOrder(@Param() params: GetOrderParamDto) {
     const response = await this.orderService.show(params.id);
-    return SuccessResponse("order Data fetched", response);
+    return SuccessResponse("Order Data fetched", response);
   }
 
   @GenerateSwaggerDoc({

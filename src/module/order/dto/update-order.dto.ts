@@ -49,7 +49,7 @@ export class UpdateOrderDto {
   @ApiProperty({
     description: "New status for the order",
     enum: EOrderStatus,
-    example: EOrderStatus.PENDING,
+    example: EOrderStatus.IN_REVIEW,
   })
   @IsEnum(EOrderStatus, { message: "Status must be a valid order status" })
   @IsOptional()

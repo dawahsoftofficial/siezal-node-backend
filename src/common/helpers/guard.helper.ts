@@ -30,7 +30,7 @@ export class GuardHelper {
     private readonly redisService: RedisService,
 
     private readonly aesHelper: AesHelper
-  ) {}
+  ) { }
 
   /**
    * validatePublicAuth

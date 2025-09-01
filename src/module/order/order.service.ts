@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/database/entities/order.entity";
-import { FindOptionsWhere, Like, Repository } from "typeorm";
+import { FindOptionsWhere, In, Like, Repository } from "typeorm";
 import {
   GetOrdersQueryDto,
   GetOrdersQueryDtoAdmin,
@@ -32,7 +32,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
     const baseWhere: FindOptionsWhere<Order> = {};
 
-    if (query.status) baseWhere.status = query.status;
+    if (query.status) baseWhere.status = query.status as EOrderStatus;
     if (query.userId) baseWhere.userId = query.userId;
 
     if (query.q) {
@@ -73,7 +73,25 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     const { page, limit } = query;
     const where: FindOptionsWhere<Order> = { userId: userId };
 
-    if (query.status) where.status = query.status;
+    if (query.status) {
+      if (query.status === 'ongoing') {
+        where.status = In([
+          EOrderStatus.NEW,
+          EOrderStatus.IN_REVIEW,
+          EOrderStatus.PREPARING,
+          EOrderStatus.SHIPPED
+        ]);
+      } else if (query.status === 'done') {
+        where.status = In([
+          EOrderStatus.DELIVERED,
+          EOrderStatus.COMPLETED,
+          EOrderStatus.CANCELLED,
+          EOrderStatus.REFUNDED
+        ]);
+      } else {
+        where.status = query.status as EOrderStatus;
+      }
+    }
 
     return this.paginate<IOrder>(page, limit, {
       relations: ["items"],

@@ -65,6 +65,10 @@ export class CreateOrderDto {
   @IsString()
   shippingPostalCode: string;
 
+  @ApiProperty({ example: "31.5204,74.3587", description: "Shipping long/lat coordinates" })
+  @IsString()
+  longLat: string;
+
   @ApiProperty({ example: 100, description: "GST amount" })
   @IsNumber()
   gstAmount: number;

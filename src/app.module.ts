@@ -23,6 +23,7 @@ import { CategoryModule } from "./module/category/category.module";
 import { InventoryModule } from "./module/inventory/inventory.module";
 import { OrderModule } from "./module/order/order.module";
 import { SettingModule } from "./module/setting/setting.module";
+import { DashboardModule } from "./module/dashboard/dashboard.module";
 import { AwsModule } from "./shared/aws/aws.module";
 import { TwilioModule } from "./shared/twilio/twilio.module";
 import { TwilioService } from "./shared/twilio/twilio.service";
@@ -64,6 +65,7 @@ import { TwilioService } from "./shared/twilio/twilio.service";
     InventoryModule,
     OrderModule,
     SettingModule,
+    DashboardModule,
     AwsModule,
     TwilioModule,
   ],
@@ -92,4 +94,4 @@ import { TwilioService } from "./shared/twilio/twilio.service";
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
