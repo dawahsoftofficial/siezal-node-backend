@@ -39,6 +39,7 @@ import { PhoneDto } from "./dto/phone-dto";
 import { ChangePasswordDto } from "../user/dto/change-password.dto";
 import { TwilioService } from "src/shared/twilio/twilio.service";
 import { UserSessionService } from "../user-session/user-session.service";
+import { FcmTokenService } from "../fcm-token/fcm-token.service";
 
 @Injectable()
 export class AuthService {
@@ -50,7 +51,8 @@ export class AuthService {
     private readonly redisService: RedisService,
     private readonly aesHelper: AesHelper,
     private readonly twilioService: TwilioService,
-    private readonly userSessionService: UserSessionService
+    private readonly userSessionService: UserSessionService,
+    private readonly fcmTokenService: FcmTokenService
   ) {}
 
   exists = async ({ phone }: PhoneDto) => {
@@ -425,8 +427,10 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException("User Session not found");
     }
-    // Clear user data from Redis
-    await this.redisService.deleteUserData(sessionId, role!, userId);
+    await Promise.all([
+      this.fcmTokenService.deleteToken(sessionId),
+      this.redisService.deleteUserData(sessionId, role!, userId),
+    ]);
   };
 
   private generateUserJwtTokens = async (

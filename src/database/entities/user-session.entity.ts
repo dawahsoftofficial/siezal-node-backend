@@ -6,10 +6,12 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
 import { User } from "./user.entity";
+import { FcmToken } from "./fcm-token.entity";
 
 @Entity("user_sessions")
 export class UserSession implements IUserSession {
@@ -40,4 +42,9 @@ export class UserSession implements IUserSession {
 
   @Column({ type: "datetime", name: "expires_at" })
   expiresAt: Date;
+
+  @OneToOne(() => FcmToken, (data) => data.userSession, {
+    cascade: true,
+  })
+  fcmToken?: Partial<FcmToken> | null;
 }
