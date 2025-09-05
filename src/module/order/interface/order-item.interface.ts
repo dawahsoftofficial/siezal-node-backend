@@ -1,4 +1,6 @@
+import { EOrderReplacementStatus } from "src/common/enums/replacement-status.enum";
 import { IEntityBase } from "src/core/base/entity/interface/entity-interface.base";
+import { IProduct } from "src/module/product/interface/product.interface";
 
 export interface IOrderItem extends IEntityBase {
   orderId: number;
@@ -13,4 +15,6 @@ export interface IOrderItem extends IEntityBase {
     discountedPrice?: number;
     gstFee?: number;
   };
+  replacementStatus: EOrderReplacementStatus | null;
+  suggestedProducts: IProduct[] | null;
 }

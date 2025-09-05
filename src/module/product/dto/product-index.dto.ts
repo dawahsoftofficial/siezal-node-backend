@@ -19,6 +19,15 @@ export class GetProductsQueryDtoAdmin extends PaginationDto {
     @IsOptional()
     @IsString()
     category?: string;
+
+    @ApiPropertyOptional({
+        description: 'Max price to filter with',
+        example: 1000,
+    })
+    @IsOptional()
+    @IsInt()
+    @IsPositive()
+    price?: number;
 }
 
 export class GetProductsQueryDtoUser extends GetProductsQueryDtoAdmin {

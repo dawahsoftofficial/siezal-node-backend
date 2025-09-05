@@ -16,6 +16,7 @@ export interface IOrder extends IEntityBase {
   shippingState?: string;
   shippingCountry: string;
   shippingPostalCode: string;
+  longLat?: string;
 
   gstAmount: number;
   shippingAmount: number;

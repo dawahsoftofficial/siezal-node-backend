@@ -39,8 +39,8 @@ export class Order extends BaseEntity implements IOrder {
   @Column({ name: 'shipping_postal_code', type: 'varchar', length: 20 })
   shippingPostalCode: string;
 
-  @Column({ name: 'long_lat', type: 'varchar', length: 100 })
-  longLat: string;
+  @Column({ name: 'long_lat', type: 'varchar', length: 100, nullable: true })
+  longLat?: string;
 
   @Column({ name: 'gst_amount', type: 'decimal', precision: 10, scale: 2 })
   gstAmount: number;
@@ -70,4 +70,7 @@ export class Order extends BaseEntity implements IOrder {
 
   @OneToMany(() => OrderItem, item => item.order, { cascade: true })
   items: OrderItem[];
+
+  @Column({ type: 'json', nullable: true })
+  history?: any[];
 }

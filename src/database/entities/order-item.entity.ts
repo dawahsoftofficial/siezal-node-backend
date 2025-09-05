@@ -2,6 +2,8 @@ import { Column, Entity, ManyToOne, JoinColumn } from "typeorm";
 import { BaseEntity } from "src/core/base/entity/entity.base";
 import { IOrderItem } from "src/module/order/interface/order-item.interface";
 import { Order } from "./order.entity";
+import { IProduct } from "src/module/product/interface/product.interface";
+import { EOrderReplacementStatus } from "src/common/enums/replacement-status.enum";
 
 @Entity({ name: "order_items" })
 export class OrderItem extends BaseEntity implements IOrderItem {
@@ -37,5 +39,12 @@ export class OrderItem extends BaseEntity implements IOrderItem {
     price: number;
     discountedPrice?: number;
     gstFee?: number;
+    category: string;
   };
+
+  @Column({ name: "replacement_status", type: "enum", enum: EOrderReplacementStatus, default: null, nullable: true })
+  replacementStatus: EOrderReplacementStatus | null;
+
+  @Column({ name: "suggested_products", type: "json", default: null, nullable: true })
+  suggestedProducts: IProduct[] | null;
 }
