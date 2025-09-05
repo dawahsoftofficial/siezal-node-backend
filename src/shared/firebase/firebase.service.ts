@@ -1,69 +1,110 @@
-import * as admin from 'firebase-admin';
+import * as admin from "firebase-admin";
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { IFcmPayload, IFcmResult } from "./interface/firebase.interface";
 import {
-  Injectable,
-  Logger,
-  OnModuleInit,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-
+  MulticastMessage,
+  TokenMessage,
+} from "firebase-admin/lib/messaging/messaging-api";
 
 @Injectable()
 export class FirebaseService implements OnModuleInit {
   private readonly logger = new Logger(FirebaseService.name);
   private database: admin.database.Database;
 
-  constructor(private configService: ConfigService) { }
+  constructor(private configService: ConfigService) {}
 
   async onModuleInit() {
     try {
-      const serviceAccount = this.configService.get<admin.ServiceAccount>(
-        'FIREBASE_CREDENTIALS',
-      )!;
+      const serviceAccount =
+        this.configService.getOrThrow<admin.ServiceAccount>(
+          "FIREBASE_CREDENTIALS"
+        )!;
 
       if (!admin.apps.length) {
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
-          databaseURL: this.configService.get<string>('FIREBASE_DATABASE_URL'),
+          databaseURL: this.configService.get<string>("FIREBASE_DATABASE_URL"),
         });
-        this.logger.log('Firebase initialized successfully.');
+        this.logger.log("Firebase initialized successfully.");
       } else {
-        this.logger.log('Firebase app already initialized.');
+        this.logger.log("Firebase app already initialized.");
       }
 
       this.database = admin.database();
 
       if (this.database) {
-        this.logger.log('Connected to Firebase Realtime Database.');
+        this.logger.log("Connected to Firebase Realtime Database.");
       } else {
-        this.logger.error('Failed to connect to Firebase Realtime Database.');
+        this.logger.error("Failed to connect to Firebase Realtime Database.");
       }
     } catch (error) {
-      this.logger.error('Error initializing Firebase:', error);
+      this.logger.error("Error initializing Firebase:", error);
     }
   }
-
   /**
-   * Store OTP in Firebase Realtime Database
+   * Send an FCM notification to one or many device tokens.
+   * Returns BatchResponse + array of failed tokens
    */
-  async sendOtp(phone: string, otp: string): Promise<boolean> {
+  async sendNotification(
+    tokens: string | string[],
+    payload: IFcmPayload
+  ): Promise<IFcmResult | null> {
     try {
-      const otpData = {
-        code: otp,
-        createdAt: admin.database.ServerValue.TIMESTAMP,
-        expiresAt: Date.now() + 5 * 60 * 1000, // 5 min expiry
+      const tokenList = Array.isArray(tokens) ? tokens : [tokens];
+      if (!tokenList.length) {
+        this.logger.warn("No FCM tokens provided.");
+        return null;
+      }
+
+      const message: MulticastMessage = {
+        tokens: tokenList,
+        notification: {
+          title: payload.title,
+          body: payload.body,
+          imageUrl: payload.imageUrl,
+        },
+
+        data: payload.data ?? {},
+        android: {
+          notification: {
+            clickAction: payload.clickAction,
+            sound: payload.sound ?? "default", // 🔊 Android sound
+            icon: payload.icon ?? "ic_launcher",
+            priority: "high",
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              category: payload.clickAction,
+              sound: payload.sound ?? "default", // 🔊 Android sound
+              icon: payload.icon ?? "ic_launcher",
+            },
+          },
+        },
       };
 
-      await this.database.ref(`otps/${phone}`).set(otpData);
+      const response = await admin.messaging().sendEachForMulticast(message);
+      const failedTokens: string[] = [];
 
-      this.logger.log(`OTP stored for ${phone}`);
+      response.responses.forEach((res, idx) => {
+        if (!res.success) {
+          failedTokens.push(tokenList[idx]);
+          this.logger.warn(
+            `Notification failed for token[${idx}]: ${JSON.stringify(res.error?.message)}`
+          );
+        }
+      });
 
-      // Here you can also call a Cloud Function to actually send the SMS
-      // await axios.post(process.env.FIREBASE_CLOUD_FUNCTION_URL, { phone, otp });
+      this.logger.log(
+        `Sent notification to ${tokenList.length} device(s). Success: ${response.successCount}, Failure: ${response.failureCount}`
+      );
 
-      return true;
+      return { response, failedTokens };
     } catch (error) {
-      this.logger.error(`Failed to store OTP for ${phone}:`, error);
-      throw error;
+      this.logger.error("Error sending notification:", error);
+      return null;
     }
   }
 }

@@ -46,7 +46,6 @@ export class ProductController {
   @Get()
   @UseGuards(GuestAuthGuard)
   async getProducts(@Query() query: GetProductsQueryDtoUser) {
-    console.log("quer", query);
     const { data, pagination } = await this.productService.index(
       query.page,
       query.limit,

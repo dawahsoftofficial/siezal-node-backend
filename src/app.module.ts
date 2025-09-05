@@ -27,6 +27,8 @@ import { DashboardModule } from "./module/dashboard/dashboard.module";
 import { AwsModule } from "./shared/aws/aws.module";
 import { TwilioModule } from "./shared/twilio/twilio.module";
 import { TwilioService } from "./shared/twilio/twilio.service";
+import { FirebaseModule } from "./shared/firebase/firebase.module";
+import { FcmTokenModule } from "./module/fcm-token/fcm-token.module";
 
 @Module({
   imports: [
@@ -68,6 +70,8 @@ import { TwilioService } from "./shared/twilio/twilio.service";
     DashboardModule,
     AwsModule,
     TwilioModule,
+    FirebaseModule,
+    FcmTokenModule,
   ],
   controllers: [AppController],
   providers: [
@@ -94,4 +98,4 @@ import { TwilioService } from "./shared/twilio/twilio.service";
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}
