@@ -1,5 +1,6 @@
 import { ERole } from "src/common/enums/role.enum";
 import { IEntityBase } from "src/core/base/entity/interface/entity-interface.base";
+import { IFcmToken } from "src/module/fcm-token/interface/fcm-token.interface";
 import { IUserSession } from "src/module/user-session/interface/user-session.interface";
 
 export interface IUser extends IEntityBase {
@@ -21,4 +22,5 @@ export interface IUser extends IEntityBase {
 
   isBanned: boolean;
   sessions?: Partial<IUserSession[]> | null;
+  fcmTokens?: Partial<IFcmToken[]> | null;
 }

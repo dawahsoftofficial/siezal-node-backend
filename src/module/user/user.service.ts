@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
-import { FindOptionsWhere, Like, Repository } from "typeorm";
+import { FindOptionsWhere, IsNull, Like, Not, Repository } from "typeorm";
 import { IUser } from "./interface/user.interface";
 import { User } from "src/database/entities/user.entity";
 import { ERole } from "src/common/enums/role.enum";
@@ -68,5 +68,14 @@ export class UserService extends BaseSqlService<User, IUser> {
     const updatedUser = this.userRepository.merge(user, body);
 
     return await this.userRepository.save(updatedUser);
+  }
+
+  listUserHavingFcmToken() {
+    return this.userRepository.find({
+      where: {
+        fcmTokens: { id: Not(IsNull()) }, // "Not null" forces at least one match
+      },
+      select: ["id", "firstName", "lastName", "phone", "email"],
+    });
   }
 }

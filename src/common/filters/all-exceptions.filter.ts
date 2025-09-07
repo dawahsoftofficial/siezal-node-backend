@@ -10,9 +10,9 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { currentDateTime } from '../utils/date.util';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { currentDateTime } from "../utils/date.util";
 
 /**
  * Handles all exceptions and formats the error response for the client.
@@ -42,7 +42,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    let message: any = 'Something went wrong.';
+    let message: any = "Something went wrong.";
     let errors: any[] = [];
     let stackTrace: string | undefined;
 
@@ -50,13 +50,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const exceptionResponse = exception.getResponse();
 
-      if (typeof exceptionResponse === 'string') {
+      if (typeof exceptionResponse === "string") {
         message = exceptionResponse;
       } else if (status == 422) {
-        message = exceptionResponse['message'] || message;
-        errors = exceptionResponse['errors'] || [];
-      } else if (typeof exceptionResponse === 'object') {
-        message = exceptionResponse['message'] || message;
+        message = exceptionResponse["message"] || message;
+        errors = exceptionResponse["errors"] || [];
+      } else if (typeof exceptionResponse === "object") {
+        message = exceptionResponse["message"] || message;
 
         // If validation errors are present (from class-validator)
         if (Array.isArray(message)) {
@@ -72,7 +72,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       stackTrace = exception.stack;
     } else if (
       exception instanceof Error &&
-      this.configService.get<string>('NODE_ENV') == 'local'
+      this.configService.get<string>("NODE_ENV") == "local"
     ) {
       message = exception.message || message;
       stackTrace = exception.stack;
@@ -81,13 +81,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // Log the error with stack trace and additional details
     this.logger.error(
       `Error occurred on ${request.method} ${request.url}`,
-      stackTrace || 'No stack trace available',
+      stackTrace || "No stack trace available"
     );
     response.status(status).json({
       success: false,
       statusCode: status,
       message,
-      errors: status == 422 ? errors : errors.length > 0 ? errors : undefined,
+      errors: status == 422 ? errors : errors.length > 0 ? errors : stackTrace,
       timestamp: currentDateTime(),
     });
   }
@@ -98,6 +98,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
    */
   private extractFieldFromMessage(message: string): string {
     const match = message.match(/^(\w+)\s/);
-    return match ? match[1] : 'unknown';
+    return match ? match[1] : "unknown";
   }
 }

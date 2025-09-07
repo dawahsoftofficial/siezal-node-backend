@@ -4,6 +4,8 @@ import { IUser } from "src/module/user/interface/user.interface";
 import { Entity, Column, OneToMany } from "typeorm";
 import { UserSession } from "./user-session.entity";
 import { IUserSession } from "src/module/user-session/interface/user-session.interface";
+import { IFcmToken } from "src/module/fcm-token/interface/fcm-token.interface";
+import { FcmToken } from "./fcm-token.entity";
 
 @Entity({ name: "users" })
 export class User extends BaseEntity implements IUser {
@@ -48,4 +50,9 @@ export class User extends BaseEntity implements IUser {
     cascade: true,
   })
   sessions?: Partial<IUserSession[]> | null;
+
+  @OneToMany(() => FcmToken, (data) => data.user, {
+    cascade: true,
+  })
+  fcmTokens?: Partial<IFcmToken[]> | null;
 }
