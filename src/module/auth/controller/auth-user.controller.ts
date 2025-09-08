@@ -73,10 +73,11 @@ export class AuthController {
   @UseGuards(PublicAuthGuard)
   @Post("login")
   async login(@Body() dto: LoginUserDto) {
-    const { token, ...user } = await this.authService.login(
-      dto.phone,
-      dto.password
-    );
+    const loggedIn = await this.authService.login(dto.phone, dto.password);
+    if (loggedIn.type === "verification") {
+      return SuccessResponse("Verify Account Please", loggedIn);
+    }
+    const { token, ...user } = loggedIn;
     return SuccessResponse("Login successful", user, token);
   }
 

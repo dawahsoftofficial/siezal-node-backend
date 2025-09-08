@@ -40,6 +40,7 @@ import { ChangePasswordDto } from "../user/dto/change-password.dto";
 import { TwilioService } from "src/shared/twilio/twilio.service";
 import { UserSessionService } from "../user-session/user-session.service";
 import { FcmTokenService } from "../fcm-token/fcm-token.service";
+import { LoginResult } from "src/common/interfaces/app.interface";
 
 @Injectable()
 export class AuthService {
@@ -100,15 +101,7 @@ export class AuthService {
     identifier: string,
     password: string,
     role: ERole = ERole.USER
-  ): Promise<
-    IUser & {
-      token: {
-        accessToken: string;
-        refreshToken: string;
-        expiry: number;
-      };
-    }
-  > => {
+  ): Promise<LoginResult> => {
     this.logger.log(`Login attempt for identifier: ${identifier}`);
 
     // Here you would typically validate the user credentials and return a token
@@ -119,6 +112,74 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
+    if (user.role === ERole.USER && !user.verifiedAt) {
+      const otp = generateOtp();
+      const otpMessage = generateOtpMessage(otp);
+      const phoneNumber = normalizePakistaniPhone(identifier);
+      const sendOtp = await this.twilioService.sendSms(
+        phoneNumber!,
+        otpMessage
+      );
+      const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
+
+      if (!sendOtp) {
+        throw new HttpException(
+          "Failed to send OTP",
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      await this.userService.updateById(user.id!, {
+        otp,
+        otpExpiresAt: expiresAt,
+      });
+      return {
+        type: "verification",
+        verifiedAt: false,
+      };
+    }
+
+    const {
+      accessToken,
+      encryptRefreshToken: refreshToken,
+      sessionId,
+      expiresAt,
+    } = await this.generateUserJwtTokens(user);
+
+    await Promise.all([
+      this.redisService.setUserData(sessionId, {
+        ...user,
+        accessToken,
+        refreshToken,
+      }), // Store user data in Redis with TTL
+      await this.userSessionService.create({
+        sessionId,
+        userId: user.id!,
+        expiresAt,
+        refreshToken,
+      }),
+    ]);
+
+    const decoded = this.jwtService.decodeToken(accessToken);
+
+    const userData = removeSensitiveData(user) as IUser;
+    return {
+      type: "success",
+      ...userData,
+      token: {
+        accessToken,
+        refreshToken,
+        expiry: decoded?.exp! * 1000,
+      },
+    };
+  };
+
+  adminLogin = async (identifier: string, password: string) => {
+    const user = await this.userService.loginVerify(identifier, ERole.ADMIN);
+
+    if (!user || !(await verifyPassword(password, user.password!))) {
+      this.logger.warn(`Invalid login attempt for identifier: ${identifier}`);
+      throw new UnauthorizedException("Invalid credentials");
+    }
     const {
       accessToken,
       encryptRefreshToken: refreshToken,

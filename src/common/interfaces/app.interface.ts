@@ -3,6 +3,7 @@
  * These are shared across modules for type safety and consistency.
  */
 
+import { IUser } from "src/module/user/interface/user.interface";
 import { ERole } from "../enums/role.enum";
 
 // Represents the authenticated user attached to a request (e.g., after JWT validation)
@@ -45,3 +46,16 @@ export interface IPaginatedResponse<T> {
   data: T[];
   pagination: IPaginationMetadata;
 }
+
+type VerificationResult = { type: "verification"; verifiedAt: boolean };
+
+type SuccessResult = IUser & {
+  type: "success";
+  token: {
+    accessToken: string;
+    refreshToken: string;
+    expiry: number;
+  };
+};
+
+export type LoginResult = VerificationResult | SuccessResult;
