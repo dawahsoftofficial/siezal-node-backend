@@ -1,4 +1,4 @@
-import { Get, HttpCode, HttpStatus, Query, UseGuards } from "@nestjs/common";
+import { Body, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { SettingService } from "../setting.service";
 import { GenerateSwaggerDoc } from "src/common/decorators/swagger-generate.decorator";
@@ -7,6 +7,7 @@ import { PublicRouteController } from "src/common/decorators/app.decorator";
 import { GuestAuthGuard } from "src/common/guards/guest-auth.guard";
 import { SuccessResponse } from "src/common/utils/api-response.util";
 import { GetSettingsDto } from "../dto/get-setting.dto";
+import { DeleteAccountRequestDto } from "../dto/delete-account.dto";
 
 @ApiTags("Settings Management")
 @PublicRouteController("settings")
@@ -63,5 +64,31 @@ export class SettingController {
   async getGeneralSettings(@Query() query: GetSettingsDto) {
     const response = await this.settingService.getGeneralSettings(query.key);
     return SuccessResponse("Setting Data Fetched", response);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Handle account deletion request",
+
+    security: [
+      { key: "apiKey", name: "payload" },
+      {
+        key: "bearerAuth",
+        name: "bearerAuth",
+      },
+    ],
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.CONFLICT },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @Post("/delete-account")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(GuestAuthGuard)
+  async handleDeleteAccountRequest(@Body() deleteAccountDto: DeleteAccountRequestDto) {
+    const response = await this.settingService.handleDeleteAccountRequest(deleteAccountDto);
+    return SuccessResponse("Request recorded successfully", response);
   }
 }
