@@ -38,15 +38,15 @@ export class CreateLeadRequestDto {
   @MaxLength(100)
   lastName: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: "Email address of the account holder",
     example: "john@example.com",
     maxLength: 255,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsEmail()
   @MaxLength(255)
-  email: string;
+  email?: string;
 
   @ApiPropertyOptional({
     description: "Phone number of the account holder",
@@ -56,7 +56,7 @@ export class CreateLeadRequestDto {
   @IsOptional()
   @IsString()
   @MaxLength(50)
-  phone?: string;
+  phone: string;
 
   @ApiPropertyOptional({
     description: "Purpose or reason for requesting account deletion",
