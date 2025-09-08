@@ -11,18 +11,13 @@ import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { S3Service } from "src/shared/aws/s3.service";
 import { ESettingType } from "src/common/enums/setting-type.enum";
 import { UpdateSettingsDto } from "./dto/update-setting.dto";
-import { DeleteAccountRequestDto } from "./dto/delete-account.dto";
-import { EDeletionRequestStatus } from "src/common/enums/deletion-request-status.enum";
-import { DeleteAccountRequest } from "src/database/entities/deletion-requests.entity";
 
 @Injectable()
 export class SettingService extends BaseSqlService<Setting, ISetting> {
   constructor(
     @InjectRepository(Setting)
     private readonly settingRepository: Repository<Setting>,
-    
-    @InjectRepository(DeleteAccountRequest)
-    private readonly deleteAccountRequestRepository: Repository<DeleteAccountRequest>,
+
     private readonly categoryService: CategoryService,
     private readonly productService: ProductService,
     private readonly s3Service: S3Service
@@ -71,8 +66,8 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
     const settings = await this.settingRepository.find(
       key
         ? {
-          where: { key },
-        }
+            where: { key },
+          }
         : { where: { key: Not("homepage") } }
     );
 
@@ -148,19 +143,5 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
       });
       return await this.settingRepository.save(setting);
     }
-  }
-
-  async handleDeleteAccountRequest(data: DeleteAccountRequestDto) {
-    const deleteRequest = this.deleteAccountRequestRepository.create({
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      phone: data.phone || null,
-      purpose: data.purpose || null,
-      comments: data.comments || null,
-      status: EDeletionRequestStatus.PENDING,
-    });
-
-    return await this.deleteAccountRequestRepository.save(deleteRequest);
   }
 }

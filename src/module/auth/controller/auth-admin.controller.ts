@@ -49,10 +49,9 @@ export class AuthAdminController {
   @ApplyHeader(PublicRouteHeaderDto) //no header validation
   @Post("login")
   async login(@Body() { email, password }: LoginAdminDto) {
-    const { token, ...response } = await this.service.login(
+    const { token, ...response } = await this.service.adminLogin(
       email,
-      password,
-      ERole.ADMIN
+      password
     );
 
     return SuccessResponse("Logged In Successfully", response, token);
