@@ -52,6 +52,10 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       qb.andWhere("category.slug = :slug", { slug: filters.category });
     }
 
+    if (filters.price) {
+      qb.andWhere("product.price <= :price", { price: filters.price });
+    }
+
     qb.skip((page - 1) * limit)
       .take(limit)
       .orderBy("product.createdAt", "DESC");

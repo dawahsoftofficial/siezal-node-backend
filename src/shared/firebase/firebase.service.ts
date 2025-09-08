@@ -51,11 +51,18 @@ export class FirebaseService implements OnModuleInit {
     payload: IFcmPayload
   ): Promise<IFcmResult | null> {
     try {
+      console.log("");
       const tokenList = Array.isArray(tokens) ? tokens : [tokens];
       if (!tokenList.length) {
         this.logger.warn("No FCM tokens provided.");
         return null;
       }
+
+      const data: Record<string, string> = {
+        title: payload.title,
+        body: payload.body,
+        ...payload.data,
+      };
 
       const message: MulticastMessage = {
         tokens: tokenList,
@@ -65,7 +72,7 @@ export class FirebaseService implements OnModuleInit {
           imageUrl: payload.imageUrl,
         },
 
-        data: payload.data ?? {},
+        data: data,
         android: {
           notification: {
             clickAction: payload.clickAction,

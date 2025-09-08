@@ -29,6 +29,7 @@ import { TwilioModule } from "./shared/twilio/twilio.module";
 import { TwilioService } from "./shared/twilio/twilio.service";
 import { FirebaseModule } from "./shared/firebase/firebase.module";
 import { FcmTokenModule } from "./module/fcm-token/fcm-token.module";
+import { NotificationModule } from "./module/notification/notification.module";
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { FcmTokenModule } from "./module/fcm-token/fcm-token.module";
     TwilioModule,
     FirebaseModule,
     FcmTokenModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

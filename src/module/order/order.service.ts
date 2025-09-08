@@ -97,7 +97,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       relations: ["items"],
       where,
       order: {
-        updatedAt: "DESC",
+        createdAt: "DESC",
       },
     });
   }
