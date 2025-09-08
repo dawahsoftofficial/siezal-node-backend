@@ -9,7 +9,7 @@ import { LeadService } from "../lead.service";
 import { CreateLeadRequestDto } from "src/module/lead/dto/create-lead.dto";
 
 @ApiTags("Lead Requests Management")
-@PublicRouteController("lead-requests")
+@PublicRouteController("lead")
 export class LeadController {
   constructor(private readonly LeadService: LeadService) {}
 
