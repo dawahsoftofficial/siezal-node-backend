@@ -27,7 +27,7 @@ export class AuditLogService
           const ElogLevel = meta?.ElogLevel;
           const exception = meta?.exception;
           this.create({
-            message,
+            message: message as string,
             level: ElogLevel || ELogLevel.INFO,
             type: type || ELogType.GENERAL,
             stacktrace: exception,
