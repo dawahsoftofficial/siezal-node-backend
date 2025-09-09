@@ -277,7 +277,7 @@ export class AuthService {
     });
 
     return {
-      message: otp,
+      message: "Otp Send",
       expiresAt,
     };
   };
