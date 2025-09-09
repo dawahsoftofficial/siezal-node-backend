@@ -1,6 +1,6 @@
 // dto/send-fcm.dto.ts
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Type,Transform } from "class-transformer";
 import {
   IsString,
   IsOptional,
@@ -31,6 +31,9 @@ export class SendNotificationDto {
     type: "array",
     items: { type: "number" },
   })
+    @Transform(({ value }) =>
+    Array.isArray(value) ? value.map(Number) : [Number(value)]
+  )
   @IsArray()
   @ArrayNotEmpty({ message: "userIds should not be empty" })
   @Type(() => Number)
