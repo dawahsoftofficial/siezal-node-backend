@@ -13,7 +13,9 @@ import { EOrderStatus } from "src/common/enums/order-status.enum";
 import { OrderItem } from "src/database/entities/order-item.entity";
 import { DataSource } from "typeorm";
 import { UpdateOrderDto } from "./dto/update-order.dto";
-import { generateOrderUID } from "src/common/utils/app.util";
+import { generateOrderUID, generateOrderUidV2 } from "src/common/utils/app.util";
+import { UserService } from "../user/user.service";
+import { ProductService } from "../product/product.service";
 
 @Injectable()
 export class OrderService extends BaseSqlService<Order, IOrder> {
@@ -21,6 +23,9 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
     // private readonly orderItemRepository: Repository<OrderItem>,
+
+    private readonly productService: ProductService,
+    private readonly userService: UserService,
     private readonly dataSource: DataSource
   ) {
     super(orderRepository);
@@ -112,8 +117,30 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       throw new NotFoundException("Order not found");
     }
 
-    return order;
+    const itemsWithProduct = await Promise.all(
+      order.items.map(async (item) => {
+        const product = await this.productService.findOne({
+          where: { id: item.productId },
+          relations: ['category']
+        });
+
+        return {
+          ...item,
+          productData: {
+            ...item.productData,
+            image: product?.image ?? null,
+            category: product?.category?.slug ?? null,
+          }
+        };
+      }),
+    );
+
+    return {
+      ...order,
+      items: itemsWithProduct,
+    };
   }
+
 
   async createOrder(userId: number, dto: CreateOrderDto) {
     return this.dataSource.transaction(async (manager) => {
@@ -121,6 +148,8 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       const orderItemRepo = manager.getRepository(OrderItem);
 
       const { items, ...rest } = dto;
+
+      const { shippingAddressLine1, shippingAddressLine2, shippingPostalCode, shippingCity, shippingCountry, shippingState } = rest;
 
       const order = orderRepo.create({
         orderUID: generateOrderUID(),
@@ -131,6 +160,8 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
       const savedOrder = await orderRepo.save(order);
 
+      await orderRepo.update({ id: savedOrder.id! }, { orderUID: generateOrderUidV2(savedOrder.id!) })
+
       const finalItems = items.map((item) =>
         orderItemRepo.create({
           orderId: savedOrder.id,
@@ -139,6 +170,15 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       );
 
       await orderItemRepo.save(finalItems);
+
+      await this.userService.updateById(userId, {
+        shippingAddressLine1,
+        shippingAddressLine2,
+        shippingPostalCode,
+        shippingCity,
+        shippingCountry,
+        shippingState
+      });
 
       return {
         success: true,

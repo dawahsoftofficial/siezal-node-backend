@@ -49,7 +49,7 @@ export class UserService extends BaseSqlService<User, IUser> {
   }
 
   async show(id: number) {
-    const user = await this.userRepository.findOne({ where: { id } });
+    const user = await this.userRepository.findOne({ where: { id }, relations: ['fcmTokens'] });
 
     if (!user) {
       throw new NotFoundException("User not found");

@@ -44,4 +44,34 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isBanned?: boolean;
+
+  @ApiPropertyOptional({ example: "address line 1", description: "Shipping Address Line 1" })
+  @IsOptional()
+  @IsString()
+  shippingAddressLine1?: string | null;
+
+  @ApiPropertyOptional({ example: "address line 2", description: "Shipping Address Line 2" })
+  @IsOptional()
+  @IsString()
+  shippingAddressLine2?: string | null;
+
+  @ApiPropertyOptional({ example: "12345", description: "Shipping Postal Code" })
+  @IsOptional()
+  @IsString()
+  shippingPostalCode?: string | null;
+
+  @ApiPropertyOptional({ example: "City", description: "Shipping City" })
+  @IsOptional()
+  @IsString()
+  shippingCity?: string | null;
+
+  @ApiPropertyOptional({ example: "Country", description: "Shipping Country" })
+  @IsOptional()
+  @IsString()
+  shippingCountry?: string | null;
+
+  @ApiPropertyOptional({ example: "State", description: "Shipping State" })
+  @IsOptional()
+  @IsString()
+  shippingState?: string | null;
 }
