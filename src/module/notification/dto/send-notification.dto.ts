@@ -26,13 +26,14 @@ export class SendNotificationDto {
   @IsString()
   body: string;
   @ApiProperty({
-    description: "List of user IDs to whom you want to send the message",
-    example: ["user123", "user456"],
-    type: [Number], // important for Swagger to show it as array of strings
+    description: "List of user IDs (repeat the field for multiple values)",
+    example: [1, 2],
+    type: "array",
+    items: { type: "number" },
   })
   @IsArray()
-  @ArrayNotEmpty()
-  @Type(() => Number) // makes sure incoming values (e.g. strings in JSON) are cast to numbers
+  @ArrayNotEmpty({ message: "userIds should not be empty" })
+  @Type(() => Number)
   @IsNumber({}, { each: true })
   userIds: number[];
 
