@@ -28,6 +28,7 @@ export class CreateOrderDto {
     required: false,
   })
   @IsString()
+  @IsOptional()
   userEmail?: string;
 
   @ApiProperty({
