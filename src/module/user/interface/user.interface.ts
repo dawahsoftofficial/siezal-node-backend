@@ -23,4 +23,11 @@ export interface IUser extends IEntityBase {
   isBanned: boolean;
   sessions?: Partial<IUserSession[]> | null;
   fcmTokens?: Partial<IFcmToken[]> | null;
+
+  shippingAddressLine1?: string | null,
+  shippingAddressLine2?: string | null,
+  shippingPostalCode?: string | null,
+  shippingCity?: string | null,
+  shippingCountry?: string | null,
+  shippingState?: string | null
 }

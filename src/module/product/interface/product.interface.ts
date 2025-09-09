@@ -1,6 +1,7 @@
 import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { EProductUnit } from "src/common/enums/product-unit.enum";
 import { IEntityBase } from "src/core/base/entity/interface/entity-interface.base";
+import { ICategory } from "src/module/category/interface/category.interface";
 
 export interface IProduct extends IEntityBase {
   sku?: string;
@@ -21,4 +22,6 @@ export interface IProduct extends IEntityBase {
   isGstEnabled: boolean;
   gstFee?: number | null;
   // gallery?: string[];
+
+  category?: ICategory
 }
