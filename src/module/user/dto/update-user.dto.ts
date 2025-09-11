@@ -48,7 +48,7 @@ export class UpdateUserDto {
   @ApiPropertyOptional({ example: "address line 1", description: "Shipping Address Line 1" })
   @IsOptional()
   @IsString()
-  shippingAddressLine1?: string | null;
+  shippingAddressLine1?: string;
 
   @ApiPropertyOptional({ example: "address line 2", description: "Shipping Address Line 2" })
   @IsOptional()
@@ -58,20 +58,20 @@ export class UpdateUserDto {
   @ApiPropertyOptional({ example: "12345", description: "Shipping Postal Code" })
   @IsOptional()
   @IsString()
-  shippingPostalCode?: string | null;
+  shippingPostalCode?: string;
 
   @ApiPropertyOptional({ example: "City", description: "Shipping City" })
   @IsOptional()
   @IsString()
-  shippingCity?: string | null;
+  shippingCity?: string;
 
   @ApiPropertyOptional({ example: "Country", description: "Shipping Country" })
   @IsOptional()
   @IsString()
-  shippingCountry?: string | null;
+  shippingCountry?: string;
 
   @ApiPropertyOptional({ example: "State", description: "Shipping State" })
   @IsOptional()
   @IsString()
-  shippingState?: string | null;
+  shippingState?: string;
 }

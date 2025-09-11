@@ -14,6 +14,8 @@ export interface IOrderItem extends IEntityBase {
     price: number;
     discountedPrice?: number;
     gstFee?: number;
+    category: string;
+    image?: string; 
   };
   replacementStatus: EOrderReplacementStatus | null;
   suggestedProducts: IProduct[] | null;

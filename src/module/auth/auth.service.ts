@@ -112,6 +112,10 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
+    if (user.isBanned) {
+      throw new UnauthorizedException("User is banned!");
+    }
+
     if (user.role === ERole.USER && !user.verifiedAt) {
       const otp = generateOtp();
       const otpMessage = generateOtpMessage(otp);
@@ -223,6 +227,10 @@ export class AuthService {
       throw new HttpException("User not found", HttpStatus.NOT_FOUND);
     }
 
+    if (user.isBanned) {
+      throw new UnauthorizedException("User is banned!");
+    }
+
     const otp = generateOtp();
     const otpMessage = generateOtpMessage(otp);
     const phoneNumber = normalizePakistaniPhone(dto.phone);
@@ -258,6 +266,10 @@ export class AuthService {
       throw new HttpException("User not found", HttpStatus.NOT_FOUND);
     }
 
+    if (user.isBanned) {
+      throw new UnauthorizedException("User is banned!");
+    }
+
     const otp = generateOtp();
     const otpMessage = generateOtpMessage(otp);
     const phoneNumber = normalizePakistaniPhone(dto.phone);
@@ -290,6 +302,11 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException("User not found");
     }
+
+    if (user.isBanned) {
+      throw new UnauthorizedException("User is banned!");
+    }
+
     if (!user.otp || !user.otpExpiresAt) {
       throw new NotFoundException("OTP not found");
     }
@@ -373,6 +390,10 @@ export class AuthService {
       );
     }
 
+    if (user.isBanned) {
+      throw new UnauthorizedException("User is banned!");
+    }
+
     const hashedPassword = await hashBcrypt(newPassword);
 
     await this.userService.updateById(user.id!, {
@@ -415,6 +436,11 @@ export class AuthService {
     if (!userUpdatedData) {
       throw new UnauthorizedException("User Data Not found");
     }
+
+    if (userUpdatedData.isBanned) {
+      throw new UnauthorizedException("User is banned!");
+    }
+
     const accessToken = this.jwtService.generateAccessToken(
       sessionId,
       userUpdatedData
@@ -444,6 +470,11 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException("User not found");
     }
+
+    if (user.isBanned) {
+      throw new UnauthorizedException("User is banned!");
+    }
+
     return removeSensitiveData(user);
   };
 

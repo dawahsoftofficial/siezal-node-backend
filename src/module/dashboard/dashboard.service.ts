@@ -58,11 +58,11 @@ export class DashboardService {
 
   private calculateStats(curr: Order[], prev: Order[]): IStats {
     const salesCurr = curr
-      .filter(o => o.status === EOrderStatus.DELIVERED)
+      .filter(o => o.status === EOrderStatus.COMPLETED)
       .reduce((sum, o) => sum + Number(o.totalAmount), 0);
 
     const salesPrev = prev
-      .filter(o => o.status === EOrderStatus.DELIVERED)
+      .filter(o => o.status === EOrderStatus.COMPLETED)
       .reduce((sum, o) => sum + Number(o.totalAmount), 0);
 
     const ordersCurr = curr.length;
@@ -105,7 +105,7 @@ export class DashboardService {
       .select("DATE(o.createdAt)", "date")
       .addSelect("SUM(o.totalAmount)", "sales")
       .where("o.createdAt BETWEEN :start AND :end", { start, end })
-      .andWhere("o.status = :status", { status: EOrderStatus.DELIVERED })
+      .andWhere("o.status = :status", { status: EOrderStatus.COMPLETED })
       .groupBy("DATE(o.createdAt)")
       .orderBy("date", "ASC")
       .getRawMany();
@@ -133,7 +133,7 @@ export class DashboardService {
       .addSelect("SUM(oi.totalPrice)", "salesAmount")
       .innerJoin("oi.order", "o")
       .where("o.createdAt BETWEEN :start AND :end", { start, end })
-      .andWhere("o.status = :status", { status: EOrderStatus.DELIVERED })
+      .andWhere("o.status = :status", { status: EOrderStatus.COMPLETED })
       .groupBy("oi.productId")
       .getRawMany();
 
@@ -150,7 +150,7 @@ export class DashboardService {
         start: prevStart,
         end: prevEnd,
       })
-      .andWhere("o.status = :status", { status: EOrderStatus.DELIVERED })
+      .andWhere("o.status = :status", { status: EOrderStatus.COMPLETED })
       .groupBy("oi.productId")
       .getRawMany();
 

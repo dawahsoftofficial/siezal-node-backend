@@ -19,6 +19,8 @@ export class CreateOrderItemDto {
       price: 500,
       discountedPrice: 450,
       gstFee: 18,
+      category: 'gaming-accessories',
+      image: 'https://image-url.com/sample_image.png',
     },
     description: "Snapshot of product data at time of purchase",
   })
@@ -29,6 +31,8 @@ export class CreateOrderItemDto {
     price: number;
     discountedPrice?: number;
     gstFee?: number;
+    category?: string;
+    image?: string;
   };
 
   @ApiProperty({ example: 900, description: "Total price for this item" })

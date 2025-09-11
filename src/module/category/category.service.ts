@@ -120,13 +120,15 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
   };
 
   indexAdmin = async ({ page, limit, q, sortBy, sortDirection }: CategoryListQueryDtoAdmin) => {
-    let where: FindOptionsWhere<Category>[] = [];
+    const where: FindOptionsWhere<Category> = {
+      parentId: IsNull(),
+    };
 
     if (q) {
-      where = [
-        { name: Like(`%${q}%`) },
-        { slug: Like(`%${q}%`) },
-      ];
+      Object.assign(where, [
+        { name: Like(`%${q}%`), parentId: null },
+        { slug: Like(`%${q}%`), parentId: null },
+      ]);
     }
 
     const sortField =
@@ -143,8 +145,10 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     return this.paginate<ICategory>(page, limit, {
       where,
       order: sort,
+      relations: ['subCategories'],
     });
   };
+
 
   detail = async (slug: string) => {
     return this.findOne({

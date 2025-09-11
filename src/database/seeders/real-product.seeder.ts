@@ -8,7 +8,7 @@ import { Category } from "../entities/category.entity";
 import { Product } from "../entities/product.entity";
 import { EProductUnit } from "src/common/enums/product-unit.enum";
 import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
-import { S3Service } from "src/shared/aws/s3.service";
+// import { S3Service } from "src/shared/aws/s3.service";
 import { ConfigService } from "@nestjs/config";
 
 interface ImageFolder {
@@ -108,7 +108,7 @@ export default class RealProductSeeder {
 
   public static async run(dataSource: DataSource): Promise<void> {
     const configService = new ConfigService();
-    const s3Service = new S3Service(configService);
+    // const s3Service = new S3Service(configService);
 
     const categoryRepo = dataSource.getRepository(Category);
     const productRepo = dataSource.getRepository(Product);
@@ -137,6 +137,10 @@ export default class RealProductSeeder {
       RealProductSeeder.buildMaps(structure, imageMap, titleToCategoryMap);
 
       const products: Product[] = [];
+
+      const uploadedImagesFilePath = path.join(__dirname, "../../data/image-title-map.json");
+      const uploadedImagesMap: { [key: string]: string } = JSON.parse(fs.readFileSync(uploadedImagesFilePath, "utf-8"));
+      // const uploadedImagesMap = {};
 
       let parentPosition = 1;
       let childPosition = 1;
@@ -204,30 +208,38 @@ export default class RealProductSeeder {
           }
         }
 
-        let imageUrl = "placeholder.svg"
+        let imageUrl = uploadedImagesMap[title] || "placeholder.svg"
 
-        const imageFilePath = imageMap.get(title.toLowerCase());
+        // const imageFilePath = imageMap.get(title);
 
-        if (imageFilePath) {
-          const buffer = fs.readFileSync(imageFilePath);
+        // if (imageFilePath) {
+        //   const buffer = fs.readFileSync(imageFilePath);
 
-          const fakeFile: Express.Multer.File = {
-            fieldname: "file",
-            originalname: path.basename(imageFilePath),
-            encoding: "7bit",
-            mimetype: mime.lookup(imageFilePath) || "image/jpeg",
-            size: buffer.length,
-            buffer,
-            stream: fs.createReadStream(imageFilePath),
-            destination: "",
-            filename: path.basename(imageFilePath),
-            path: imageFilePath,
-          };
+        //   const fakeFile: Express.Multer.File = {
+        //     fieldname: "file",
+        //     originalname: path.basename(imageFilePath),
+        //     encoding: "7bit",
+        //     mimetype: mime.lookup(imageFilePath) || "image/jpeg",
+        //     size: buffer.length,
+        //     buffer,
+        //     stream: fs.createReadStream(imageFilePath),
+        //     destination: "",
+        //     filename: path.basename(imageFilePath),
+        //     path: imageFilePath,
+        //   };
 
-          const { url } = await s3Service.uploadImage(fakeFile);
+        //   const { url } = await s3Service.uploadImage(fakeFile, "import");
 
-          imageUrl = url;
-        }
+        //   // uploadedImagesMap[title] = url;
+
+        //   imageUrl = url;
+        // }
+
+        // parentPosition += 1
+
+        // if (parentPosition % 100 === 0) {
+        //   console.log('Progress:', Object.keys(uploadedImagesMap).length)
+        // }
 
         const product = productRepo.create({
           sku: row["SKU"],
@@ -255,6 +267,10 @@ export default class RealProductSeeder {
       }
 
       await manager.save(products);
+
+      // fs.writeFileSync(uploadedImagesFilePath, JSON.stringify(uploadedImagesMap, null, 2), "utf-8");
+
+      // console.log(uploadedImagesMap)
       console.log(`✅ Seeded ${products.length} products with categories`);
     });
   }

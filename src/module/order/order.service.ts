@@ -14,8 +14,8 @@ import { OrderItem } from "src/database/entities/order-item.entity";
 import { DataSource } from "typeorm";
 import { UpdateOrderDto } from "./dto/update-order.dto";
 import { generateOrderUID, generateOrderUidV2 } from "src/common/utils/app.util";
-import { UserService } from "../user/user.service";
 import { ProductService } from "../product/product.service";
+import { AddressService } from "../address/address.service";
 
 @Injectable()
 export class OrderService extends BaseSqlService<Order, IOrder> {
@@ -25,7 +25,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     // private readonly orderItemRepository: Repository<OrderItem>,
 
     private readonly productService: ProductService,
-    private readonly userService: UserService,
+    private readonly addressService: AddressService,
     private readonly dataSource: DataSource
   ) {
     super(orderRepository);
@@ -171,7 +171,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
       await orderItemRepo.save(finalItems);
 
-      await this.userService.updateById(userId, {
+      await this.addressService.updateOne({ userId }, {
         shippingAddressLine1,
         shippingAddressLine2,
         shippingPostalCode,

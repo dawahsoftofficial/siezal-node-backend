@@ -40,6 +40,7 @@ export class OrderItem extends BaseEntity implements IOrderItem {
     discountedPrice?: number;
     gstFee?: number;
     category: string;
+    image?: string;
   };
 
   @Column({ name: "replacement_status", type: "enum", enum: EOrderReplacementStatus, default: null, nullable: true })

@@ -1,5 +1,6 @@
 import { ERole } from "src/common/enums/role.enum";
 import { IEntityBase } from "src/core/base/entity/interface/entity-interface.base";
+import { IAddress } from "src/module/address/interface/address.interface";
 import { IFcmToken } from "src/module/fcm-token/interface/fcm-token.interface";
 import { IUserSession } from "src/module/user-session/interface/user-session.interface";
 
@@ -24,10 +25,7 @@ export interface IUser extends IEntityBase {
   sessions?: Partial<IUserSession[]> | null;
   fcmTokens?: Partial<IFcmToken[]> | null;
 
-  shippingAddressLine1?: string | null,
-  shippingAddressLine2?: string | null,
-  shippingPostalCode?: string | null,
-  shippingCity?: string | null,
-  shippingCountry?: string | null,
-  shippingState?: string | null
+  addresses?: IAddress[]
+
+  deletedAt?: Date | null
 }

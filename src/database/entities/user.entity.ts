@@ -6,6 +6,7 @@ import { UserSession } from "./user-session.entity";
 import { IUserSession } from "src/module/user-session/interface/user-session.interface";
 import { IFcmToken } from "src/module/fcm-token/interface/fcm-token.interface";
 import { FcmToken } from "./fcm-token.entity";
+import { Address } from "./address.entity";
 
 @Entity({ name: "users" })
 export class User extends BaseEntity implements IUser {
@@ -59,21 +60,6 @@ export class User extends BaseEntity implements IUser {
   @DeleteDateColumn({ name: "deleted_at", type: "timestamp", nullable: true })
   deletedAt?: Date | null;
 
-  @Column({ name: "shipping_address_line_1", type: "varchar", length: 255, nullable: true })
-  shippingAddressLine1?: string | null;
-
-  @Column({ name: "shipping_address_line_2", type: "varchar", length: 255, nullable: true })
-  shippingAddressLine2?: string | null;
-
-  @Column({ name: "shipping_postal_code", type: "varchar", length: 20, nullable: true })
-  shippingPostalCode?: string | null;
-
-  @Column({ name: "shipping_city", type: "varchar", length: 100, nullable: true })
-  shippingCity?: string | null;
-
-  @Column({ name: "shipping_country", type: "varchar", length: 100, nullable: true })
-  shippingCountry?: string | null;
-
-  @Column({ name: "shipping_state", type: "varchar", length: 100, nullable: true })
-  shippingState?: string | null;
+  @OneToMany(() => Address, (address) => address.user, { cascade: true })
+  addresses: Address[];
 }
