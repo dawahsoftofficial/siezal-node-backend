@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/database/entities/order.entity";
 import { FindOptionsWhere, In, Like, Repository } from "typeorm";
@@ -16,16 +16,23 @@ import { UpdateOrderDto } from "./dto/update-order.dto";
 import { generateOrderUID, generateOrderUidV2 } from "src/common/utils/app.util";
 import { ProductService } from "../product/product.service";
 import { AddressService } from "../address/address.service";
+import { UpdateOrderItemDto } from "./dto/create-order-item.dto";
+import { NotificationService } from "../notification/notification.service";
 
 @Injectable()
 export class OrderService extends BaseSqlService<Order, IOrder> {
+  private readonly logger = new Logger(OrderService.name);
+
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
-    // private readonly orderItemRepository: Repository<OrderItem>,
+
+    @InjectRepository(OrderItem)
+    private readonly orderItemRepository: Repository<OrderItem>,
 
     private readonly productService: ProductService,
     private readonly addressService: AddressService,
+    private readonly notificationService: NotificationService,
     private readonly dataSource: DataSource
   ) {
     super(orderRepository);
@@ -118,7 +125,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     }
 
     const itemsWithProduct = await Promise.all(
-      order.items.map(async (item) => {
+      order.items!.map(async (item) => {
         const product = await this.productService.findOne({
           where: { id: item.productId },
           relations: ['category']
@@ -140,7 +147,6 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       items: itemsWithProduct,
     };
   }
-
 
   async createOrder(userId: number, dto: CreateOrderDto) {
     return this.dataSource.transaction(async (manager) => {
@@ -180,12 +186,76 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
         shippingState
       });
 
+      try {
+        await this.notificationService.sendNotification({
+          userIds: [userId],
+          title: 'Order Placed',
+          body: 'Your order has been created successfully. We’ll start processing it soon.'
+        })
+      } catch (error) {
+        this.logger.error('Failed to send order created notification', error.stack)
+      }
+      
       return {
         success: true,
         message: "Order created successfully",
         data: { ...savedOrder, items: finalItems },
       };
     });
+  }
+
+  private async handleOrderNotification(userId: number, status: EOrderStatus) {
+    const notificationData = { title: '', body: '' }
+
+    switch (status) {
+      case EOrderStatus.IN_REVIEW:
+        notificationData.title = 'Order Under Review';
+        notificationData.body = 'We’re checking your order details before processing.';
+        break;
+
+      case EOrderStatus.PREPARING:
+        notificationData.title = 'Order Prepared';
+        notificationData.body = 'Your order is ready and will be shipped soon.';
+        break;
+
+      case EOrderStatus.SHIPPED:
+        notificationData.title = 'Order Shipped';
+        notificationData.body = 'Your order is on the way. Track it for updates.';
+        break;
+
+      case EOrderStatus.DELIVERED:
+        notificationData.title = 'Order Delivered';
+        notificationData.body = 'Your order has been delivered. Enjoy!';
+        break;
+
+      case EOrderStatus.COMPLETED:
+        notificationData.title = 'Order Completed';
+        notificationData.body = 'Thank you! Your order is successfully completed.';
+        break;
+
+      case EOrderStatus.CANCELLED:
+        notificationData.title = 'Order Cancelled';
+        notificationData.body = 'Your order has been cancelled. Contact support if needed.';
+        break;
+
+      case EOrderStatus.REFUNDED:
+        notificationData.title = 'Refund Processed';
+        notificationData.body = 'Your refund has been issued. Please check your account.';
+        break;
+
+      default:
+        break;
+    }
+
+    try {
+      await this.notificationService.sendNotification({
+        userIds: [userId],
+        title: notificationData.title,
+        body: notificationData.body
+      })
+    } catch (error) {
+      this.logger.error('Failed to send order status update notification', error.stack)
+    }   
   }
 
   async update(id: number, body: UpdateOrderDto) {
@@ -195,8 +265,24 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
 
+    if (body.status && order.status !== body.status) {
+      await this.handleOrderNotification(order.userId, body.status)
+    }
+
     const updatedOrder = this.orderRepository.merge(order, body);
 
     return await this.orderRepository.save(updatedOrder);
+  }
+
+  async updateItem(id: number, body: UpdateOrderItemDto) {
+    const item = await this.orderItemRepository.findOne({ where: { id } });
+
+    if (!item) {
+      throw new NotFoundException(`Order Item with ID ${id} not found`);
+    }
+
+    const updatedItem = this.orderItemRepository.merge(item, body);
+
+    return await this.orderItemRepository.save(updatedItem);
   }
 }

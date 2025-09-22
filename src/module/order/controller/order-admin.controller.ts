@@ -10,6 +10,7 @@ import { AdminRouteController } from 'src/common/decorators/app.decorator';
 import { SuccessResponse } from 'src/common/utils/api-response.util';
 import { UpdateOrderDto } from '../dto/update-order.dto';
 import { EOrderStatus } from 'src/common/enums/order-status.enum';
+import { UpdateOrderItemDto } from '../dto/create-order-item.dto';
 
 @ApiTags('Admin Orders Managment')
 @AdminRouteController('orders')
@@ -94,5 +95,25 @@ export class AdminOrderController {
     ) {
         const updated = await this.orderService.update(params.id, body);
         return SuccessResponse("Order updated successfully", updated);
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Update order item by ID",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Patch("/update-item/:id")
+    async updateOrderItem(
+        @Param() params: GetOrderParamDto,
+        @Body() body: UpdateOrderItemDto,
+    ) {
+        const updated = await this.orderService.updateItem(params.id, body);
+        return SuccessResponse("Order Item updated successfully", updated);
     }
 }

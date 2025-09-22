@@ -12,7 +12,7 @@ export class FirebaseService implements OnModuleInit {
   private readonly logger = new Logger(FirebaseService.name);
   private database: admin.database.Database;
 
-  constructor(private configService: ConfigService) {}
+  constructor(private configService: ConfigService) { }
 
   async onModuleInit() {
     try {
@@ -61,7 +61,7 @@ export class FirebaseService implements OnModuleInit {
       const data: Record<string, string> = {
         title: payload.title,
         body: payload.body,
-        ...payload.data,
+        ...(typeof payload.data === 'string' ? JSON.parse(payload.data) : payload.data),
       };
 
       const message: MulticastMessage = {

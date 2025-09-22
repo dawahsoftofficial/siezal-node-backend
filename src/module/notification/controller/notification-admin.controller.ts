@@ -35,7 +35,7 @@ export class NotificationAdminController {
   @HttpCode(200)
   @Post("send")
   @UseInterceptors(FileInterceptor("image"))
-  async logout(
+  async sendNotification(
     @Body() payload: SendNotificationDto,
     @UploadedFile(
       new ParseFilePipe({

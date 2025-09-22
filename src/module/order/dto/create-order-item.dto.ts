@@ -1,5 +1,7 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsInt, IsNotEmpty, IsNumber, IsOptional, Min } from "class-validator";
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, Min } from "class-validator";
+import { EOrderReplacementStatus } from "src/common/enums/replacement-status.enum";
+import { IProduct } from "src/module/product/interface/product.interface";
 
 export class CreateOrderItemDto {
   @ApiProperty({ example: 1, description: "Product ID" })
@@ -46,4 +48,23 @@ export class CreateOrderItemDto {
   @IsOptional()
   @IsNumber()
   totalGstAmount?: number;
+}
+
+export class UpdateOrderItemDto extends PartialType(CreateOrderItemDto) {
+  @ApiPropertyOptional({
+    enum: EOrderReplacementStatus,
+    description: "Replacement status of this order item",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsEnum(EOrderReplacementStatus)
+  replacementStatus?: EOrderReplacementStatus | null;
+
+  @ApiPropertyOptional({
+    type: () => [Object],
+    description: "List of suggested replacement products",
+    nullable: true,
+  })
+  @IsOptional()
+  suggestedProducts?: IProduct[] | null;
 }

@@ -3,6 +3,7 @@ import { BaseEntity } from 'src/core/base/entity/entity.base';
 import { IOrder } from 'src/module/order/interface/order.interface';
 import { EOrderStatus } from 'src/common/enums/order-status.enum';
 import { OrderItem } from './order-item.entity';
+import { IOrderItem } from 'src/module/order/interface/order-item.interface';
 
 @Entity({ name: 'orders' })
 export class Order extends BaseEntity implements IOrder {
@@ -69,8 +70,5 @@ export class Order extends BaseEntity implements IOrder {
   status: EOrderStatus;
 
   @OneToMany(() => OrderItem, item => item.order, { cascade: true })
-  items: OrderItem[];
-
-  @Column({ type: 'json', nullable: true })
-  history?: any[];
+  items?: IOrderItem[];
 }

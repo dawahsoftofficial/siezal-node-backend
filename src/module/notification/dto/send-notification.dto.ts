@@ -25,6 +25,7 @@ export class SendNotificationDto {
   })
   @IsString()
   body: string;
+  
   @ApiProperty({
     description: "List of user IDs (repeat the field for multiple values)",
     example: [1, 2],
@@ -66,9 +67,11 @@ export class SendNotificationDto {
 
   @ApiPropertyOptional({
     description: "Custom key-value pairs for additional payload",
-    example: { postId: "123", userId: "456" },
+    // example: { postId: "123", userId: "456" },
+    // type: 'object',
+    // additionalProperties: true
   })
   @IsOptional()
-  @IsObject()
-  data?: Record<string, string>;
+  // @IsObject()
+  data?: any; // Record<string, any>;
 }

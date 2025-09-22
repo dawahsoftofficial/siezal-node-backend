@@ -48,4 +48,10 @@ export class OrderItem extends BaseEntity implements IOrderItem {
 
   @Column({ name: "suggested_products", type: "json", default: null, nullable: true })
   suggestedProducts: IProduct[] | null;
+
+  @Column({ name: "timestamp", type: "bigint", default: null, nullable: true })
+  timestamp: number | null;
+
+  @Column({ type: 'json', nullable: true })
+  history?: any[];
 }
