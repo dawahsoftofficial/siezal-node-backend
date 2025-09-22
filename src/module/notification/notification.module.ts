@@ -7,5 +7,6 @@ import { NotificationService } from "./notification.service";
   controllers: [NotificationAdminController],
   imports: [FcmTokenModule],
   providers: [NotificationService],
+  exports: [NotificationService]
 })
 export class NotificationModule {}
