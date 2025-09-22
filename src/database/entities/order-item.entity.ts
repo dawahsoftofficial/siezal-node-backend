@@ -40,6 +40,7 @@ export class OrderItem extends BaseEntity implements IOrderItem {
     discountedPrice?: number;
     gstFee?: number;
     category: string;
+    image?: string;
   };
 
   @Column({ name: "replacement_status", type: "enum", enum: EOrderReplacementStatus, default: null, nullable: true })
@@ -47,4 +48,10 @@ export class OrderItem extends BaseEntity implements IOrderItem {
 
   @Column({ name: "suggested_products", type: "json", default: null, nullable: true })
   suggestedProducts: IProduct[] | null;
+
+  @Column({ name: "timestamp", type: "bigint", default: null, nullable: true })
+  timestamp: number | null;
+
+  @Column({ type: 'json', nullable: true })
+  history?: any[];
 }

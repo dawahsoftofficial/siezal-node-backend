@@ -7,12 +7,15 @@ import { User } from "src/database/entities/user.entity";
 import { ERole } from "src/common/enums/role.enum";
 import { instanceToPlain } from "class-transformer";
 import { UpdateUserDto } from "./dto/update-user.dto";
+import { AddressService } from "../address/address.service";
 
 @Injectable()
 export class UserService extends BaseSqlService<User, IUser> {
   constructor(
     @InjectRepository(User)
-    private readonly userRepository: Repository<User>
+    private readonly userRepository: Repository<User>,
+
+    private readonly addressService: AddressService,
   ) {
     super(userRepository);
   }
@@ -28,8 +31,9 @@ export class UserService extends BaseSqlService<User, IUser> {
     ) as IUser | null;
   }
 
-  async list(page: number, limit: number, query?: string) {
-    let where: FindOptionsWhere<User>[] = [];
+
+  async list(page: number, limit: number, query?: string, trash?: boolean) {
+    let where: FindOptionsWhere<User>[] | FindOptionsWhere<User> = {};
 
     if (query) {
       const search = `%${query}%`;
@@ -42,14 +46,32 @@ export class UserService extends BaseSqlService<User, IUser> {
       ];
     }
 
-    return this.paginate<IUser>(page, limit, {
-      where: where.length > 0 ? where : {},
-      order: { createdAt: "DESC" },
-    });
+    if (trash) {
+      if (Array.isArray(where) && where.length > 0) {
+        where = where.map((w) => ({ ...w, deletedAt: Not(IsNull()) }));
+      } else {
+        where = { deletedAt: Not(IsNull()) };
+      }
+
+      return this.paginate<IUser>(page, limit, {
+        where,
+        order: { createdAt: "DESC" },
+        withDeleted: true,
+      });
+    } else {
+      if (Array.isArray(where) && where.length > 0) {
+        where = where.map((w) => ({ ...w }));
+      }
+
+      return this.paginate<IUser>(page, limit, {
+        where,
+        order: { createdAt: "DESC" },
+      });
+    }
   }
 
   async show(id: number) {
-    const user = await this.userRepository.findOne({ where: { id } });
+    const user = await this.userRepository.findOne({ where: { id }, relations: ['fcmTokens', 'addresses'] });
 
     if (!user) {
       throw new NotFoundException("User not found");
@@ -59,13 +81,27 @@ export class UserService extends BaseSqlService<User, IUser> {
   }
 
   async update(id: number, body: UpdateUserDto) {
+    const { shippingAddressLine1, shippingAddressLine2, shippingPostalCode, shippingCity, shippingCountry, shippingState, ...rest } = body
+
     const user = await this.userRepository.findOne({ where: { id } });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    const updatedUser = this.userRepository.merge(user, body);
+    const updatedUser = this.userRepository.merge(user, rest);
+
+    if (shippingAddressLine1) {
+      await this.addressService.createOrUpdate({
+        userId: id,
+        shippingAddressLine1,
+        shippingAddressLine2,
+        shippingPostalCode,
+        shippingCity,
+        shippingCountry,
+        shippingState
+      }, ['userId']);
+    }
 
     return await this.userRepository.save(updatedUser);
   }

@@ -28,7 +28,7 @@ export class Category extends BaseEntity implements ICategory {
   images: string[];
 
   @Column({ name: "parent_id", type: "int", nullable: true })
-  parentId?: number;
+  parentId?: number | null;
 
   @ManyToOne(() => Category, (category) => category.subCategories, {
     nullable: true,

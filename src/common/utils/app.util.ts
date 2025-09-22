@@ -267,6 +267,10 @@ export const generateOrderUID = (): string => {
   return `SZ-${result}`;
 };
 
+export const generateOrderUidV2 = (id: number): string => {
+  const randomNum = Math.floor(1000 + Math.random() * 9000); // ensures 4 digits
+  return `S4${randomNum}${id}`;
+};
 export const normalizePakistaniPhone = (phone: string): string | null => {
   if (!phone) return null;
 

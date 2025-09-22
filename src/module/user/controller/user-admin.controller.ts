@@ -4,9 +4,11 @@ import { ApiTags } from "@nestjs/swagger";
 import { GenerateSwaggerDoc } from "src/common/decorators/swagger-generate.decorator";
 import {
   Body,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Patch,
   Query,
@@ -23,7 +25,7 @@ import { UpdateUserDto } from "../dto/update-user.dto";
 @ApiTags("Admin users")
 @AdminRouteController("users")
 export class AdminUserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @GenerateSwaggerDoc({
     summary: "Get list of customers",
@@ -41,7 +43,8 @@ export class AdminUserController {
     const { data, pagination } = await this.userService.list(
       query.page,
       query.limit,
-      query.query
+      query.query,
+      query.trash
     );
 
     return SuccessResponse(
@@ -68,6 +71,34 @@ export class AdminUserController {
     const response = await this.userService.show(params.id);
 
     return SuccessResponse("Data Found Successfully!", response);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Soft delete user by ID",
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.CONFLICT },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @HttpCode(HttpStatus.OK)
+  @Delete("/delete/:id")
+  async deleteUser(@Param() params: GetUserParamDto) {
+    const user = await this.userService.findById(params.id, { withDeleted: true });
+
+    if (user && !user.deletedAt) {
+      const response = await this.userService.softDelete(params.id);
+
+      return SuccessResponse("User trashed Successfully!", response);
+    } else if (user && user.deletedAt) {
+      const response = await this.userService.deleteByIds(params.id);
+
+      return SuccessResponse("User deleted Successfully!", response);
+    }
+
+    throw new NotFoundException(`User with ID ${params.id} not found`);
   }
 
   @GenerateSwaggerDoc({

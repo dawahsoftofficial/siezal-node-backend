@@ -5,7 +5,7 @@ export interface ICategory extends IEntityBase {
   name: string;
   slug: string;
   icon: string;
-  parentId?: number;
+  parentId?: number | null;
   parentCategory?: ICategory;
   subCategories?: ICategory[];
   products?: IProduct[];
