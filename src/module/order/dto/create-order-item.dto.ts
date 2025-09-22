@@ -67,4 +67,11 @@ export class UpdateOrderItemDto extends PartialType(CreateOrderItemDto) {
   })
   @IsOptional()
   suggestedProducts?: IProduct[] | null;
+
+  @ApiPropertyOptional({
+    description: "Timestamp of the replacement"
+  })
+  @IsOptional()
+  @IsNumber()
+  timestamp?: number;
 }

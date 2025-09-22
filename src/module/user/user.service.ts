@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { FindOptionsWhere, IsNull, Like, Not, Repository } from "typeorm";
@@ -8,14 +8,18 @@ import { ERole } from "src/common/enums/role.enum";
 import { instanceToPlain } from "class-transformer";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { AddressService } from "../address/address.service";
+import { NotificationService } from "../notification/notification.service";
 
 @Injectable()
 export class UserService extends BaseSqlService<User, IUser> {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
 
     private readonly addressService: AddressService,
+    private readonly notificationService: NotificationService,
   ) {
     super(userRepository);
   }
@@ -87,6 +91,26 @@ export class UserService extends BaseSqlService<User, IUser> {
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    try {
+      if (user.isBanned !== body.isBanned) {
+        if (body.isBanned) {
+          await this.notificationService.sendNotification({
+            userIds: [user.id!],
+            title: 'Account Suspended',
+            body: 'Your account has been banned due to policy violations. Please contact support for more details.'
+          })
+        } else {
+          await this.notificationService.sendNotification({
+            userIds: [user.id!],
+            title: 'Account Restored',
+            body: 'Good news! Your account ban has been lifted, and you can now access all features again.'
+          })
+        }
+      }
+    } catch (error) {
+      this.logger.error('Failed to send user ban/unban notification', error.stack)
     }
 
     const updatedUser = this.userRepository.merge(user, rest);
