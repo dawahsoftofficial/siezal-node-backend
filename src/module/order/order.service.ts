@@ -19,6 +19,7 @@ import { AddressService } from "../address/address.service";
 import { UpdateOrderItemDto } from "./dto/create-order-item.dto";
 import { NotificationService } from "../notification/notification.service";
 import { EOrderReplacementStatus } from "src/common/enums/replacement-status.enum";
+import { ReplaceOrderItemDto } from "./dto/replace-order-item.dto";
 
 @Injectable()
 export class OrderService extends BaseSqlService<Order, IOrder> {
@@ -112,6 +113,35 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       order: {
         createdAt: "DESC",
       },
+    });
+  }
+
+  async latestOrder(userId: number, query: GetOrdersQueryDto) {
+    const where: FindOptionsWhere<Order> = { userId: userId };
+
+    if (query.status) {
+      if (query.status === 'ongoing') {
+        where.status = In([
+          EOrderStatus.NEW,
+          EOrderStatus.IN_REVIEW,
+          EOrderStatus.PREPARING,
+          EOrderStatus.SHIPPED
+        ]);
+      } else if (query.status === 'done') {
+        where.status = In([
+          EOrderStatus.DELIVERED,
+          EOrderStatus.COMPLETED,
+          EOrderStatus.CANCELLED,
+          EOrderStatus.REFUNDED
+        ]);
+      } else {
+        where.status = query.status as EOrderStatus;
+      }
+    }
+
+    return this.orderRepository.findOne({
+      relations: ["items"],
+      where
     });
   }
 
@@ -274,26 +304,12 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
     return await this.orderRepository.save(updatedOrder);
   }
-  
+
   async updateItem(id: number, body: UpdateOrderItemDto) {
     const item = await this.orderItemRepository.findOne({ where: { id } });
 
     if (!item) {
       throw new NotFoundException(`Order Item with ID ${id} not found`);
-    }
-
-    if (
-      body.replacementStatus === EOrderReplacementStatus.ACCEPTED &&
-      item.timestamp &&
-      Date.now() >= Number(item.timestamp)
-    ) {
-      throw new BadRequestException(
-        `Replacement approval time expired for Order Item ID ${id}`
-      );
-    }
-
-    if (body.replacementStatus === EOrderReplacementStatus.ACCEPTED) {
-      body.timestamp = null;
     }
 
     const updatedItem = this.orderItemRepository.merge(item, body);
@@ -302,18 +318,23 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
   }
 
   async deleteItem(id: number) {
-    const item = await this.orderItemRepository.findOne({ where: { id } }); 
+    const item = await this.orderItemRepository.findOne({ where: { id } });
 
     if (!item) {
       throw new NotFoundException(`Order Item with ID ${id} not found`);
     }
 
+    // delete the item
     await this.orderItemRepository.delete({ id });
 
-    const order = await this.orderRepository.findOne({ where: { id: item.orderId }, relations: ['items'] })
+    // recalc order
+    const order = await this.orderRepository.findOne({
+      where: { id: item.orderId },
+      relations: ['items'],
+    });
 
     if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
+      throw new NotFoundException(`Order with ID ${item.orderId} not found`);
     }
 
     let totalAmount = 0;
@@ -334,12 +355,119 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     totalAmount += Number(order.shippingAmount || 0);
     totalAmount -= Number(order.totalDiscountAmount || 0);
 
-    await this.orderRepository.update(
-      { id: item.orderId },
-      {
-        totalAmount,
-        gstAmount,
+    order.totalAmount = totalAmount;
+    order.gstAmount = gstAmount;
+
+    await this.orderRepository.save(order);
+
+    return order;
+  }  
+
+  async acceptItem(id: number, newProductId: number) {
+    const item = await this.orderItemRepository.findOne({ where: { id } });
+
+    if (!item) {
+      throw new NotFoundException(`Order Item with ID ${id} not found`);
+    }
+
+    // ---- snapshot current productData into history ----
+    const historyEntry = {
+      replacedAt: new Date(),
+      productId: item.productId,
+      productData: item.productData,
+    };
+
+    item.history = [...(item.history ?? []), historyEntry];
+
+    // ---- load new product ----
+    const newProduct = await this.productService.findOne({
+      where: { id: newProductId },
+      relations: ['category'],
+    });
+
+    if (!newProduct) {
+      throw new NotFoundException(`Product with ID ${newProductId} not found`);
+    }
+
+    // ---- update order item ----
+    item.productId = newProduct.id!;
+    item.productData = {
+      name: newProduct.title,
+      sku: newProduct.sku ?? '',
+      price: newProduct.price,
+      discountedPrice: newProduct.salePrice ?? undefined,
+      gstFee: newProduct.gstFee ?? 0,
+      category: newProduct.category?.slug ?? '',
+      image: newProduct.image,
+    };
+    item.replacementStatus = EOrderReplacementStatus.ACCEPTED;
+    item.timestamp = null;
+    item.suggestedProducts = null
+
+    await this.orderItemRepository.save(item);
+
+    // ---- recalc order ----
+    const order = await this.orderRepository.findOne({
+      where: { id: item.orderId },
+      relations: ['items'],
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${item.orderId} not found`);
+    }
+
+    let totalAmount = 0;
+    let gstAmount = 0;
+
+    order.items?.forEach((orderItem) => {
+      const qty = Number(orderItem.quantity || 0);
+      const basePrice = Number(orderItem.productData.discountedPrice ?? orderItem.productData.price);
+      const itemSubtotal = basePrice * qty;
+
+      const gstRate = Number(orderItem.productData.gstFee || 0);
+      const itemGst = itemSubtotal * (gstRate / 100);
+
+      gstAmount += itemGst;
+      totalAmount += itemSubtotal + itemGst;
+    });
+
+    totalAmount += Number(order.shippingAmount || 0);
+    totalAmount -= Number(order.totalDiscountAmount || 0);
+
+    order.totalAmount = totalAmount;
+    order.gstAmount = gstAmount;
+
+    await this.orderRepository.save(order);
+
+    return order;
+  }  
+
+  async replaceItem(id: number, body: ReplaceOrderItemDto) {
+    const item = await this.orderItemRepository.findOne({ where: { id } });
+
+    if (!item) {
+      throw new NotFoundException(`Order Item with ID ${id} not found`);
+    }
+
+    if (body.replacementStatus === EOrderReplacementStatus.ACCEPTED) {
+      if (body.newProductId) {
+        if (Date.now() < Number(item.timestamp)) {
+          return this.acceptItem(id, body.newProductId);
+        } else {
+          await this.deleteItem(id);
+          throw new BadRequestException(
+            `Replacement approval time expired for Order Item ID ${id}`,
+          );
+        }
+      } else {
+        throw new BadRequestException(
+          `New Product ID is required in case of approval`,
+        );
       }
-    );
+    } else if (body.replacementStatus === EOrderReplacementStatus.REJECTED) {
+      return this.deleteItem(id);
+    } else {
+      throw new BadRequestException(`Only Accepted and Rejected Status allowed`);
+    }
   }
 }
