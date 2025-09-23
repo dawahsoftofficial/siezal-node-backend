@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Setting } from "src/database/entities/setting.entity";
 import { SettingService } from "./setting.service";
@@ -7,7 +7,7 @@ import { SettingController } from "./controller/setting.controller";
 import { CategoryModule } from "../category/category.module";
 import { ProductModule } from "../product/product.module";
 @Module({
-  imports: [TypeOrmModule.forFeature([Setting]), CategoryModule, ProductModule],
+  imports: [TypeOrmModule.forFeature([Setting]), CategoryModule, forwardRef(() => ProductModule)],
   controllers: [SettingController, AdminSettingController],
   providers: [SettingService],
   exports: [SettingService],

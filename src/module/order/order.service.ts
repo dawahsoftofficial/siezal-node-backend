@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/database/entities/order.entity";
 import { FindOptionsWhere, In, Like, Repository } from "typeorm";
@@ -18,6 +18,7 @@ import { ProductService } from "../product/product.service";
 import { AddressService } from "../address/address.service";
 import { UpdateOrderItemDto } from "./dto/create-order-item.dto";
 import { NotificationService } from "../notification/notification.service";
+import { EOrderReplacementStatus } from "src/common/enums/replacement-status.enum";
 
 @Injectable()
 export class OrderService extends BaseSqlService<Order, IOrder> {
@@ -195,7 +196,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       } catch (error) {
         this.logger.error('Failed to send order created notification', error.stack)
       }
-      
+
       return {
         success: true,
         message: "Order created successfully",
@@ -255,7 +256,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       })
     } catch (error) {
       this.logger.error('Failed to send order status update notification', error.stack)
-    }   
+    }
   }
 
   async update(id: number, body: UpdateOrderDto) {
@@ -273,7 +274,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
     return await this.orderRepository.save(updatedOrder);
   }
-
+  
   async updateItem(id: number, body: UpdateOrderItemDto) {
     const item = await this.orderItemRepository.findOne({ where: { id } });
 
@@ -281,8 +282,64 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       throw new NotFoundException(`Order Item with ID ${id} not found`);
     }
 
+    if (
+      body.replacementStatus === EOrderReplacementStatus.ACCEPTED &&
+      item.timestamp &&
+      Date.now() >= Number(item.timestamp)
+    ) {
+      throw new BadRequestException(
+        `Replacement approval time expired for Order Item ID ${id}`
+      );
+    }
+
+    if (body.replacementStatus === EOrderReplacementStatus.ACCEPTED) {
+      body.timestamp = null;
+    }
+
     const updatedItem = this.orderItemRepository.merge(item, body);
 
     return await this.orderItemRepository.save(updatedItem);
+  }
+
+  async deleteItem(id: number) {
+    const item = await this.orderItemRepository.findOne({ where: { id } }); 
+
+    if (!item) {
+      throw new NotFoundException(`Order Item with ID ${id} not found`);
+    }
+
+    await this.orderItemRepository.delete({ id });
+
+    const order = await this.orderRepository.findOne({ where: { id: item.orderId }, relations: ['items'] })
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    let totalAmount = 0;
+    let gstAmount = 0;
+
+    order.items?.forEach((orderItem) => {
+      const qty = Number(orderItem.quantity || 0);
+      const basePrice = Number(orderItem.productData.discountedPrice ?? orderItem.productData.price);
+      const itemSubtotal = basePrice * qty;
+
+      const gstRate = Number(orderItem.productData.gstFee || 0);
+      const itemGst = itemSubtotal * (gstRate / 100);
+
+      gstAmount += itemGst;
+      totalAmount += itemSubtotal + itemGst;
+    });
+
+    totalAmount += Number(order.shippingAmount || 0);
+    totalAmount -= Number(order.totalDiscountAmount || 0);
+
+    await this.orderRepository.update(
+      { id: item.orderId },
+      {
+        totalAmount,
+        gstAmount,
+      }
+    );
   }
 }

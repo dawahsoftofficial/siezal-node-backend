@@ -73,5 +73,5 @@ export class UpdateOrderItemDto extends PartialType(CreateOrderItemDto) {
   })
   @IsOptional()
   @IsNumber()
-  timestamp?: number;
+  timestamp?: number | null;
 }

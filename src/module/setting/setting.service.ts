@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { MoreThan, Not, Repository } from "typeorm";
@@ -19,7 +19,10 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
     private readonly settingRepository: Repository<Setting>,
 
     private readonly categoryService: CategoryService,
+
+    @Inject(forwardRef(() => ProductService))
     private readonly productService: ProductService,
+
     private readonly s3Service: S3Service
   ) {
     super(settingRepository);

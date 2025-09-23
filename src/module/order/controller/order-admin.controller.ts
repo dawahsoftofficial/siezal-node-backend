@@ -116,4 +116,22 @@ export class AdminOrderController {
         const updated = await this.orderService.updateItem(params.id, body);
         return SuccessResponse("Order Item updated successfully", updated);
     }
+
+    @GenerateSwaggerDoc({
+        summary: "Delete order item by ID",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Delete("/delete-item/:id")
+    async deleteOrderItem(@Param() params: GetOrderParamDto) {
+        await this.orderService.deleteItem(params.id);
+
+        return SuccessResponse("Order Item deleted successfully");
+    }
 }
