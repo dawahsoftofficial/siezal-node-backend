@@ -141,7 +141,8 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
     return this.orderRepository.findOne({
       relations: ["items"],
-      where
+      where,
+      order: { createdAt: 'DESC' }
     });
   }
 
@@ -361,7 +362,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     await this.orderRepository.save(order);
 
     return order;
-  }  
+  }
 
   async acceptItem(id: number, newProductId: number) {
     const item = await this.orderItemRepository.findOne({ where: { id } });
@@ -440,7 +441,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     await this.orderRepository.save(order);
 
     return order;
-  }  
+  }
 
   async replaceItem(id: number, body: ReplaceOrderItemDto) {
     const item = await this.orderItemRepository.findOne({ where: { id } });
