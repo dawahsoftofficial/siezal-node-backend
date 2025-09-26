@@ -404,6 +404,8 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     item.replacementStatus = EOrderReplacementStatus.ACCEPTED;
     item.timestamp = null;
     item.suggestedProducts = null
+    item.totalPrice = item.quantity * (newProduct.salePrice || newProduct.price);
+    item.totalGstAmount = newProduct.gstFee ? item.quantity * (newProduct.salePrice || newProduct.price) * (newProduct.gstFee / 100) : undefined
 
     await this.orderItemRepository.save(item);
 
