@@ -209,14 +209,15 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
       await orderItemRepo.save(finalItems);
 
-      await this.addressService.updateOne({ userId }, {
+      await this.addressService.createOrUpdate({
+        userId,
         shippingAddressLine1,
         shippingAddressLine2,
         shippingPostalCode,
         shippingCity,
         shippingCountry,
         shippingState
-      });
+      }, ['userId']);
 
       try {
         await this.notificationService.sendNotification({

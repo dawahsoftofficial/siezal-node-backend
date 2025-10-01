@@ -178,7 +178,7 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
   async delete(id: number): Promise<void> {
     const result = await this.categoryRepository.delete(id);
 
-    if (result.affected === 0) {
+    if (!result) {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
   }

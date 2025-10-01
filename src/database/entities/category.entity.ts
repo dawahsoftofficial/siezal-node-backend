@@ -44,6 +44,7 @@ export class Category extends BaseEntity implements ICategory {
 
   @OneToMany(() => Product, (data) => data.category, {
     cascade: true,
+    onDelete: 'CASCADE'
   })
   products?: IProduct[];
 }
