@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
-import { FindOptionsWhere, IsNull, Like, Not, Repository } from "typeorm";
+import { FindOptionsWhere, In, IsNull, Like, Not, Repository } from "typeorm";
 import { IUser } from "./interface/user.interface";
 import { User } from "src/database/entities/user.entity";
 import { ERole } from "src/common/enums/role.enum";
@@ -29,12 +29,11 @@ export class UserService extends BaseSqlService<User, IUser> {
     role = ERole.USER
   ): Promise<IUser | null> {
     const filter =
-      role === ERole.ADMIN ? { email: identifier } : { phone: identifier };
+      role === ERole.USER ? { phone: identifier } : { email: identifier };
     return instanceToPlain(
-      await this.findOne({ where: { ...filter, role } })
+      await this.findOne({ where: { ...filter, role: role === ERole.USER ? role : In([ERole.ADMIN, ERole.MANAGER, ERole.ORDER_MANAGER]) } })
     ) as IUser | null;
   }
-
 
   async list(page: number, limit: number, query?: string, trash?: boolean) {
     let where: FindOptionsWhere<User>[] | FindOptionsWhere<User> = {};
@@ -87,7 +86,7 @@ export class UserService extends BaseSqlService<User, IUser> {
   async update(id: number, body: UpdateUserDto) {
     const { shippingAddressLine1, shippingAddressLine2, shippingPostalCode, shippingCity, shippingCountry, shippingState, ...rest } = body
 
-    const user = await this.userRepository.findOne({ where: { id } });
+    const user = await this.userRepository.findOne({ where: { id }, withDeleted: true });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);

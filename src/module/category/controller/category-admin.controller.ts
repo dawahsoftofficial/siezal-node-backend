@@ -23,7 +23,7 @@ import { CategorySlugParamDto } from "../dto/category-param-dto";
 import { GetCategoryParamDto } from "../dto/category-show.dto";
 import { FileFieldsInterceptor } from "@nestjs/platform-express";
 import { CreateCategoryBodyDto } from "../dto/category-create.dto";
-import { UpdateCategoryBodyDto } from "../dto/category-update.dto";
+import { UpdateCategoryBodyDto, UpdateCategoryPositionsDto } from "../dto/category-update.dto";
 
 @ApiTags("Admin Category Management")
 @AdminRouteController("categories")
@@ -92,8 +92,28 @@ export class AdminCategoryController {
         }
     ) {
         const updated = await this.categoryService.updateCategory(id, body, files);
-        
+
         return SuccessResponse("Category updated successfully", updated);
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Update category positions by IDs",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Patch("/update-positions")
+    async updateCategoryPositions(
+        @Body() body: UpdateCategoryPositionsDto
+    ) {
+        await this.categoryService.updateCategoryPositions(body);
+
+        return SuccessResponse("Category positions updated successfully");
     }
 
     @GenerateSwaggerDoc({
@@ -115,7 +135,7 @@ export class AdminCategoryController {
             data
         );
     }
-    
+
     @GenerateSwaggerDoc({
         summary: "Get list of child categories names only",
         responses: [

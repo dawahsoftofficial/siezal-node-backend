@@ -7,7 +7,7 @@ import { Category } from "src/database/entities/category.entity";
 import { CategoryListQueryDto, CategoryListQueryDtoAdmin } from "./dto/category-list-query.dto";
 import { CreateCategoryBodyDto } from "./dto/category-create.dto";
 import { S3Service } from "src/shared/aws/s3.service";
-import { UpdateCategoryBodyDto } from "./dto/category-update.dto";
+import { UpdateCategoryBodyDto, UpdateCategoryPositionsDto } from "./dto/category-update.dto";
 
 @Injectable()
 export class CategoryService extends BaseSqlService<Category, ICategory> {
@@ -90,13 +90,21 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
       }
     }
 
-    if (category.position !== body.position) {
-      await this.categoryRepository.update({ position: body.position }, { position: category.position })
-    }
+    // if (category.position !== body.position) {
+    //   await this.categoryRepository.update({ position: body.position }, { position: category.position })
+    // }
 
     Object.assign(category, { parentId: body.parentId !== -1 ? body.parentId : undefined });
 
     return this.categoryRepository.save(category);
+  }
+
+  async updateCategoryPositions(body: UpdateCategoryPositionsDto): Promise<void> {
+    const updatePromises = body.data.map(item =>
+      this.categoryRepository.update({ id: item.id }, { position: item.position })
+    );
+
+    await Promise.all(updatePromises);
   }
 
   list = async () => {

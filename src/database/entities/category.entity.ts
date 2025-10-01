@@ -12,8 +12,8 @@ export class Category extends BaseEntity implements ICategory {
   @Column({ name: "slug", type: "varchar" })
   slug: string;
 
-  @Column({ name: "icon", type: "varchar" })
-  icon: string;
+  @Column({ name: "icon", type: "varchar", nullable: true })
+  icon: string | null;
 
   @Column({ name: "slide_show", type: "boolean", default: false })
   slideShow: boolean;
@@ -25,7 +25,7 @@ export class Category extends BaseEntity implements ICategory {
   position: number;
 
   @Column({ name: "images", type: "json", nullable: true })
-  images: string[];
+  images: string[] | null;
 
   @Column({ name: "parent_id", type: "int", nullable: true })
   parentId?: number | null;

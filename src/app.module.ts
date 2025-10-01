@@ -26,11 +26,11 @@ import { SettingModule } from "./module/setting/setting.module";
 import { DashboardModule } from "./module/dashboard/dashboard.module";
 import { AwsModule } from "./shared/aws/aws.module";
 import { TwilioModule } from "./shared/twilio/twilio.module";
-import { TwilioService } from "./shared/twilio/twilio.service";
 import { FirebaseModule } from "./shared/firebase/firebase.module";
 import { FcmTokenModule } from "./module/fcm-token/fcm-token.module";
 import { NotificationModule } from "./module/notification/notification.module";
 import { LeadModule } from "./module/lead/lead.module";
+import { StaffModule } from "./module/staff/staff.module";
 
 @Module({
   imports: [
@@ -76,6 +76,7 @@ import { LeadModule } from "./module/lead/lead.module";
     FcmTokenModule,
     NotificationModule,
     LeadModule,
+    StaffModule
   ],
   controllers: [AppController],
   providers: [
