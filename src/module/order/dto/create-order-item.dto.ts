@@ -1,7 +1,16 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
-import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, Min } from "class-validator";
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from "class-validator";
 import { EOrderReplacementStatus } from "src/common/enums/replacement-status.enum";
 import { IProduct } from "src/module/product/interface/product.interface";
+import { EGatewayType } from "../interface/order.interface";
 
 export class CreateOrderItemDto {
   @ApiProperty({ example: 1, description: "Product ID" })
@@ -21,8 +30,8 @@ export class CreateOrderItemDto {
       price: 500,
       discountedPrice: 450,
       gstFee: 18,
-      category: 'gaming-accessories',
-      image: 'https://image-url.com/sample_image.png',
+      category: "gaming-accessories",
+      image: "https://image-url.com/sample_image.png",
     },
     description: "Snapshot of product data at time of purchase",
   })
@@ -67,11 +76,11 @@ export class CreateOrderItemDto {
   suggestedProducts?: IProduct[] | null;
 
   @ApiPropertyOptional({
-    description: "Timestamp of the replacement"
+    description: "Timestamp of the replacement",
   })
   @IsOptional()
   @IsNumber()
   timestamp?: number | null;
 }
 
-export class UpdateOrderItemDto extends PartialType(CreateOrderItemDto) { }
+export class UpdateOrderItemDto extends PartialType(CreateOrderItemDto) {}
