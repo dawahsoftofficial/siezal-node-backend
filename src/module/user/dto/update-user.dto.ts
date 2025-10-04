@@ -74,4 +74,9 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   shippingState?: string;
+
+  @ApiPropertyOptional({ example: null, description: "Deletion timestamp" })
+  @IsOptional()
+  @IsString()
+  deletedAt?: Date | null;
 }

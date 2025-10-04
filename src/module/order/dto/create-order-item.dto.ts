@@ -48,9 +48,7 @@ export class CreateOrderItemDto {
   @IsOptional()
   @IsNumber()
   totalGstAmount?: number;
-}
 
-export class UpdateOrderItemDto extends PartialType(CreateOrderItemDto) {
   @ApiPropertyOptional({
     enum: EOrderReplacementStatus,
     description: "Replacement status of this order item",
@@ -67,4 +65,13 @@ export class UpdateOrderItemDto extends PartialType(CreateOrderItemDto) {
   })
   @IsOptional()
   suggestedProducts?: IProduct[] | null;
+
+  @ApiPropertyOptional({
+    description: "Timestamp of the replacement"
+  })
+  @IsOptional()
+  @IsNumber()
+  timestamp?: number | null;
 }
+
+export class UpdateOrderItemDto extends PartialType(CreateOrderItemDto) { }

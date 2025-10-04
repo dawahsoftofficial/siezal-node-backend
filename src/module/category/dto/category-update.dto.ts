@@ -1,6 +1,7 @@
-import { ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import { CreateCategoryBodyDto } from "./category-create.dto";
-import { IsBoolean, IsOptional } from "class-validator";
+import { IsArray, IsBoolean, IsInt, IsOptional, ValidateNested } from "class-validator";
+import { Type } from "class-transformer";
 
 export class UpdateCategoryBodyDto extends PartialType(CreateCategoryBodyDto) {
     @ApiPropertyOptional({
@@ -11,4 +12,25 @@ export class UpdateCategoryBodyDto extends PartialType(CreateCategoryBodyDto) {
     @IsBoolean()
     @IsOptional()
     replaceImages?: boolean;
-  }
+}
+
+export class CategoryPositionDto {
+    @ApiProperty()
+    @IsInt()
+    id: number;
+
+    @ApiProperty()
+    @IsInt()
+    position: number;
+}
+
+export class UpdateCategoryPositionsDto {
+    @ApiProperty({
+        type: [CategoryPositionDto],
+        description: "Array of category positions to update",
+    })
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => CategoryPositionDto)
+    data: CategoryPositionDto[];
+}

@@ -5,9 +5,10 @@ import { UserService } from './user.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from 'src/database/entities/user.entity';
 import { AddressModule } from '../address/address.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), AddressModule],
+  imports: [TypeOrmModule.forFeature([User]), AddressModule, NotificationModule],
   controllers: [UserController, AdminUserController],
   providers: [UserService],
   exports:[UserService]

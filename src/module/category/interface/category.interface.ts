@@ -4,7 +4,7 @@ import { IProduct } from "src/module/product/interface/product.interface";
 export interface ICategory extends IEntityBase {
   name: string;
   slug: string;
-  icon: string;
+  icon: string | null;
   parentId?: number | null;
   parentCategory?: ICategory;
   subCategories?: ICategory[];
@@ -12,5 +12,5 @@ export interface ICategory extends IEntityBase {
   slideShow: boolean;
   isFeatured: boolean;
   position: number;
-  images: string[];
+  images: string[] | null;
 }

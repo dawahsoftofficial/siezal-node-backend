@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { Product } from "src/database/entities/product.entity";
@@ -13,13 +13,18 @@ import { getPaginationMetadata } from "src/common/utils/pagination.utils";
 import { UpdateProductBodyDto } from "./dto/product-update.dto";
 import { CreateProductBodyDto } from "./dto/product-create.dto";
 import { S3Service } from "src/shared/aws/s3.service";
+import { SettingService } from "../setting/setting.service";
 
 @Injectable()
 export class ProductService extends BaseSqlService<Product, IProduct> {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
-    private readonly s3Service: S3Service
+
+    private readonly s3Service: S3Service,
+
+    @Inject(forwardRef(() => SettingService))
+    private readonly settingService: SettingService,
   ) {
     super(productRepository);
   }
@@ -53,7 +58,18 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     }
 
     if (filters.price) {
-      qb.andWhere("product.price <= :price", { price: filters.price });
+      const setting = await this.settingService.findOne({
+        where: { key: 'replacementProductPriceRange' }
+      });
+
+      const priceRangePercentage = Number(setting?.value || 0);
+      const minPrice = filters.price - (filters.price * priceRangePercentage) / 100;
+      const maxPrice = filters.price + (filters.price * priceRangePercentage) / 100;
+
+      qb.andWhere("product.price BETWEEN :minPrice AND :maxPrice", {
+        minPrice,
+        maxPrice,
+      });
     }
 
     qb.skip((page - 1) * limit)

@@ -9,3 +9,11 @@ export class GetOrderParamDto {
     @Min(1)
     id: number;
 }
+
+export class GetOrderItemParamDto {
+    @ApiProperty({ description: 'Order Item ID', example: 1 })
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    id: number;
+}

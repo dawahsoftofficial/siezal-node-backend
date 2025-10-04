@@ -86,7 +86,7 @@ export class Product extends BaseEntity implements IProduct {
   @Column({ name: "category_id", type: "int" })
   categoryId: number;
 
-  @ManyToOne(() => Category)
+  @ManyToOne(() => Category, { onDelete: 'CASCADE' })
   @JoinColumn({ name: "category_id" })
   category: Category;
 
