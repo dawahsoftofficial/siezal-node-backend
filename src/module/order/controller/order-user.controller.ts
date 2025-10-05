@@ -15,7 +15,10 @@ import {
   SuccessResponseArrayDto,
   SuccessResponseSingleObjectDto,
 } from "src/common/dto/app.dto";
-import { GetOrderItemParamDto, GetOrderParamDto } from "src/module/order/dto/order-show.dto";
+import {
+  GetOrderItemParamDto,
+  GetOrderParamDto,
+} from "src/module/order/dto/order-show.dto";
 import { OrderService } from "../order.service";
 import { GetOrdersQueryDto } from "../dto/order-list.dto";
 import { CreateOrderDto } from "../dto/create-order.dto";
@@ -27,11 +30,12 @@ import { IAuthRequest } from "src/common/interfaces/app.interface";
 import { SuccessResponse } from "src/common/utils/api-response.util";
 import { UpdateOrderItemDto } from "../dto/create-order-item.dto";
 import { ReplaceOrderItemDto } from "../dto/replace-order-item.dto";
+import { GetOrderPaymentSessionCallbackDto } from "../dto/callback.dto";
 
 @ApiTags("Orders Management")
 @UserRouteController("orders")
 export class UserOrderController {
-  constructor(private readonly orderService: OrderService) { }
+  constructor(private readonly orderService: OrderService) {}
 
   @GenerateSwaggerDoc({
     summary: "Get latest order for a user",
@@ -44,7 +48,7 @@ export class UserOrderController {
     ],
   })
   @HttpCode(HttpStatus.OK)
-  @Get('/latest')
+  @Get("/latest")
   async getLatestOrder(
     @AuthUser() { id }: IAuthRequest,
     @Query() query: GetOrdersQueryDto
@@ -129,5 +133,32 @@ export class UserOrderController {
     const data = await this.orderService.replaceItem(params.id, dto);
 
     return SuccessResponse("Order Item replaced successfully", data);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Order Payment  Callback",
+
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseArrayDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.CONFLICT },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @HttpCode(HttpStatus.OK)
+  @Get(
+    "/payment/callback/merchantOrderId/:merchantOrderId/gatewayOrderId/:gatewayOrderId"
+  )
+  async callBack(
+    @AuthUser() { id }: IAuthRequest,
+    @Param()
+    { merchantOrderId, gatewayOrderId }: GetOrderPaymentSessionCallbackDto
+  ) {
+    const data = await this.orderService.orderCallback(
+      merchantOrderId,
+      gatewayOrderId
+    );
+    return SuccessResponse("Order Callback Done", data);
   }
 }

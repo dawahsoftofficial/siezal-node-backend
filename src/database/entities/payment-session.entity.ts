@@ -18,6 +18,7 @@ import {
   IOrder,
 } from "src/module/order/interface/order.interface";
 import { Order } from "./order.entity";
+import { IPendingOrder } from "src/module/pending-order/interface/pending-order.interface";
 
 @Entity({ name: "payment_sessions" })
 export class PaymentSession extends BaseEntity implements IPaymentSession {
@@ -28,7 +29,7 @@ export class PaymentSession extends BaseEntity implements IPaymentSession {
     onDelete: "CASCADE",
   })
   @JoinColumn({ name: "pending_order_id" })
-  pendingOrder: PendingOrder;
+  pendingOrder: IPendingOrder;
 
   @Column({
     type: "enum",

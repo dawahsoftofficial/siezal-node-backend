@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/database/entities/order.entity";
-import { FindOptionsWhere, In, Like, Repository } from "typeorm";
+import { EntityManager, FindOptionsWhere, In, Like, Repository } from "typeorm";
 import {
   GetOrdersQueryDto,
   GetOrdersQueryDtoAdmin,
@@ -34,6 +34,8 @@ import {
   EPaymentSessionStatus,
   IPaymentSession,
 } from "../payment-session/interface/payment-session.interface";
+import { PendingOrderService } from "../pending-order/pending-order.service";
+import { PaymentSessionService } from "../payment-session/payment-session.service";
 
 @Injectable()
 export class OrderService extends BaseSqlService<Order, IOrder> {
@@ -49,7 +51,8 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     private readonly productService: ProductService,
     private readonly addressService: AddressService,
     private readonly notificationService: NotificationService,
-    private readonly dataSource: DataSource
+    private readonly dataSource: DataSource,
+    private readonly paymentSessionService: PaymentSessionService
   ) {
     super(orderRepository);
   }
@@ -197,7 +200,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
   async createOrder(userId: number, dto: CreateOrderDto) {
     switch (dto.gateway) {
       case EGatewayType.MEEZAN:
-
+        return this.paymentSessionService.initiatePayment(userId, dto);
       case EGatewayType.COD:
         return this.createCODOrder(userId, dto);
       default:
@@ -205,13 +208,78 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     }
   }
 
+  // ----------------------
+  // 1️⃣ PURE ORDER CREATION
+  // ----------------------
+  async createOrderData(
+    manager: EntityManager,
+    userId: number,
+    dto: CreateOrderDto,
+    paymentSessionId?: number
+  ) {
+    const orderRepo = manager.getRepository(Order);
+    const orderItemRepo = manager.getRepository(OrderItem);
+
+    const { items, ...rest } = dto;
+    const {
+      shippingAddressLine1,
+      shippingAddressLine2,
+      shippingPostalCode,
+      shippingCity,
+      shippingCountry,
+      shippingState,
+    } = rest;
+
+    // Create order
+    const order = orderRepo.create({
+      userId,
+      ...rest,
+      status: EOrderStatus.NEW,
+      paymentSessionId,
+    });
+    const savedOrder = await orderRepo.save(order);
+
+    // Create order items
+    const finalItems = items.map((item) =>
+      orderItemRepo.create({
+        orderId: savedOrder.id,
+        ...item,
+      })
+    );
+    await orderItemRepo.save(finalItems);
+
+    // Update address
+    await this.addressService.createOrUpdate(
+      {
+        userId,
+        shippingAddressLine1,
+        shippingAddressLine2,
+        shippingPostalCode,
+        shippingCity,
+        shippingCountry,
+        shippingState,
+      },
+      ["userId"]
+    );
+
+    // Generate formatted order UID
+    await orderRepo.update(
+      { id: savedOrder.id },
+      { orderUID: generateOrderUidV2(savedOrder.id!) }
+    );
+
+    return { savedOrder, finalItems };
+  }
+
+  // ----------------------
+  // 2️⃣ COD ORDER CREATION
+  // ----------------------
   private async createCODOrder(userId: number, dto: CreateOrderDto) {
     return this.dataSource.transaction(async (manager) => {
-      const orderRepo = manager.getRepository(Order);
-      const orderItemRepo = manager.getRepository(OrderItem);
       const pendingOrderRepo = manager.getRepository(PendingOrder);
       const paymentSessionRepo = manager.getRepository(PaymentSession);
 
+      // 1️⃣ Create Pending Order
       const pendingOrder = await pendingOrderRepo.save({
         userId,
         merchantOrderId: generateOrderUID(),
@@ -219,85 +287,49 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
         status: "SUCCESS",
       });
 
-      const { items, gateway, ...rest } = dto;
-
-      const {
-        shippingAddressLine1,
-        shippingAddressLine2,
-        shippingPostalCode,
-        shippingCity,
-        shippingCountry,
-        shippingState,
-      } = rest;
-
-      const order = orderRepo.create({
-        orderUID: generateOrderUID(),
-        userId,
-        ...rest,
-        status: EOrderStatus.NEW,
-      });
-
-      const savedOrder = await orderRepo.save(order);
-
-      const finalItems = items.map((item) =>
-        orderItemRepo.create({
-          orderId: savedOrder.id,
-          ...item,
-        })
-      );
+      // 2️⃣ Create Payment Session
       const paymentSessionData: IPaymentSession = {
         pendingOrderId: pendingOrder.id!,
-        gateway,
-        amount: savedOrder.totalAmount,
-        status: EPaymentSessionStatus.SUCCESS,
-
+        gateway: dto.gateway,
+        amount: dto.totalAmount,
+        status: EPaymentSessionStatus.PENDING,
         actionLogs: [
           {
             action: "COD_ORDER_CREATED",
             message: "Cash on Delivery order created",
             timestamp: new Date().toISOString(),
-            details: { orderId: savedOrder.id },
+            details: {},
           },
         ],
       };
+      const savedPaymentSession =
+        await paymentSessionRepo.save(paymentSessionData);
 
-      const [_, __, savedPaymentSession] = await Promise.all([
-        orderItemRepo.save(finalItems),
-        this.addressService.createOrUpdate(
-          {
-            userId,
-            shippingAddressLine1,
-            shippingAddressLine2,
-            shippingPostalCode,
-            shippingCity,
-            shippingCountry,
-            shippingState,
-          },
-          ["userId"]
-        ),
-        paymentSessionRepo.save(paymentSessionData),
-      ]);
-
-      await orderRepo.update(
-        { id: savedOrder.id! },
-        {
-          orderUID: generateOrderUidV2(savedOrder.id!),
-          paymentSessionId: savedPaymentSession.id,
-        }
+      // 3️⃣ Create Actual Order
+      const { savedOrder, finalItems } = await this.createOrderData(
+        manager,
+        userId,
+        dto,
+        savedPaymentSession.id
       );
-      try {
-        await this.notificationService.sendNotification({
-          userIds: [userId],
-          title: "Order Placed",
-          body: "Your order has been created successfully. We’ll start processing it soon.",
-        });
-      } catch (error) {
-        this.logger.error(
-          "Failed to send order created notification",
-          error.stack
-        );
-      }
 
+      // 4️⃣ Link payment session with actual order
+      await paymentSessionRepo.update(savedPaymentSession.id!, {
+        status: EPaymentSessionStatus.SUCCESS,
+        actionLogs: [
+          ...savedPaymentSession.actionLogs,
+          {
+            action: "ORDER_LINKED",
+            message: "Order linked to payment session",
+            timestamp: new Date().toISOString(),
+            details: { orderId: savedOrder.id },
+          },
+        ],
+      });
+
+      // 5️⃣ Send notification
+      this.sendOrderSuccessNotification(userId);
+      // ✅ Final Response
       return {
         success: true,
         message: "Order created successfully",
@@ -305,6 +337,69 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       };
     });
   }
+
+  async orderCallback(merchantOrderId: string, gatewayOrderId: string) {
+    const { success, detail, data } =
+      await this.paymentSessionService.paymentCallback(
+        merchantOrderId,
+        gatewayOrderId
+      );
+    if (!success) {
+      throw new BadRequestException("Unable to process payment callbak ", {
+        cause: "Payment Call back error",
+        description: JSON.stringify(detail),
+      });
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      if (!data.pendingOrder) {
+        throw new BadRequestException("Invalid pending order data");
+      }
+      const { dto, userId } = data.pendingOrder;
+      const { savedOrder, finalItems } = await this.createOrderData(
+        manager,
+        userId,
+        dto,
+        data.id!
+      );
+      // 4️⃣ Link payment session with actual order
+      await this.paymentSessionService.updateById(data.id!, {
+        status: EPaymentSessionStatus.SUCCESS,
+        actionLogs: [
+          ...data.actionLogs,
+          {
+            action: "ORDER_LINKED",
+            message: "Order linked to payment session",
+            timestamp: new Date().toISOString(),
+            details: { orderId: savedOrder.id },
+          },
+        ],
+      });
+
+      // 5️⃣ Send notification
+      this.sendOrderSuccessNotification(userId);
+      // ✅ Final Response
+      return {
+        success: true,
+        message: "Order created successfully",
+        data: { ...savedOrder, items: finalItems },
+      };
+    });
+  }
+  private sendOrderSuccessNotification = async (userId: number) => {
+    try {
+      await this.notificationService.sendNotification({
+        userIds: [userId],
+        title: "Order Placed",
+        body: "Your order has been created successfully. We’ll start processing it soon.",
+      });
+    } catch (error) {
+      this.logger.error(
+        "Failed to send order created notification",
+        error.stack
+      );
+    }
+  };
 
   private async handleOrderNotification(userId: number, status: EOrderStatus) {
     const notificationData = { title: "", body: "" };
