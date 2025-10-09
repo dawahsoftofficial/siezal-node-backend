@@ -1,4 +1,4 @@
-import { Column, Entity, OneToMany } from 'typeorm';
+import { Column, DeleteDateColumn, Entity, OneToMany } from 'typeorm';
 import { BaseEntity } from 'src/core/base/entity/entity.base';
 import { IOrder } from 'src/module/order/interface/order.interface';
 import { EOrderStatus } from 'src/common/enums/order-status.enum';
@@ -71,4 +71,7 @@ export class Order extends BaseEntity implements IOrder {
 
   @OneToMany(() => OrderItem, item => item.order, { cascade: true })
   items?: IOrderItem[];
+
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamp', nullable: true })
+  deletedAt?: Date | null;
 }
