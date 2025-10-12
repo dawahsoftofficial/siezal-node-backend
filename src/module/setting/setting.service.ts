@@ -2,7 +2,11 @@ import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { MoreThan, Not, Repository } from "typeorm";
-import { ISetting } from "./interface/setting.interface";
+import {
+  defaultSmsConfig,
+  ISetting,
+  ISmsServiceSetting,
+} from "./interface/setting.interface";
 import { Setting } from "src/database/entities/setting.entity";
 import { parseSettingValue } from "src/common/utils/app.util";
 import { CategoryService } from "../category/category.service";
@@ -145,6 +149,29 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
         value: body.value,
       });
       return await this.settingRepository.save(setting);
+    }
+  }
+
+  async fetchSmsService(): Promise<ISmsServiceSetting> {
+    try {
+      const smsServiceData = await this.findOne({
+        where: { key: "smsServices" },
+      });
+
+      if (!smsServiceData?.value) {
+        return defaultSmsConfig;
+      }
+
+      try {
+        const parsed = JSON.parse(smsServiceData.value);
+        return parsed;
+      } catch (error) {
+        console.error("❌ Invalid JSON in smsServices:", error);
+        return defaultSmsConfig;
+      }
+    } catch (error) {
+      console.error("❌ Error fetching SMS service config:", error);
+      return defaultSmsConfig;
     }
   }
 }

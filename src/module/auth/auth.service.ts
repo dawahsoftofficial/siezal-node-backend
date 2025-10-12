@@ -40,7 +40,7 @@ import { ChangePasswordDto } from "../user/dto/change-password.dto";
 import { UserSessionService } from "../user-session/user-session.service";
 import { FcmTokenService } from "../fcm-token/fcm-token.service";
 import { LoginResult } from "src/common/interfaces/app.interface";
-import { MetaWhatsappService } from "src/shared/meta-whatsapp/meta-whatsapp.service";
+import { MessagingService } from "src/shared/messaging/messaging.service";
 
 @Injectable()
 export class AuthService {
@@ -51,7 +51,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
     private readonly aesHelper: AesHelper,
-    private readonly metaWhatsappService: MetaWhatsappService,
+    private readonly messagingService: MessagingService,
     private readonly userSessionService: UserSessionService,
     private readonly fcmTokenService: FcmTokenService
   ) {}
@@ -74,7 +74,7 @@ export class AuthService {
     const otp = generateOtp();
     const otpMessage = generateOtpMessage(otp);
     const phoneNumber = normalizePakistaniPhone(dto.phone);
-    const sendOtp = await this.metaWhatsappService.sendWhatsappOtp(
+    const sendOtp = await this.messagingService.sendOtp(
       phoneNumber!,
       otpMessage
     );
@@ -123,7 +123,7 @@ export class AuthService {
       const otp = generateOtp();
       const otpMessage = generateOtpMessage(otp);
       const phoneNumber = normalizePakistaniPhone(identifier);
-      const sendOtp = await this.metaWhatsappService.sendWhatsappOtp(
+      const sendOtp = await this.messagingService.sendOtp(
         phoneNumber!,
         otpMessage
       );
@@ -237,7 +237,7 @@ export class AuthService {
     const otp = generateOtp();
     const otpMessage = generateOtpMessage(otp);
     const phoneNumber = normalizePakistaniPhone(dto.phone);
-    const sendOtp = await this.metaWhatsappService.sendWhatsappOtp(
+    const sendOtp = await this.messagingService.sendOtp(
       phoneNumber!,
       otpMessage
     );
@@ -279,7 +279,7 @@ export class AuthService {
     const otp = generateOtp();
     const otpMessage = generateOtpMessage(otp);
     const phoneNumber = normalizePakistaniPhone(dto.phone);
-    const sendOtp = await this.metaWhatsappService.sendWhatsappOtp(
+    const sendOtp = await this.messagingService.sendOtp(
       phoneNumber!,
       otpMessage
     );

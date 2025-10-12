@@ -30,7 +30,7 @@ import { FcmTokenModule } from "./module/fcm-token/fcm-token.module";
 import { NotificationModule } from "./module/notification/notification.module";
 import { LeadModule } from "./module/lead/lead.module";
 import { StaffModule } from "./module/staff/staff.module";
-import { MetaWhatsappModule } from "./shared/meta-whatsapp/meta-whatsapp.module";
+import { MessagingModule } from "./shared/messaging/messaging.module";
 
 @Module({
   imports: [
@@ -71,7 +71,7 @@ import { MetaWhatsappModule } from "./shared/meta-whatsapp/meta-whatsapp.module"
     SettingModule,
     DashboardModule,
     AwsModule,
-    MetaWhatsappModule,
+    MessagingModule,
     FirebaseModule,
     FcmTokenModule,
     NotificationModule,
