@@ -236,6 +236,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       ...rest,
       status: EOrderStatus.NEW,
       paymentSessionId,
+      orderUID: generateOrderUID(),
     });
     const savedOrder = await orderRepo.save(order);
 
