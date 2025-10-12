@@ -1,8 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EOrderStatus } from 'src/common/enums/order-status.enum';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { ToBoolean } from 'src/common/utils/app.util';
 
 type OrderStatusFilter = EOrderStatus | 'ongoing' | 'done';
 
@@ -27,4 +28,13 @@ export class GetOrdersQueryDtoAdmin extends GetOrdersQueryDto {
     @IsOptional()
     @IsString()
     q?: string;
+
+    @ApiPropertyOptional({
+        description: 'Show the trash list or normal index list',
+        example: true,
+    })
+    @IsOptional()
+    @ToBoolean()
+    @IsBoolean()
+    trash?: boolean
 }

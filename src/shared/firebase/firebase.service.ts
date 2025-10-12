@@ -51,7 +51,6 @@ export class FirebaseService implements OnModuleInit {
     payload: IFcmPayload
   ): Promise<IFcmResult | null> {
     try {
-      console.log("");
       const tokenList = Array.isArray(tokens) ? tokens : [tokens];
       if (!tokenList.length) {
         this.logger.warn("No FCM tokens provided.");
@@ -72,7 +71,7 @@ export class FirebaseService implements OnModuleInit {
           imageUrl: payload.imageUrl,
         },
 
-        data: data,
+        data: { data: JSON.stringify(data) },
         android: {
           notification: {
             clickAction: payload.clickAction,

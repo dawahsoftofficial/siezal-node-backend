@@ -25,4 +25,6 @@ export interface IOrder extends IEntityBase {
 
   status: EOrderStatus;
   items?: IOrderItem[];
+
+  deletedAt?: Date | null;
 }
