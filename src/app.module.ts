@@ -25,12 +25,12 @@ import { OrderModule } from "./module/order/order.module";
 import { SettingModule } from "./module/setting/setting.module";
 import { DashboardModule } from "./module/dashboard/dashboard.module";
 import { AwsModule } from "./shared/aws/aws.module";
-import { TwilioModule } from "./shared/twilio/twilio.module";
 import { FirebaseModule } from "./shared/firebase/firebase.module";
 import { FcmTokenModule } from "./module/fcm-token/fcm-token.module";
 import { NotificationModule } from "./module/notification/notification.module";
 import { LeadModule } from "./module/lead/lead.module";
 import { StaffModule } from "./module/staff/staff.module";
+import { MessagingModule } from "./shared/messaging/messaging.module";
 
 @Module({
   imports: [
@@ -71,12 +71,12 @@ import { StaffModule } from "./module/staff/staff.module";
     SettingModule,
     DashboardModule,
     AwsModule,
-    TwilioModule,
+    MessagingModule,
     FirebaseModule,
     FcmTokenModule,
     NotificationModule,
     LeadModule,
-    StaffModule
+    StaffModule,
   ],
   controllers: [AppController],
   providers: [

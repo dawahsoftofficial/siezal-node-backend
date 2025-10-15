@@ -37,10 +37,10 @@ import { ResendOtpDto } from "./dto/resend-otp.dto";
 import { UpdateUserDto } from "../user/dto/update-user.dto";
 import { PhoneDto } from "./dto/phone-dto";
 import { ChangePasswordDto } from "../user/dto/change-password.dto";
-import { TwilioService } from "src/shared/twilio/twilio.service";
 import { UserSessionService } from "../user-session/user-session.service";
 import { FcmTokenService } from "../fcm-token/fcm-token.service";
 import { LoginResult } from "src/common/interfaces/app.interface";
+import { MessagingService } from "src/shared/messaging/messaging.service";
 
 @Injectable()
 export class AuthService {
@@ -51,7 +51,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
     private readonly aesHelper: AesHelper,
-    private readonly twilioService: TwilioService,
+    private readonly messagingService: MessagingService,
     private readonly userSessionService: UserSessionService,
     private readonly fcmTokenService: FcmTokenService
   ) {}
@@ -74,7 +74,10 @@ export class AuthService {
     const otp = generateOtp();
     const otpMessage = generateOtpMessage(otp);
     const phoneNumber = normalizePakistaniPhone(dto.phone);
-    const sendOtp = await this.twilioService.sendSms(phoneNumber!, otpMessage);
+    const sendOtp = await this.messagingService.sendOtp(
+      phoneNumber!,
+      otpMessage
+    );
     const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
 
     if (!sendOtp) {
@@ -120,7 +123,7 @@ export class AuthService {
       const otp = generateOtp();
       const otpMessage = generateOtpMessage(otp);
       const phoneNumber = normalizePakistaniPhone(identifier);
-      const sendOtp = await this.twilioService.sendSms(
+      const sendOtp = await this.messagingService.sendOtp(
         phoneNumber!,
         otpMessage
       );
@@ -234,7 +237,10 @@ export class AuthService {
     const otp = generateOtp();
     const otpMessage = generateOtpMessage(otp);
     const phoneNumber = normalizePakistaniPhone(dto.phone);
-    const sendOtp = await this.twilioService.sendSms(phoneNumber!, otpMessage);
+    const sendOtp = await this.messagingService.sendOtp(
+      phoneNumber!,
+      otpMessage
+    );
     const expiresAt = addMinuteToNow(5); // OTP valid for 5 minutes
 
     const sent = true; // await this.firebaseService.sendOtp(dto.phone, otp);
@@ -273,7 +279,10 @@ export class AuthService {
     const otp = generateOtp();
     const otpMessage = generateOtpMessage(otp);
     const phoneNumber = normalizePakistaniPhone(dto.phone);
-    const sendOtp = await this.twilioService.sendSms(phoneNumber!, otpMessage);
+    const sendOtp = await this.messagingService.sendOtp(
+      phoneNumber!,
+      otpMessage
+    );
     const expiresAt = addMinuteToNow(5);
 
     if (!sendOtp) {

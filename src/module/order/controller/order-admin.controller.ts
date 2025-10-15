@@ -1,4 +1,4 @@
-import { Body, Delete, Get, HttpCode, HttpStatus, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { GenerateSwaggerDoc } from 'src/common/decorators/swagger-generate.decorator';
 import { SuccessResponseArrayDto, SuccessResponseSingleObjectDto } from 'src/common/dto/app.dto';
@@ -72,9 +72,19 @@ export class AdminOrderController {
     @HttpCode(HttpStatus.OK)
     @Delete('/delete/:id')
     async cancelOrder(@Param() params: GetOrderParamDto) {
-        const response = await this.orderService.update(params.id, { status: EOrderStatus.CANCELLED });
+        const order = await this.orderService.findById(params.id, { withDeleted: true })
 
-        return SuccessResponse("Data Found Successfully!", response);
+        if (order && !order.deletedAt) {
+            const response = await this.orderService.softDelete(params.id);
+
+            return SuccessResponse("Order trashed Successfully!", response);
+        } else if (order && order.deletedAt) {
+            const response = await this.orderService.deleteByIds(params.id);
+
+            return SuccessResponse("Order deleted Successfully!", response);
+        }
+
+        throw new NotFoundException(`Order with ID ${params.id} not found`);
     }
 
     @GenerateSwaggerDoc({

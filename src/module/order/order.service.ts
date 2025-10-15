@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/database/entities/order.entity";
-import { FindOptionsWhere, In, Like, Repository } from "typeorm";
+import { FindOptionsWhere, In, IsNull, Like, Not, Repository } from "typeorm";
 import {
   GetOrdersQueryDto,
   GetOrdersQueryDtoAdmin,
@@ -40,9 +40,52 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     super(orderRepository);
   }
 
+  // async list(query: GetOrdersQueryDtoAdmin) {
+  //   const { page, limit, trash } = query;
+  //   const where: FindOptionsWhere<Order>[] = [];
+
+  //   const baseWhere: FindOptionsWhere<Order> = {};
+
+  //   if (query.status) baseWhere.status = query.status as EOrderStatus;
+  //   if (query.userId) baseWhere.userId = query.userId;
+
+  //   if (query.q) {
+  //     where.push(
+  //       { ...baseWhere, userFullName: Like(`%${query.q}%`) },
+  //       { ...baseWhere, userPhone: Like(`%${query.q}%`) },
+  //       { ...baseWhere, orderUID: Like(`%${query.q}%`) }
+  //     );
+  //   } else {
+  //     where.push(baseWhere);
+  //   }
+
+  //   const data = await this.paginate<IOrder>(page, limit, {
+  //     relations: ["items"],
+  //     where,
+  //     order: { createdAt: "DESC" },
+  //   });
+
+  //   const countsRaw = await this.orderRepository
+  //     .createQueryBuilder("order")
+  //     .select("order.status", "status")
+  //     .addSelect("COUNT(order.id)", "count")
+  //     .groupBy("order.status")
+  //     .getRawMany<{ status: string; count: string }>();
+
+  //   const counts: Record<string, number> = {};
+  //   for (const row of countsRaw) {
+  //     counts[row.status] = Number(row.count);
+  //   }
+
+  //   return {
+  //     ...data,
+  //     counts,
+  //   };
+  // }
+
   async list(query: GetOrdersQueryDtoAdmin) {
-    const { page, limit } = query;
-    const where: FindOptionsWhere<Order>[] = [];
+    const { page, limit, trash } = query;
+    let where: FindOptionsWhere<Order>[] = [];
 
     const baseWhere: FindOptionsWhere<Order> = {};
 
@@ -59,28 +102,67 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       where.push(baseWhere);
     }
 
-    const data = await this.paginate<IOrder>(page, limit, {
-      relations: ["items"],
-      where,
-      order: { createdAt: "DESC" },
-    });
+    if (trash) {
+      if (Array.isArray(where) && where.length > 0) {
+        where = where.map((w) => ({ ...w, deletedAt: Not(IsNull()) }));
+      } else {
+        where = [{ deletedAt: Not(IsNull()) }];
+      }
 
-    const countsRaw = await this.orderRepository
-      .createQueryBuilder("order")
-      .select("order.status", "status")
-      .addSelect("COUNT(order.id)", "count")
-      .groupBy("order.status")
-      .getRawMany<{ status: string; count: string }>();
+      const data = await this.paginate<IOrder>(page, limit, {
+        relations: ["items"],
+        where,
+        order: { createdAt: "DESC" },
+        withDeleted: true,
+      });
 
-    const counts: Record<string, number> = {};
-    for (const row of countsRaw) {
-      counts[row.status] = Number(row.count);
+      const countsRaw = await this.orderRepository
+        .createQueryBuilder("order")
+        .select("order.status", "status")
+        .addSelect("COUNT(order.id)", "count")
+        .where("order.deletedAt IS NOT NULL")
+        .groupBy("order.status")
+        .getRawMany<{ status: string; count: string }>();
+
+      const counts: Record<string, number> = {};
+      for (const row of countsRaw) {
+        counts[row.status] = Number(row.count);
+      }
+
+      return {
+        ...data,
+        counts,
+      };
+    } else {
+      // Non-trash (active records)
+      if (Array.isArray(where) && where.length > 0) {
+        where = where.map((w) => ({ ...w }));
+      }
+
+      const data = await this.paginate<IOrder>(page, limit, {
+        relations: ["items"],
+        where,
+        order: { createdAt: "DESC" },
+      });
+
+      const countsRaw = await this.orderRepository
+        .createQueryBuilder("order")
+        .select("order.status", "status")
+        .addSelect("COUNT(order.id)", "count")
+        .where("order.deletedAt IS NULL")
+        .groupBy("order.status")
+        .getRawMany<{ status: string; count: string }>();
+
+      const counts: Record<string, number> = {};
+      for (const row of countsRaw) {
+        counts[row.status] = Number(row.count);
+      }
+
+      return {
+        ...data,
+        counts,
+      };
     }
-
-    return {
-      ...data,
-      counts,
-    };
   }
 
   async listByUser(userId: number, query: GetOrdersQueryDto) {
@@ -292,7 +374,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
   }
 
   async update(id: number, body: UpdateOrderDto) {
-    const order = await this.orderRepository.findOne({ where: { id } });
+    const order = await this.orderRepository.findOne({ where: { id }, withDeleted: true });
 
     if (!order) {
       throw new NotFoundException(`Order with ID ${id} not found`);
