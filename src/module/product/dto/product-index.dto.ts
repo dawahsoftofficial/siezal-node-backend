@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsPositive, IsString, IsArray } from 'class-validator';
+import { IsInt, IsOptional, IsPositive, IsString, IsArray, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { ToBoolean } from 'src/common/utils/app.util';
 
 export class GetProductsQueryDtoAdmin extends PaginationDto {
     @ApiPropertyOptional({
@@ -11,7 +12,7 @@ export class GetProductsQueryDtoAdmin extends PaginationDto {
     @IsOptional()
     @IsString()
     q?: string;
-    
+
     @ApiPropertyOptional({
         description: 'Category Slug to filter with',
         example: 'dairy',
@@ -28,6 +29,15 @@ export class GetProductsQueryDtoAdmin extends PaginationDto {
     @IsInt()
     @IsPositive()
     price?: number;
+
+    @ApiPropertyOptional({
+        description: 'Show only the newly imported products',
+        example: true,
+    })
+    @IsOptional()
+    @ToBoolean()
+    @IsBoolean()
+    imported?: boolean
 }
 
 export class GetProductsQueryDtoUser extends GetProductsQueryDtoAdmin {

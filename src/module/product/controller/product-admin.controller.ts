@@ -20,7 +20,7 @@ import {
     SuccessResponseArrayDto,
     SuccessResponseSingleObjectDto,
 } from "src/common/dto/app.dto";
-import { GetProductParamDto } from "../dto/product-show.dto";
+import { GetProductParamDto, HandleImportBatchDto } from "../dto/product-show.dto";
 import { GetProductsQueryDtoAdmin } from "../dto/product-index.dto";
 import { CreateProductBodyDto } from "../dto/product-create.dto";
 import { UpdateProductBodyDto } from "../dto/product-update.dto";
@@ -51,7 +51,8 @@ export class AdminProductController {
             {
                 q: query.q,
                 category: query.category,
-                price: query.price
+                price: query.price,
+                imported: query.imported
             },
             true
         );
@@ -152,5 +153,27 @@ export class AdminProductController {
     async deleteProduct(@Param() params: GetProductParamDto) {
         await this.productService.delete(params.id);
         return SuccessResponse("Product deleted successfully");
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Accept or Reject import batch",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Get("/handle-import")
+    async handleImport(@Query() query: HandleImportBatchDto) {
+        if (query.accepted) {
+            await this.productService.updateMany({ imported: true }, { imported: false });
+        } else {
+            await this.productService.deleteMany({ imported: true });
+        }
+
+        return SuccessResponse("Products updated successfully");
     }
 }

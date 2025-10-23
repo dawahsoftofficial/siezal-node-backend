@@ -4,8 +4,8 @@ export class AddedImportedFieldInProduct1760508082259 implements MigrationInterf
     name = 'AddedImportedFieldInProduct1760508082259'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE \`orders\` DROP FOREIGN KEY \`FK_9de1349a64a7c4bae541516f96d\``);
-        await queryRunner.query(`ALTER TABLE \`orders\` DROP COLUMN \`payment_session_id\``);
+        // await queryRunner.query(`ALTER TABLE \`orders\` DROP FOREIGN KEY \`FK_9de1349a64a7c4bae541516f96d\``);
+        // await queryRunner.query(`ALTER TABLE \`orders\` DROP COLUMN \`payment_session_id\``);
         await queryRunner.query(`ALTER TABLE \`products\` ADD \`imported\` tinyint NOT NULL DEFAULT 0`);
     }
 

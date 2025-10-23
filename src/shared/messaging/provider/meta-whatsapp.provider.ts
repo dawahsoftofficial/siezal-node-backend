@@ -23,12 +23,25 @@ export class MetaWhatsappProvider implements IMessagingProvider {
   }
 
   async sendWhatsapp(to: string, body: string) {
+    // const payload = {
+    //   messaging_product: "whatsapp",
+    //   to: to.replace("+", ""),
+    //   type: "template",
+
+    //   text: { body },
+    // };
+
     const payload = {
       messaging_product: "whatsapp",
       to: to.replace("+", ""),
-      type: "text",
-      text: { body },
-    };
+      type: "template",
+      template: {
+        name: "siezal_otp_verification_template",
+        language: {
+          code: "en_US"
+        }
+      }
+    }
 
     try {
       const response = await firstValueFrom(

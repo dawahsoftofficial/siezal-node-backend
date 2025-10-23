@@ -72,6 +72,10 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       });
     }
 
+    if (filters.imported) {
+      qb.andWhere("product.imported = :imported", { imported: filters.imported });
+    }
+
     qb.skip((page - 1) * limit)
       .take(limit)
       .orderBy("product.createdAt", "DESC");
