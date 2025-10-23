@@ -14,8 +14,8 @@ export class MessagingService {
     private readonly settingService: SettingService
   ) {}
 
-  async sendWhatsapp(to: string, message: string) {
-    return this.meta.sendWhatsapp(to, message);
+  async sendWhatsapp(to: string, message: string, isOTP = false) {
+    return this.meta.sendWhatsapp(to, message, isOTP);
   }
 
   async sendSms(to: string, message: string) {
@@ -48,7 +48,7 @@ export class MessagingService {
     for (const provider of sortedProviders) {
       try {
         if (provider.type === EProviderType.META) {
-          return await this.sendWhatsapp(to, otp);
+          return await this.sendWhatsapp(to, otp, true);
         } else if (provider.type === EProviderType.TWILIO) {
           return await this.sendSms(to, otp);
         } else {

@@ -22,16 +22,8 @@ export class MetaWhatsappProvider implements IMessagingProvider {
     this.accessToken = this.config.getOrThrow("META_ACCESS_TOKEN");
   }
 
-  async sendWhatsapp(to: string, body: string) {
-    // const payload = {
-    //   messaging_product: "whatsapp",
-    //   to: to.replace("+", ""),
-    //   type: "template",
-
-    //   text: { body },
-    // };
-
-    const payload = {
+  async sendWhatsapp(to: string, body: string, isOTP = false) {
+    const payload = isOTP ? {
       messaging_product: "whatsapp",
       to: to.replace("+", ""),
       type: "template",
@@ -39,9 +31,25 @@ export class MetaWhatsappProvider implements IMessagingProvider {
         name: "siezal_otp_verification_template",
         language: {
           code: "en_US"
-        }
+        },
+        components: [
+          {
+            type: "body",
+            parameters: [
+              {
+                type: "text",
+                text: body
+              }
+            ]
+          }
+        ]
       }
-    }
+    } : {
+      messaging_product: "whatsapp",
+      to: to.replace("+", ""),
+      type: "text",
+      text: { body },
+    };
 
     try {
       const response = await firstValueFrom(
