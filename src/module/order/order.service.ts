@@ -307,59 +307,72 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     dto: CreateOrderDto,
     paymentSessionId?: number
   ) {
-    const orderRepo = manager.getRepository(Order);
-    const orderItemRepo = manager.getRepository(OrderItem);
+    this.logger.log(`🟡 Starting order creation for userId=${userId}`);
+    try {
+      const orderRepo = manager.getRepository(Order);
+      const orderItemRepo = manager.getRepository(OrderItem);
+      this.logger.log(`🔹 Creating order record...`);
+      const { items, ...rest } = dto;
 
-    const { items, ...rest } = dto;
-    const {
-      shippingAddressLine1,
-      shippingAddressLine2,
-      shippingPostalCode,
-      shippingCity,
-      shippingCountry,
-      shippingState,
-    } = rest;
-
-    // Create order
-    const order = orderRepo.create({
-      userId,
-      ...rest,
-      status: EOrderStatus.NEW,
-      paymentSessionId,
-      orderUID: generateOrderUID(),
-    });
-    const savedOrder = await orderRepo.save(order);
-
-    // Create order items
-    const finalItems = items.map((item) =>
-      orderItemRepo.create({
-        orderId: savedOrder.id,
-        ...item,
-      })
-    );
-    await orderItemRepo.save(finalItems);
-
-    // Update address
-    await this.addressService.createOrUpdate(
-      {
-        userId,
+      this.logger.log(`🔹 Creating order record...`, JSON.stringify(dto));
+      const {
         shippingAddressLine1,
         shippingAddressLine2,
         shippingPostalCode,
         shippingCity,
         shippingCountry,
         shippingState,
-      },
-      ["userId"]
-    );
+      } = rest;
 
-    // Generate formatted order UID
-    await orderRepo.update(
-      { id: savedOrder.id },
-      { orderUID: generateOrderUidV2(savedOrder.id!) }
-    );
+      // Create order
+      const order = orderRepo.create({
+        userId,
+        ...rest,
+        status: EOrderStatus.NEW,
+        paymentSessionId,
+        orderUID: generateOrderUID(),
+      });
+      const savedOrder = await orderRepo.save(order);
+      this.logger.log(`✅ Order record created with ID=${savedOrder.id}`);
+      // Create order items
+      const finalItems = items.map((item) =>
+        orderItemRepo.create({
+          orderId: savedOrder.id,
+          ...item,
+        })
+      );
+      this.logger.log(`🧾 Creating ${finalItems.length} order item(s)...`);
 
-    return { savedOrder, finalItems };
+      await orderItemRepo.save(finalItems);
+
+      // Update address
+      this.logger.log(`🔹 Updating/creating address record...`);
+      await this.addressService.createOrUpdate(
+        {
+          userId,
+          shippingAddressLine1,
+          shippingAddressLine2,
+          shippingPostalCode,
+          shippingCity,
+          shippingCountry,
+          shippingState,
+        },
+        ["userId"]
+      );
+      this.logger.log(`✅ Address record updated/created.`);
+
+      // Generate formatted order UID
+      await orderRepo.update(
+        { id: savedOrder.id },
+        { orderUID: generateOrderUidV2(savedOrder.id!) }
+      );
+      this.logger.log(`✅ Formatted Order UID generated.`);
+
+      return { savedOrder, finalItems };
+    } catch (error) {
+      this.logger.error("Error in createOrderData transaction", error.stack);
+      throw error;
+    }
   }
 
   // ----------------------
@@ -429,54 +442,90 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     });
   }
 
-  async orderCallback(merchantOrderId: string, gatewayOrderId: string) {
-    const { success, detail, data } =
-      await this.paymentSessionService.paymentCallback(
-        merchantOrderId,
-        gatewayOrderId
-      );
+  async orderCallback(merchantOrderId: string) {
+    const logger = new Logger("OrderCallback");
+    logger.log(
+      `🟡 Starting order callback for merchantOrderId: ${merchantOrderId}`
+    );
+
+    const { success, detail, paymentSession, pendingOrder } =
+      await this.paymentSessionService.paymentCallback(merchantOrderId);
+
     if (!success) {
-      throw new BadRequestException("Unable to process payment callbak ", {
-        cause: "Payment Call back error",
+      logger.error(`❌ Payment callback failed: ${JSON.stringify(detail)}`);
+      throw new BadRequestException("Unable to process payment callback", {
+        cause: "Payment Callback error",
         description: JSON.stringify(detail),
       });
     }
 
-    return this.dataSource.transaction(async (manager) => {
-      if (!data.pendingOrder) {
-        throw new BadRequestException("Invalid pending order data");
-      }
-      const { dto, userId } = data.pendingOrder;
-      const { savedOrder, finalItems } = await this.createOrderData(
-        manager,
-        userId,
-        dto,
-        data.id!
-      );
-      // 4️⃣ Link payment session with actual order
-      await this.paymentSessionService.updateById(data.id!, {
-        status: EPaymentSessionStatus.SUCCESS,
-        actionLogs: [
-          ...data.actionLogs,
-          {
-            action: "ORDER_LINKED",
-            message: "Order linked to payment session",
-            timestamp: new Date().toISOString(),
-            details: { orderId: savedOrder.id },
-          },
-        ],
-      });
+    logger.log(
+      "✅ Payment callback successful. Proceeding with transaction..."
+    );
 
-      // 5️⃣ Send notification
-      this.sendOrderSuccessNotification(userId);
-      // ✅ Final Response
-      return {
-        success: true,
-        message: "Order created successfully",
-        data: { ...savedOrder, items: finalItems },
-      };
+    return this.dataSource.transaction(async (manager) => {
+      try {
+        logger.log("🔹 Checking pending order data...");
+        if (!pendingOrder) {
+          logger.error("❌ Missing pendingOrder in payment callback data.");
+          throw new BadRequestException("Invalid pending order data");
+        }
+
+        const { dto, userId } = pendingOrder;
+        if (!dto || !userId) {
+          logger.error(
+            `❌ Missing DTO or userId. dto=${!!dto}, userId=${userId}`
+          );
+          throw new BadRequestException("Incomplete pending order data");
+        }
+
+        logger.log(`🔹 Creating order data for userId=${userId}`);
+        const { savedOrder, finalItems } = await this.createOrderData(
+          manager,
+          userId,
+          dto,
+          paymentSession?.id
+        );
+        logger.log(
+          `✅ Order created successfully with orderId=${savedOrder.id}`
+        );
+
+        logger.log("🔹 Linking payment session with order...");
+        await this.paymentSessionService.updateById(
+          paymentSession.id!,
+          {
+            status: EPaymentSessionStatus.SUCCESS,
+            actionLogs: [
+              ...(paymentSession.actionLogs || []),
+              {
+                action: "ORDER_LINKED",
+                message: "Order linked to payment session",
+                timestamp: new Date().toISOString(),
+                details: { orderId: savedOrder.id },
+              },
+            ],
+          },
+          { manager }
+        );
+        logger.log("✅ Payment session updated and linked with order.");
+
+        logger.log("🔹 Sending success notification...");
+        this.sendOrderSuccessNotification(userId);
+        logger.log(`✅ Order success notification sent to userId=${userId}`);
+
+        logger.log("✅ Transaction completed successfully.");
+        return {
+          success: true,
+          message: "Order created successfully",
+          data: { ...savedOrder, items: finalItems },
+        };
+      } catch (error) {
+        logger.error(`❌ Error in transaction: ${error.message}`, error.stack);
+        throw error;
+      }
     });
   }
+
   private sendOrderSuccessNotification = async (userId: number) => {
     try {
       await this.notificationService.sendNotification({

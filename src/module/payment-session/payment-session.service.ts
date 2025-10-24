@@ -84,17 +84,27 @@ export class PaymentSessionService extends BaseSqlService<
     });
   }
 
-  async paymentCallback(merchantOrderId: string, gatewayOrderId: string) {
+  async paymentCallback(merchantOrderId: string) {
+    const pendingOrder = await this.pendingOrderService.findOne({
+      where: { merchantOrderId },
+    });
+    if (!pendingOrder) {
+      this.logger.error(
+        `Payment callback received for unknown order: ${merchantOrderId}`
+      );
+      throw new InternalServerErrorException("Unknown pending order");
+    }
     const paymentSession = await this.findOne({
-      where: { gatewayOrderId },
+      where: { pendingOrderId: pendingOrder.id! },
       relations: ["pendingOrder"],
     });
     if (!paymentSession) {
       this.logger.error(
-        `Payment callback received for unknown session: ${gatewayOrderId}`
+        `Payment callback received for unknown session: ${pendingOrder.id}`
       );
       throw new InternalServerErrorException("Unknown payment session");
     }
+    const gatewayOrderId = paymentSession.gatewayOrderId!;
 
     // Handle payment confirmation logic here
     const statusResponse =
@@ -105,6 +115,7 @@ export class PaymentSessionService extends BaseSqlService<
       await this.updateById(paymentSession.id!, {
         status: EPaymentSessionStatus.SUCCESS,
         actionLogs: [
+          ...paymentSession.actionLogs,
           {
             timestamp: new Date().toISOString(),
             action: "CONFIRMED",
@@ -113,7 +124,11 @@ export class PaymentSessionService extends BaseSqlService<
           },
         ],
       });
-      return { success: true, data: paymentSession };
+      return {
+        success: true,
+        paymentSession: paymentSession,
+        pendingOrder: pendingOrder,
+      };
     } else {
       this.logger.error(
         `Payment confirmation failed for session: ${gatewayOrderId}`,
@@ -122,6 +137,7 @@ export class PaymentSessionService extends BaseSqlService<
       const paymentSessionData = await this.updateById(paymentSession.id!, {
         status: EPaymentSessionStatus.FAILED,
         actionLogs: [
+          ...paymentSession.actionLogs,
           {
             timestamp: new Date().toISOString(),
             action: "FAILED",
@@ -130,9 +146,12 @@ export class PaymentSessionService extends BaseSqlService<
           },
         ],
       });
+      this.logger.log(
+        `Updated payment session status to FAILED for session: ${JSON.stringify(pendingOrder)}`
+      );
       return {
         success: false,
-        data: paymentSession,
+        paymentSession: paymentSessionData,
         detail: statusResponse.rawResponse,
       };
     }

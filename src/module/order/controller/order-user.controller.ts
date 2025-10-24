@@ -147,18 +147,13 @@ export class UserOrderController {
     ],
   })
   @HttpCode(HttpStatus.OK)
-  @Get(
-    "/payment/callback/merchantOrderId/:merchantOrderId/gatewayOrderId/:gatewayOrderId"
-  )
+  @Get("/payment-callback/merchantOrderId/:merchantOrderId")
   async callBack(
     @AuthUser() { id }: IAuthRequest,
     @Param()
-    { merchantOrderId, gatewayOrderId }: GetOrderPaymentSessionCallbackDto
+    { merchantOrderId }: GetOrderPaymentSessionCallbackDto
   ) {
-    const data = await this.orderService.orderCallback(
-      merchantOrderId,
-      gatewayOrderId
-    );
+    const data = await this.orderService.orderCallback(merchantOrderId);
     return SuccessResponse("Order Callback Done", data);
   }
 }

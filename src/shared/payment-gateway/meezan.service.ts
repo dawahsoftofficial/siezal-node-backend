@@ -86,7 +86,8 @@ export class MeezanPaymentGateway implements IPaymentGateway {
       amount: (1 * 100).toString(),
       currency: this.configService.getOrThrow("MEEZAN_CURRENCY"),
       returnUrl:
-        params.returnUrl ?? `${this.configService.get("MEEZAN_RETURN_URL")}`,
+        params.returnUrl ??
+        `${this.configService.get("MEEZAN_RETURN_URL")}?merchantOrderId=${params.merchantOrderId}`,
     });
 
     try {
