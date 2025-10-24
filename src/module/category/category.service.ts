@@ -1,13 +1,26 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
-import { FindOptionsOrder, FindOptionsWhere, IsNull, Like, Not, Repository } from "typeorm";
+import {
+  FindOptionsOrder,
+  FindOptionsWhere,
+  IsNull,
+  Like,
+  Not,
+  Repository,
+} from "typeorm";
 import { ICategory } from "./interface/category.interface";
 import { Category } from "src/database/entities/category.entity";
-import { CategoryListQueryDto, CategoryListQueryDtoAdmin } from "./dto/category-list-query.dto";
+import {
+  CategoryListQueryDto,
+  CategoryListQueryDtoAdmin,
+} from "./dto/category-list-query.dto";
 import { CreateCategoryBodyDto } from "./dto/category-create.dto";
 import { S3Service } from "src/shared/aws/s3.service";
-import { UpdateCategoryBodyDto, UpdateCategoryPositionsDto } from "./dto/category-update.dto";
+import {
+  UpdateCategoryBodyDto,
+  UpdateCategoryPositionsDto,
+} from "./dto/category-update.dto";
 
 @Injectable()
 export class CategoryService extends BaseSqlService<Category, ICategory> {
@@ -63,8 +76,8 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
       name: body.name,
       slug: body.slug,
       slideShow: body.slideShow,
-      isFeatured: body.isFeatured
-    })
+      isFeatured: body.isFeatured,
+    });
 
     // Handle icon update
     if (files.icon?.[0]) {
@@ -94,14 +107,21 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     //   await this.categoryRepository.update({ position: body.position }, { position: category.position })
     // }
 
-    Object.assign(category, { parentId: body.parentId !== -1 ? body.parentId : undefined });
+    Object.assign(category, {
+      parentId: body.parentId !== -1 ? body.parentId : undefined,
+    });
 
     return this.categoryRepository.save(category);
   }
 
-  async updateCategoryPositions(body: UpdateCategoryPositionsDto): Promise<void> {
-    const updatePromises = body.data.map(item =>
-      this.categoryRepository.update({ id: item.id }, { position: item.position })
+  async updateCategoryPositions(
+    body: UpdateCategoryPositionsDto
+  ): Promise<void> {
+    const updatePromises = body.data.map((item) =>
+      this.categoryRepository.update(
+        { id: item.id },
+        { position: item.position }
+      )
     );
 
     await Promise.all(updatePromises);
@@ -110,24 +130,34 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
   list = async () => {
     return this.findAll({
       where: { parentId: IsNull() },
-      select: ['id', 'name', 'slug']
+      select: ["id", "name", "slug"],
     });
-  }
+  };
 
   listChilds = async () => {
     return this.findAll({
       where: { parentId: Not(IsNull()) },
-      select: ['id', 'name', 'slug']
+
+      select: ["id", "name", "slug"],
     });
-  }
+  };
 
   index = async ({ page, limit }: CategoryListQueryDto) => {
     return this.paginate<ICategory>(page, limit, {
       where: { parentId: IsNull() },
+      order: {
+        position: "ASC",
+      },
     });
   };
 
-  indexAdmin = async ({ page, limit, q, sortBy, sortDirection }: CategoryListQueryDtoAdmin) => {
+  indexAdmin = async ({
+    page,
+    limit,
+    q,
+    sortBy,
+    sortDirection,
+  }: CategoryListQueryDtoAdmin) => {
     const where: FindOptionsWhere<Category> = {
       parentId: IsNull(),
     };
@@ -140,28 +170,34 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     }
 
     const sortField =
-      sortBy === 'time'
-        ? 'createdAt'
-        : sortBy === 'name'
-          ? 'name'
-          : 'isFeatured';
+      sortBy === "time"
+        ? "createdAt"
+        : sortBy === "name"
+          ? "name"
+          : "isFeatured";
 
     const sort: FindOptionsOrder<Category> = {
-      [sortField]: (sortDirection || (sortBy === 'time' ? 'DESC' : 'ASC')) as 'ASC' | 'DESC',
+      [sortField]: (sortDirection || (sortBy === "time" ? "DESC" : "ASC")) as
+        | "ASC"
+        | "DESC",
     };
 
     return this.paginate<ICategory>(page, limit, {
       where,
       order: sort,
-      relations: ['subCategories'],
+      relations: ["subCategories"],
     });
   };
-
 
   detail = async (slug: string) => {
     return this.findOne({
       where: { slug },
       relations: ["subCategories"],
+      order: {
+        subCategories: {
+          position: "ASC",
+        },
+      },
     });
   };
 

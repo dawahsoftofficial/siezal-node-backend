@@ -1,16 +1,17 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Twilio } from "twilio";
 import { ELogLevel, ELogType } from "src/common/enums/app.enum";
 import { AuditLogService } from "src/module/audit-log/audit-log.service";
-import { Twilio } from "twilio";
+import { IMessagingProvider } from "../interface/messaging.interface";
 
 @Injectable()
-export class TwilioService {
+export class TwilioProvider implements IMessagingProvider {
   private client: Twilio;
 
   constructor(
-    private config: ConfigService,
-    private auditLogService: AuditLogService
+    private readonly config: ConfigService,
+    private readonly auditLogService: AuditLogService
   ) {
     this.client = new Twilio(
       this.config.getOrThrow<string>("TWILIO_ACCOUNT_SID"),
@@ -25,21 +26,19 @@ export class TwilioService {
         from: this.config.getOrThrow<string>("TWILIO_PHONE_NUMBER"),
         to,
       });
-      const data = await this.generateLogOtp("Send Sms", ELogLevel.INFO, {
+      await this.generateLogOtp("Send SMS", ELogLevel.INFO, {
         to,
         body,
-        status: "SUCCESS",
         sid: response.sid,
       });
-
       return response;
     } catch (error) {
-      await this.generateLogOtp("Send Sms", ELogLevel.ERROR, {
+      await this.generateLogOtp("Send SMS", ELogLevel.ERROR, {
         to,
         body,
-        status: "error",
         error: error.message,
       });
+      throw error;
     }
   }
 
@@ -47,65 +46,59 @@ export class TwilioService {
     try {
       const response = await this.client.messages.create({
         body,
-        from:
-          "whatsapp:" + this.config.getOrThrow<string>("TWILIO_PHONE_NUMBER"),
-        to: "whatsapp:" + to,
+        from: `whatsapp:${this.config.getOrThrow<string>("TWILIO_PHONE_NUMBER")}`,
+        to: `whatsapp:${to}`,
       });
-
-      await this.generateLogOtp("Send whatsapp", ELogLevel.INFO, {
+      await this.generateLogOtp("Send WhatsApp", ELogLevel.INFO, {
         to,
         body,
-        status: "SUCCESS",
         sid: response.sid,
       });
-
       return response;
     } catch (error) {
-      await this.generateLogOtp("Send Whatsapp", ELogLevel.ERROR, {
+      await this.generateLogOtp("Send WhatsApp", ELogLevel.ERROR, {
         to,
         body,
-        status: "error",
         error: error.message,
       });
+      throw error;
     }
   }
 
   async makeCall(to: string, url: string) {
     try {
       const response = await this.client.calls.create({
-        url, // TwiML Bin or your endpoint returning <Response><Say>...</Say></Response>
+        url,
         to,
         from: this.config.getOrThrow<string>("TWILIO_PHONE_NUMBER"),
       });
       await this.generateLogOtp("Make Call", ELogLevel.INFO, {
         to,
         url,
-        status: "SUCCESS",
         sid: response.sid,
       });
-
       return response;
     } catch (error) {
-      await this.generateLogOtp("make Call", ELogLevel.ERROR, {
+      await this.generateLogOtp("Make Call", ELogLevel.ERROR, {
         to,
         url,
-        status: "ERROR",
         error: error.message,
       });
+      throw error;
     }
   }
 
-  private generateLogOtp = async (
+  private async generateLogOtp(
     message: string,
     level?: ELogLevel,
     stackTrace?: any
-  ) => {
+  ) {
     const data = {
       level: level || ELogLevel.INFO,
       type: ELogType.OTP,
-      message: message,
-      stackTrace: stackTrace,
+      message,
+      stackTrace,
     };
     await this.auditLogService.create(data);
-  };
+  }
 }

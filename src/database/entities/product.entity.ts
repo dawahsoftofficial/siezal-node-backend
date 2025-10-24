@@ -20,6 +20,9 @@ export class Product extends BaseEntity implements IProduct {
   @Column({ name: "sku", type: "varchar", length: 100, nullable: true })
   sku?: string;
 
+  @Column({ name: "imported", type: "boolean", default: false })
+  imported: boolean;
+
   @Column({ name: "title", type: "varchar", length: 255 })
   title: string;
 

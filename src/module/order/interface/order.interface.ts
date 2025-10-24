@@ -32,4 +32,6 @@ export interface IOrder extends IEntityBase {
   items?: IOrderItem[];
   paymentSessionId?: number;
   paymentSession?: IPaymentSession | null;
+
+  deletedAt?: Date | null;
 }

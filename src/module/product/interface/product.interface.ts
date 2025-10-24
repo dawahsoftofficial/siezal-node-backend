@@ -5,6 +5,7 @@ import { ICategory } from "src/module/category/interface/category.interface";
 
 export interface IProduct extends IEntityBase {
   sku?: string;
+  imported: boolean;
   title: string;
   slug: string;
   shortDescription?: string;

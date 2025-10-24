@@ -54,4 +54,9 @@ export class UpdateOrderDto {
   @IsEnum(EOrderStatus, { message: "Status must be a valid order status" })
   @IsOptional()
   status?: EOrderStatus;
+
+  @ApiPropertyOptional({ example: null, description: "Deletion timestamp" })
+  @IsOptional()
+  @IsString()
+  deletedAt?: Date | null;
 }

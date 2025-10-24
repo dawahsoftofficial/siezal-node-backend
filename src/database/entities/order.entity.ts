@@ -1,4 +1,11 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
+import {
+  Column,
+  Entity,
+  DeleteDateColumn,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+} from "typeorm";
 import { BaseEntity } from "src/core/base/entity/entity.base";
 import { IOrder } from "src/module/order/interface/order.interface";
 import { EOrderStatus } from "src/common/enums/order-status.enum";
@@ -6,7 +13,6 @@ import { OrderItem } from "./order-item.entity";
 import { IOrderItem } from "src/module/order/interface/order-item.interface";
 import { PaymentSession } from "./payment-session.entity";
 import { IPaymentSession } from "src/module/payment-session/interface/payment-session.interface";
-
 @Entity({ name: "orders" })
 export class Order extends BaseEntity implements IOrder {
   @Column({ name: "order_uid", type: "varchar", length: 100, unique: true })
@@ -92,4 +98,6 @@ export class Order extends BaseEntity implements IOrder {
   })
   @JoinColumn({ name: "payment_session_id" })
   paymentSession: IPaymentSession | null;
+  @DeleteDateColumn({ name: "deleted_at", type: "timestamp", nullable: true })
+  deletedAt?: Date | null;
 }
