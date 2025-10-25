@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsArray,
+  IsEnum,
   IsInt,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -9,8 +11,14 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 import { CreateOrderItemDto } from "./create-order-item.dto";
+import { EGatewayType } from "../interface/order.interface";
 
 export class CreateOrderDto {
+  @ApiProperty({ example: 500, description: "Gateway Type" })
+  @IsString()
+  @IsNotEmpty()
+  @IsEnum(EGatewayType)
+  gateway: EGatewayType;
   @ApiProperty({
     example: "John Doe",
     description: "Full name of user for shipping",
