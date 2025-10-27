@@ -31,6 +31,7 @@ import { NotificationModule } from "./module/notification/notification.module";
 import { LeadModule } from "./module/lead/lead.module";
 import { StaffModule } from "./module/staff/staff.module";
 import { MessagingModule } from "./shared/messaging/messaging.module";
+import { PaymentCallbackModule } from "./module/payment-callback/payment-callback.module";
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { MessagingModule } from "./shared/messaging/messaging.module";
     NotificationModule,
     LeadModule,
     StaffModule,
+    PaymentCallbackModule,
   ],
   controllers: [AppController],
   providers: [

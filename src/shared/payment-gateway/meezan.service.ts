@@ -9,6 +9,7 @@ import {
 } from "./interface/payment-gateway.interface";
 import { EGatewayType } from "src/module/order/interface/order.interface";
 import { ConfigService } from "@nestjs/config";
+import { generateSignature } from "../../common/utils/hmac.util";
 
 @Injectable()
 export class MeezanPaymentGateway implements IPaymentGateway {
@@ -79,6 +80,10 @@ export class MeezanPaymentGateway implements IPaymentGateway {
   async registerOrder(
     params: RegisterOrderParams
   ): Promise<RegisterOrderResponse> {
+    const merchantOrderId = params.merchantOrderId;
+    const signature = generateSignature({
+      orderNumber: merchantOrderId,
+    }); // You can modify this as per your signature generation logic
     const request = new URLSearchParams({
       userName: this.configService.getOrThrow("MEEZAN_USER"),
       password: this.configService.getOrThrow("MEEZAN_PASS"),
@@ -87,7 +92,7 @@ export class MeezanPaymentGateway implements IPaymentGateway {
       currency: this.configService.getOrThrow("MEEZAN_CURRENCY"),
       returnUrl:
         params.returnUrl ??
-        `${this.configService.get("MEEZAN_RETURN_URL")}?merchantOrderId=${params.merchantOrderId}`,
+        `${this.configService.get("MEEZAN_RETURN_URL")}?merchantOrderId=${merchantOrderId}&sig=${signature}`,
     });
 
     try {

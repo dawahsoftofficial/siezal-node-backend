@@ -5,7 +5,7 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
-import { Repository } from "typeorm";
+import { Not, Repository } from "typeorm";
 
 import { PaymentSession } from "../../database/entities/payment-session.entity";
 import {
@@ -95,7 +95,9 @@ export class PaymentSessionService extends BaseSqlService<
       throw new InternalServerErrorException("Unknown pending order");
     }
     const paymentSession = await this.findOne({
-      where: { pendingOrderId: pendingOrder.id! },
+      where: {
+        pendingOrderId: pendingOrder.id!,
+      },
       relations: ["pendingOrder"],
     });
     if (!paymentSession) {
@@ -103,6 +105,12 @@ export class PaymentSessionService extends BaseSqlService<
         `Payment callback received for unknown session: ${pendingOrder.id}`
       );
       throw new InternalServerErrorException("Unknown payment session");
+    }
+    if (paymentSession.status === EPaymentSessionStatus.SUCCESS) {
+      this.logger.warn(
+        `⚠️ Payment session ${paymentSession.id} already marked as SUCCESS — skipping callback.`
+      );
+      return { success: false, message: "Payment already processed" };
     }
     const gatewayOrderId = paymentSession.gatewayOrderId!;
 

@@ -30,7 +30,7 @@ import { IAuthRequest } from "src/common/interfaces/app.interface";
 import { SuccessResponse } from "src/common/utils/api-response.util";
 import { UpdateOrderItemDto } from "../dto/create-order-item.dto";
 import { ReplaceOrderItemDto } from "../dto/replace-order-item.dto";
-import { GetOrderPaymentSessionCallbackDto } from "../dto/callback.dto";
+import { GetOrderPaymentSessionCallbackDto } from "../../payment-callback/dto/callback.dto";
 
 @ApiTags("Orders Management")
 @UserRouteController("orders")
@@ -133,27 +133,5 @@ export class UserOrderController {
     const data = await this.orderService.replaceItem(params.id, dto);
 
     return SuccessResponse("Order Item replaced successfully", data);
-  }
-
-  @GenerateSwaggerDoc({
-    summary: "Order Payment  Callback",
-
-    responses: [
-      { status: HttpStatus.OK, type: SuccessResponseArrayDto },
-      { status: HttpStatus.BAD_REQUEST },
-      { status: HttpStatus.UNPROCESSABLE_ENTITY },
-      { status: HttpStatus.CONFLICT },
-      { status: HttpStatus.INTERNAL_SERVER_ERROR },
-    ],
-  })
-  @HttpCode(HttpStatus.OK)
-  @Get("/payment-callback/merchantOrderId/:merchantOrderId")
-  async callBack(
-    @AuthUser() { id }: IAuthRequest,
-    @Param()
-    { merchantOrderId }: GetOrderPaymentSessionCallbackDto
-  ) {
-    const data = await this.orderService.orderCallback(merchantOrderId);
-    return SuccessResponse("Order Callback Done", data);
   }
 }
