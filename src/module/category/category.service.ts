@@ -158,9 +158,7 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     sortBy,
     sortDirection,
   }: CategoryListQueryDtoAdmin) => {
-    const where: FindOptionsWhere<Category> = {
-      parentId: IsNull(),
-    };
+    const where: FindOptionsWhere<Category> = limit === 1000 ? {} : { parentId: IsNull() };
 
     if (q) {
       Object.assign(where, [

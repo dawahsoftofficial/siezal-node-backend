@@ -20,13 +20,13 @@ export class PaginationDto {
   page: number = 1;
 
   /**
-   * Number of items per page (default: 10, max: 100)
+   * Number of items per page (default: 10, max: 1000)
    */
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(1, { message: 'Limit must be at least 1' })
-  @Max(100, { message: 'Limit cannot exceed 100' })
+  @Max(1000, { message: 'Limit cannot exceed 1000' })
   limit: number = 10;
 
   /**
