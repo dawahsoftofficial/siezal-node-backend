@@ -43,7 +43,12 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
 
     const categories = await this.categoryService.findAll({
       relations: ["parentCategory"],
-      where: { isFeatured: true },
+      where: {
+        isFeatured: true,
+        products: {
+          status: EInventoryStatus.AVAILABLE,
+        },
+      },
     });
 
     // Then for each category, fetch its limited products

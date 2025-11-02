@@ -1,4 +1,9 @@
-import { forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { Product } from "src/database/entities/product.entity";
@@ -14,6 +19,7 @@ import { UpdateProductBodyDto } from "./dto/product-update.dto";
 import { CreateProductBodyDto } from "./dto/product-create.dto";
 import { S3Service } from "src/shared/aws/s3.service";
 import { SettingService } from "../setting/setting.service";
+import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 
 @Injectable()
 export class ProductService extends BaseSqlService<Product, IProduct> {
@@ -24,7 +30,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     private readonly s3Service: S3Service,
 
     @Inject(forwardRef(() => SettingService))
-    private readonly settingService: SettingService,
+    private readonly settingService: SettingService
   ) {
     super(productRepository);
   }
@@ -59,12 +65,14 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
     if (filters.price) {
       const setting = await this.settingService.findOne({
-        where: { key: 'replacementProductPriceRange' }
+        where: { key: "replacementProductPriceRange" },
       });
 
       const priceRangePercentage = Number(setting?.value || 0);
-      const minPrice = filters.price - (filters.price * priceRangePercentage) / 100;
-      const maxPrice = filters.price + (filters.price * priceRangePercentage) / 100;
+      const minPrice =
+        filters.price - (filters.price * priceRangePercentage) / 100;
+      const maxPrice =
+        filters.price + (filters.price * priceRangePercentage) / 100;
 
       qb.andWhere("product.price BETWEEN :minPrice AND :maxPrice", {
         minPrice,
@@ -73,7 +81,9 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     }
 
     if (filters.imported) {
-      qb.andWhere("product.imported = :imported", { imported: filters.imported });
+      qb.andWhere("product.imported = :imported", {
+        imported: filters.imported,
+      });
     }
 
     qb.skip((page - 1) * limit)
@@ -83,7 +93,11 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     const [data, total] = await qb.getManyAndCount();
 
     const plainObjects = instanceToPlain(data) as IProduct[];
-    const pagination: IPaginationMetadata = getPaginationMetadata(total, page, limit);
+    const pagination: IPaginationMetadata = getPaginationMetadata(
+      total,
+      page,
+      limit
+    );
 
     return { data: plainObjects, pagination };
   }
@@ -99,7 +113,10 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       .leftJoinAndSelect("product.inventory", "inventory")
       .leftJoinAndSelect("product.attributePivots", "pivot")
       .leftJoinAndSelect("pivot.attribute", "attribute")
-      .leftJoin("product.category", "category");
+      .leftJoin("product.category", "category")
+      .where("product.status = :status", {
+        status: EInventoryStatus.AVAILABLE,
+      });
 
     if (filters.categoryId) {
       qb.andWhere("product.categoryId = :categoryId", {
