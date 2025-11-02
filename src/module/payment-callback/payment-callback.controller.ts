@@ -14,12 +14,17 @@ import { PaymentCallbackService } from "./payment-callback.service";
 import { SuccessResponse } from "src/common/utils/api-response.util";
 import { ApiTags } from "@nestjs/swagger";
 import { SignatureQueryDto } from "./dto/sig.dto";
-import { PublicRouteController } from "src/common/decorators/app.decorator";
+import {
+  ApplyHeader,
+  NoGuard,
+  PublicRouteController,
+} from "src/common/decorators/app.decorator";
 import { GuestAuthGuard } from "src/common/guards/guest-auth.guard";
 
 @ApiTags("Payment Callbacks")
 @PublicRouteController("payment-callback")
-@UseGuards(GuestAuthGuard)
+@NoGuard() //no guard because by default we have jwt guard
+@ApplyHeader() //no header validation
 export class PaymentCallbackController {
   constructor(
     private readonly paymentCallbackService: PaymentCallbackService
@@ -27,13 +32,14 @@ export class PaymentCallbackController {
 
   @GenerateSwaggerDoc({
     summary: "Bank Payment  Callback",
-    security: [
-      { key: "apiKey", name: "payload" },
-      {
-        key: "bearerAuth",
-        name: "bearerAuth",
-      },
-    ],
+    // security: [
+    //   { key: "apiKey", name: "payload" },
+    //   {
+    //     key: "bearerAuth",
+    //     name: "bearerAuth",
+    //   },
+    // ],
+    isOpenRoute: true,
     query: [
       {
         name: "sig",
