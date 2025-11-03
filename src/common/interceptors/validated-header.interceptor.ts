@@ -41,6 +41,7 @@ const COMMON_HEADERS = new Set([
   "x-real-ip",
   "x-request-id",
   "x-api-key",
+  "x-requested-with",
   "dnt",
 ]);
 
