@@ -23,8 +23,7 @@ import { GuestAuthGuard } from "src/common/guards/guest-auth.guard";
 
 @ApiTags("Payment Callbacks")
 @PublicRouteController("payment-callback")
-@NoGuard() //no guard because by default we have jwt guard
-@ApplyHeader() //no header validation
+@UseGuards(GuestAuthGuard)
 export class PaymentCallbackController {
   constructor(
     private readonly paymentCallbackService: PaymentCallbackService
@@ -32,13 +31,13 @@ export class PaymentCallbackController {
 
   @GenerateSwaggerDoc({
     summary: "Bank Payment  Callback",
-    // security: [
-    //   { key: "apiKey", name: "payload" },
-    //   {
-    //     key: "bearerAuth",
-    //     name: "bearerAuth",
-    //   },
-    // ],
+    security: [
+      { key: "apiKey", name: "payload" },
+      {
+        key: "bearerAuth",
+        name: "bearerAuth",
+      },
+    ],
     isOpenRoute: true,
     query: [
       {
