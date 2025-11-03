@@ -88,7 +88,7 @@ export class MeezanPaymentGateway implements IPaymentGateway {
       userName: this.configService.getOrThrow("MEEZAN_USER"),
       password: this.configService.getOrThrow("MEEZAN_PASS"),
       orderNumber: params.merchantOrderId,
-      amount: (1 * 100).toString(),
+      amount: (params.amount * 100).toString(),
       currency: this.configService.getOrThrow("MEEZAN_CURRENCY"),
       returnUrl:
         params.returnUrl ??
