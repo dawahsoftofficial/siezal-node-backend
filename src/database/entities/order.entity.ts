@@ -7,12 +7,16 @@ import {
   OneToMany,
 } from "typeorm";
 import { BaseEntity } from "src/core/base/entity/entity.base";
-import { IOrder } from "src/module/order/interface/order.interface";
+import {
+  EGatewayType,
+  IOrder,
+} from "src/module/order/interface/order.interface";
 import { EOrderStatus } from "src/common/enums/order-status.enum";
 import { OrderItem } from "./order-item.entity";
 import { IOrderItem } from "src/module/order/interface/order-item.interface";
 import { PaymentSession } from "./payment-session.entity";
 import { IPaymentSession } from "src/module/payment-session/interface/payment-session.interface";
+import { EDeviceType } from "src/common/enums/device-type.enum";
 @Entity({ name: "orders" })
 export class Order extends BaseEntity implements IOrder {
   @Column({ name: "order_uid", type: "varchar", length: 100, unique: true })
@@ -92,6 +96,20 @@ export class Order extends BaseEntity implements IOrder {
 
   @Column({ name: "payment_session_id", type: "int", nullable: true })
   paymentSessionId: number;
+
+  @Column({
+    type: "enum",
+    enum: EGatewayType,
+    default: EGatewayType.COD,
+  })
+  gateway: EGatewayType; // "meezan", "easypaisa", "cod"
+
+  @Column({
+    type: "enum",
+    enum: EDeviceType,
+    default: EDeviceType.WEB,
+  })
+  deviceType: EDeviceType; // "meezan", "easypaisa", "cod"
 
   @ManyToOne(() => PaymentSession, (po) => po.order, {
     onDelete: "SET NULL",
