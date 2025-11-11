@@ -135,7 +135,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       }
 
       const data = await this.paginate<IOrder>(page, limit, {
-        relations: ["items"],
+        relations: ["items", "paymentSession"],
         where,
         order: { createdAt: "DESC" },
         withDeleted: true,
@@ -165,7 +165,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       }
 
       const data = await this.paginate<IOrder>(page, limit, {
-        relations: ["items"],
+        relations: ["items", "paymentSession"],
         where,
         order: { createdAt: "DESC" },
       });
@@ -256,7 +256,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
   async show(id: number) {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ["items"],
+      relations: ["items", "paymentSession"],
     });
 
     if (!order) {
