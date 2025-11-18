@@ -1,5 +1,6 @@
 import { IEntityBase } from "src/core/base/entity/interface/entity-interface.base";
 import { IProduct } from "src/module/product/interface/product.interface";
+import { ECategoryStatus } from "src/common/enums/category-status.enum";
 
 export interface ICategory extends IEntityBase {
   name: string;
@@ -13,4 +14,5 @@ export interface ICategory extends IEntityBase {
   isFeatured: boolean;
   position: number;
   images: string[] | null;
+  status: ECategoryStatus;
 }

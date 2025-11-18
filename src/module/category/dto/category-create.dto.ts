@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { Allow, IsBoolean, IsInt, IsOptional, IsString, Min } from "class-validator";
+import { Allow, IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min } from "class-validator";
 import { ToBoolean } from "src/common/utils/app.util";
+import { ECategoryStatus } from "src/common/enums/category-status.enum";
 
 export class CreateCategoryBodyDto {
   @ApiProperty({ example: "Gaming Laptops", description: "Category name" })
@@ -39,4 +40,13 @@ export class CreateCategoryBodyDto {
   @IsInt()
   @Min(0)
   position: number;
+
+  @ApiPropertyOptional({
+    enum: ECategoryStatus,
+    default: ECategoryStatus.PUBLISHED,
+    description: "Controls whether the category is visible publicly",
+  })
+  @IsEnum(ECategoryStatus)
+  @IsOptional()
+  status?: ECategoryStatus;
 }

@@ -21,6 +21,7 @@ import {
   UpdateCategoryBodyDto,
   UpdateCategoryPositionsDto,
 } from "./dto/category-update.dto";
+import { ECategoryStatus } from "src/common/enums/category-status.enum";
 
 @Injectable()
 export class CategoryService extends BaseSqlService<Category, ICategory> {
@@ -56,6 +57,7 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
       parentId: body.parentId !== -1 ? body.parentId : undefined,
       icon: iconUrl,
       images: imagesUrls,
+      status: body.status ?? ECategoryStatus.PUBLISHED,
     });
 
     return category;
@@ -77,6 +79,7 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
       slug: body.slug,
       slideShow: body.slideShow,
       isFeatured: body.isFeatured,
+      status: body.status ?? category.status,
     });
 
     // Handle icon update
@@ -144,7 +147,7 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
 
   index = async ({ page, limit }: CategoryListQueryDto) => {
     return this.paginate<ICategory>(page, limit, {
-      where: { parentId: IsNull() },
+      where: { parentId: IsNull(), status: ECategoryStatus.PUBLISHED },
       order: {
         position: "ASC",
       },
@@ -158,13 +161,20 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     sortBy,
     sortDirection,
   }: CategoryListQueryDtoAdmin) => {
-    const where: FindOptionsWhere<Category> = limit === 1000 ? {} : { parentId: IsNull() };
+    const baseWhere: FindOptionsWhere<Category> = {};
+
+    if (limit !== 1000) {
+      baseWhere.parentId = IsNull();
+    }
+
+    let where: FindOptionsWhere<Category> | FindOptionsWhere<Category>[] =
+      baseWhere;
 
     if (q) {
-      Object.assign(where, [
-        { name: Like(`%${q}%`), parentId: null },
-        { slug: Like(`%${q}%`), parentId: null },
-      ]);
+      where = [
+        { name: Like(`%${q}%`) },
+        { slug: Like(`%${q}%`) },
+      ];
     }
 
     const sortField =
@@ -188,8 +198,8 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
   };
 
   detail = async (slug: string) => {
-    return this.findOne({
-      where: { slug },
+    const category = await this.findOne({
+      where: { slug, status: ECategoryStatus.PUBLISHED },
       relations: ["subCategories"],
       order: {
         subCategories: {
@@ -197,6 +207,14 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
         },
       },
     });
+
+    if (category?.subCategories?.length) {
+      category.subCategories = category.subCategories.filter(
+        (subCategory) => subCategory.status === ECategoryStatus.PUBLISHED
+      );
+    }
+
+    return category;
   };
 
   async show(id: number) {
