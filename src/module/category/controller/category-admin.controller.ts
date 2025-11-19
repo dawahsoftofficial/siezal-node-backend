@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Body,
     Delete,
     Get,
@@ -24,6 +25,7 @@ import { GetCategoryParamDto } from "../dto/category-show.dto";
 import { FileFieldsInterceptor } from "@nestjs/platform-express";
 import { CreateCategoryBodyDto } from "../dto/category-create.dto";
 import { UpdateCategoryBodyDto, UpdateCategoryPositionsDto } from "../dto/category-update.dto";
+import { CategoryBulkCreateDto } from "../dto/category-bulk-create.dto";
 
 @ApiTags("Admin Category Management")
 @AdminRouteController("categories")
@@ -236,5 +238,46 @@ export class AdminCategoryController {
     async deleteProduct(@Param() params: GetCategoryParamDto) {
         await this.categoryService.delete(params.id);
         return SuccessResponse("Product deleted successfully");
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Bulk create categories",
+        responses: [
+            { status: HttpStatus.CREATED, type: SuccessResponseArrayDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.CREATED)
+    @Post("/bulk-create")
+    async bulkCreate(@Body() body: CategoryBulkCreateDto) {
+        const created = await this.categoryService.bulkCreate(body.categories);
+        return SuccessResponse("Categories created successfully", created);
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Trigger category sync with live data",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Post("/sync-live")
+    async syncLiveCategories() {
+        if (process.env.NODE_ENV === "prod") {
+            throw new BadRequestException(
+                "This method is not available in production"
+            );
+        }
+
+        await this.categoryService.syncLive();
+
+        return SuccessResponse("Category live sync triggered");
     }
 }

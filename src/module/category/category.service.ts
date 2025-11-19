@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import {
@@ -9,6 +13,7 @@ import {
   Not,
   Repository,
 } from "typeorm";
+import { instanceToPlain } from "class-transformer";
 import { ICategory } from "./interface/category.interface";
 import { Category } from "src/database/entities/category.entity";
 import {
@@ -22,13 +27,19 @@ import {
   UpdateCategoryPositionsDto,
 } from "./dto/category-update.dto";
 import { ECategoryStatus } from "src/common/enums/category-status.enum";
-
+import { getPaginationMetadata } from "src/common/utils/pagination.utils";
+import { Product } from "src/database/entities/product.entity";
+import { CategoryLiveSyncService } from "./category-sync.service";
+import {
+  CategoryBulkCreateItemDto,
+} from "./dto/category-bulk-create.dto";
 @Injectable()
 export class CategoryService extends BaseSqlService<Category, ICategory> {
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
-    private readonly s3Service: S3Service
+    private readonly s3Service: S3Service,
+    private readonly categoryLiveSyncService: CategoryLiveSyncService
   ) {
     super(categoryRepository);
   }
@@ -146,12 +157,36 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
   };
 
   index = async ({ page, limit }: CategoryListQueryDto) => {
-    return this.paginate<ICategory>(page, limit, {
-      where: { parentId: IsNull(), status: ECategoryStatus.PUBLISHED },
-      order: {
-        position: "ASC",
-      },
-    });
+    const currentPage = page ?? 1;
+    const perPage = limit ?? 10;
+
+    const qb = this.categoryRepository
+      .createQueryBuilder("category")
+      .where("category.parentId IS NULL")
+      .andWhere("category.status = :status", {
+        status: ECategoryStatus.PUBLISHED,
+      })
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select("1")
+          .from(Product, "product")
+          .where("product.categoryId = category.id")
+          .limit(1)
+          .getQuery();
+
+        return `EXISTS ${subQuery}`;
+      })
+      .orderBy("category.position", "ASC")
+      .skip((currentPage - 1) * perPage)
+      .take(perPage);
+
+    const [categories, total] = await qb.getManyAndCount();
+
+    return {
+      data: instanceToPlain(categories) as ICategory[],
+      pagination: getPaginationMetadata(total, currentPage, perPage),
+    };
   };
 
   indexAdmin = async ({
@@ -233,5 +268,106 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     if (!result) {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
+  }
+
+  async bulkCreate(
+    categories: CategoryBulkCreateItemDto[]
+  ): Promise<ICategory[]> {
+    if (!categories.length) {
+      return [];
+    }
+
+    const existing = await this.categoryRepository.find({
+      select: ["id", "slug"],
+    });
+    const slugToId = new Map(existing.map(({ id, slug }) => [slug, id]));
+    const created: ICategory[] = [];
+    let queue = categories.map((category) => ({ ...category }));
+
+    while (queue.length) {
+      let createdInPass = false;
+      const remaining: typeof queue = [];
+
+      for (const category of queue) {
+        if (category.parentSlug && !slugToId.has(category.parentSlug)) {
+          remaining.push(category);
+          continue;
+        }
+
+        const entity = this.categoryRepository.create({
+          name: category.name,
+          slug: category.slug,
+          icon: category.icon ?? null,
+          images: category.images ?? null,
+          slideShow: category.slideShow,
+          isFeatured: category.isFeatured,
+          position: category.position,
+          status: category.status ?? ECategoryStatus.PUBLISHED,
+          parentId: category.parentSlug ? slugToId.get(category.parentSlug) : null,
+        });
+
+        const saved = await this.categoryRepository.save(entity);
+        slugToId.set(saved.slug, saved.id);
+        created.push(saved);
+        createdInPass = true;
+      }
+
+      if (!createdInPass) {
+        throw new BadRequestException(
+          "Unable to resolve parent categories for bulk create"
+        );
+      }
+
+      queue = remaining;
+    }
+
+    return created;
+  }
+
+  async syncLive(): Promise<void> {
+    const token = await this.categoryLiveSyncService.authenticate();
+    const [localCategories, prodCategories] = await Promise.all([
+      this.categoryRepository.find({
+        select: [
+          "id",
+          "name",
+          "slug",
+          "icon",
+          "slideShow",
+          "isFeatured",
+          "position",
+          "images",
+          "status",
+          "parentId",
+        ],
+        order: { position: "ASC" },
+      }),
+      this.categoryLiveSyncService.fetchCategories(token),
+    ]);
+
+    const prodSlugSet = new Set(prodCategories.map((cat) => cat.slug));
+    const localById = new Map(localCategories.map((cat) => [cat.id, cat]));
+
+    const pending = localCategories
+      .filter((category) => !prodSlugSet.has(category.slug))
+      .map<CategoryBulkCreateItemDto>((category) => ({
+        name: category.name,
+        slug: category.slug,
+        icon: category.icon ?? undefined,
+        images: category.images ?? undefined,
+        slideShow: category.slideShow,
+        isFeatured: category.isFeatured,
+        position: category.position,
+        status: category.status,
+        parentSlug: category.parentId
+          ? localById.get(category.parentId)?.slug
+          : undefined,
+      }));
+
+    if (!pending.length) {
+      return;
+    }
+
+    await this.categoryLiveSyncService.bulkCreateCategories(token, pending);
   }
 }

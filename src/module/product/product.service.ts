@@ -3,11 +3,12 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { Product } from "src/database/entities/product.entity";
-import { Brackets, Repository } from "typeorm";
+import { Brackets, In, Repository } from "typeorm";
 import { IProduct } from "./interface/product.interface";
 import {
   IPaginatedResponse,
@@ -20,15 +21,19 @@ import { CreateProductBodyDto } from "./dto/product-create.dto";
 import { S3Service } from "src/shared/aws/s3.service";
 import { SettingService } from "../setting/setting.service";
 import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
+import { ProductLiveSyncService } from "./product-sync.service";
+import { ProductBulkSyncItemDto } from "./dto/product-bulk-sync.dto";
+import { Category } from "src/database/entities/category.entity";
 
 @Injectable()
 export class ProductService extends BaseSqlService<Product, IProduct> {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
-
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
     private readonly s3Service: S3Service,
-
+    private readonly productLiveSyncService: ProductLiveSyncService,
     @Inject(forwardRef(() => SettingService))
     private readonly settingService: SettingService
   ) {
@@ -80,7 +85,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       });
     }
 
-    if (filters.imported) {
+    if (typeof filters.imported === 'boolean') {
       qb.andWhere("product.imported = :imported", {
         imported: filters.imported,
       });
@@ -116,6 +121,8 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       .leftJoin("product.category", "category")
       .where("product.status = :status", {
         status: EInventoryStatus.AVAILABLE,
+      }).andWhere("product.imported = :imported", {
+        imported: false
       });
 
     if (filters.categoryId) {
@@ -232,5 +239,148 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     if (result.affected === 0) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
+  }
+
+  async bulkSync(products: ProductBulkSyncItemDto[]) {
+    if (!products.length) {
+      return { created: 0, updated: 0 };
+    }
+
+    const normalize = (value: string) => value.trim().toLowerCase();
+    const titles = Array.from(new Set(products.map((p) => normalize(p.title))));
+
+    const existingProducts = await this.productRepository
+      .createQueryBuilder("product")
+      .where("LOWER(product.title) IN (:...titles)", { titles })
+      .getMany();
+
+    const existingMap = new Map(
+      existingProducts.map((product) => [normalize(product.title), product])
+    );
+
+    const categorySlugs = Array.from(
+      new Set(
+        products
+          .map((p) => p.categorySlug?.trim().toLowerCase())
+          .filter(Boolean) as string[]
+      )
+    );
+
+    const categories = categorySlugs.length
+      ? await this.categoryRepository.find({
+          where: { slug: In(categorySlugs) },
+          select: ["id", "slug"],
+        })
+      : [];
+
+    const categoryMap = new Map(
+      categories.map((category) => [category.slug.toLowerCase(), category.id])
+    );
+
+    const toCreate: Product[] = [];
+    const toUpdate: Product[] = [];
+
+    for (const payload of products) {
+      const key = normalize(payload.title);
+      const existing = existingMap.get(key);
+
+      if (existing) {
+        existing.imported = true;
+        existing.price = Number(payload.price);
+        existing.salePrice = Number(payload.salePrice);
+        existing.description = payload.description;
+        toUpdate.push(existing);
+        continue;
+      }
+
+      const categoryId = categoryMap.get(payload.categorySlug.toLowerCase());
+      if (!categoryId) {
+        throw new BadRequestException(
+          `Category with slug "${payload.categorySlug}" not found`
+        );
+      }
+
+      const entity = this.productRepository.create({
+        sku: payload.sku,
+        title: payload.title,
+        slug: payload.slug,
+        shortDescription: payload.shortDescription ?? null,
+        description: payload.description ?? null,
+        seoTitle: payload.seoTitle ?? null,
+        seoDescription: payload.seoDescription ?? null,
+        price: Number(payload.price),
+        salePrice:
+          typeof payload.salePrice === "number"
+            ? Number(payload.salePrice)
+            : null,
+        stockQuantity: payload.stockQuantity,
+        status: payload.status,
+        categoryId,
+        inventoryId: payload.inventoryId,
+        unit: payload.unit,
+        isGstEnabled: payload.isGstEnabled,
+        gstFee:
+          payload.isGstEnabled && typeof payload.gstFee === "number"
+            ? payload.gstFee
+            : null,
+        image: payload.image,
+        imported: true,
+      } as Product);
+
+      toCreate.push(entity);
+    }
+
+    if (toUpdate.length) {
+      await this.productRepository.save(toUpdate);
+    }
+
+    if (toCreate.length) {
+      await this.productRepository.save(toCreate);
+    }
+
+    return {
+      created: toCreate.length,
+      updated: toUpdate.length,
+    };
+  }
+
+  async syncLive(): Promise<void> {
+    const token = await this.productLiveSyncService.authenticate();
+    const products = await this.productRepository.find({
+      relations: ["category"],
+    });
+
+    if (!products.length) {
+      return;
+    }
+
+    const payload: ProductBulkSyncItemDto[] = products.map((product) => {
+      if (!product.category?.slug) {
+        throw new BadRequestException(
+          `Product "${product.title}" is missing category slug`
+        );
+      }
+      return {
+        title: product.title,
+        slug: product.slug,
+        categorySlug: product.category.slug,
+        sku: product.sku,
+        shortDescription: product.shortDescription ?? undefined,
+        description: product.description ?? undefined,
+        seoTitle: product.seoTitle ?? undefined,
+        seoDescription: product.seoDescription ?? undefined,
+        price: Number(product.price),
+        salePrice: product.salePrice ? Number(product.salePrice) : undefined,
+        stockQuantity: product.stockQuantity,
+        status: product.status,
+        inventoryId: product.inventoryId,
+        unit: product.unit,
+        isGstEnabled: product.isGstEnabled,
+        gstFee: product.gstFee ?? undefined,
+        image: product.image,
+      };
+    });
+
+    await this.productLiveSyncService.syncProducts(token, payload);
   }
 }

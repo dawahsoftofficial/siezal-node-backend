@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Get,
     Post,
     Delete,
@@ -26,6 +27,8 @@ import { CreateProductBodyDto } from "../dto/product-create.dto";
 import { UpdateProductBodyDto } from "../dto/product-update.dto";
 import { SuccessResponse } from "src/common/utils/api-response.util";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
+import { ProductBulkSyncDto } from "../dto/product-bulk-sync.dto";
 
 @ApiTags("Products Inventory Management")
 @AdminRouteController("products")
@@ -168,12 +171,52 @@ export class AdminProductController {
     @HttpCode(HttpStatus.OK)
     @Get("/handle-import")
     async handleImport(@Query() query: HandleImportBatchDto) {
-        if (query.accepted) {
-            await this.productService.updateMany({ imported: true }, { imported: false });
-        } else {
-            await this.productService.deleteMany({ imported: true });
+        await this.productService.updateMany(
+            { imported: true },
+            { imported: false, ...(!query.accepted ? { stockQuantity: 0, status: EInventoryStatus.OUT_OF_STOCK } : {}) }
+        );
+
+        return SuccessResponse("Products imported successfully");
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Bulk sync products (create or update)",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Post("/bulk-sync")
+    async bulkSync(@Body() body: ProductBulkSyncDto) {
+        const result = await this.productService.bulkSync(body.products);
+        return SuccessResponse("Products synced successfully", result);
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Trigger product sync with live data",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Post("/sync-live")
+    async syncLiveProducts() {
+        if (process.env.NODE_ENV === "prod") {
+            throw new BadRequestException(
+                "This method is not available in production"
+            );
         }
 
-        return SuccessResponse("Products updated successfully");
+        await this.productService.syncLive();
+
+        return SuccessResponse("Product live sync triggered");
     }
 }
