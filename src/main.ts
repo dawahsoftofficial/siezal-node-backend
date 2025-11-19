@@ -18,7 +18,7 @@ async function bootstrap() {
     origin: "*", // Change this to restrict the origins
   });
 
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "prod") {
     // Swagger Configuration
     const config = new DocumentBuilder()
       .setTitle("Siezal API Docs")

@@ -1,25 +1,49 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/database/entities/order.entity";
-import { FindOptionsWhere, In, IsNull, Like, Not, Repository } from "typeorm";
+import {
+  EntityManager,
+  IsNull,
+  Not,
+  FindOptionsWhere,
+  In,
+  Like,
+  Repository,
+} from "typeorm";
 import {
   GetOrdersQueryDto,
   GetOrdersQueryDtoAdmin,
 } from "./dto/order-list.dto";
-import { IOrder } from "./interface/order.interface";
+import { EGatewayType, IOrder } from "./interface/order.interface";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { EOrderStatus } from "src/common/enums/order-status.enum";
 import { OrderItem } from "src/database/entities/order-item.entity";
 import { DataSource } from "typeorm";
 import { UpdateOrderDto } from "./dto/update-order.dto";
-import { generateOrderUID, generateOrderUidV2 } from "src/common/utils/app.util";
+import {
+  generateOrderUID,
+  generateOrderUidV2,
+} from "src/common/utils/app.util";
 import { ProductService } from "../product/product.service";
 import { AddressService } from "../address/address.service";
 import { UpdateOrderItemDto } from "./dto/create-order-item.dto";
 import { NotificationService } from "../notification/notification.service";
 import { EOrderReplacementStatus } from "src/common/enums/replacement-status.enum";
 import { ReplaceOrderItemDto } from "./dto/replace-order-item.dto";
+import { PendingOrder } from "src/database/entities/pending-order.entity";
+import { PaymentSession } from "src/database/entities/payment-session.entity";
+import {
+  EPaymentSessionStatus,
+  IPaymentSession,
+} from "../payment-session/interface/payment-session.interface";
+import { PendingOrderService } from "../pending-order/pending-order.service";
+import { PaymentSessionService } from "../payment-session/payment-session.service";
 
 @Injectable()
 export class OrderService extends BaseSqlService<Order, IOrder> {
@@ -35,7 +59,8 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     private readonly productService: ProductService,
     private readonly addressService: AddressService,
     private readonly notificationService: NotificationService,
-    private readonly dataSource: DataSource
+    private readonly dataSource: DataSource,
+    private readonly paymentSessionService: PaymentSessionService
   ) {
     super(orderRepository);
   }
@@ -110,7 +135,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       }
 
       const data = await this.paginate<IOrder>(page, limit, {
-        relations: ["items"],
+        relations: ["items", "paymentSession"],
         where,
         order: { createdAt: "DESC" },
         withDeleted: true,
@@ -140,7 +165,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       }
 
       const data = await this.paginate<IOrder>(page, limit, {
-        relations: ["items"],
+        relations: ["items", "paymentSession"],
         where,
         order: { createdAt: "DESC" },
       });
@@ -170,19 +195,19 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     const where: FindOptionsWhere<Order> = { userId: userId };
 
     if (query.status) {
-      if (query.status === 'ongoing') {
+      if (query.status === "ongoing") {
         where.status = In([
           EOrderStatus.NEW,
           EOrderStatus.IN_REVIEW,
           EOrderStatus.PREPARING,
-          EOrderStatus.SHIPPED
+          EOrderStatus.SHIPPED,
         ]);
-      } else if (query.status === 'done') {
+      } else if (query.status === "done") {
         where.status = In([
           EOrderStatus.DELIVERED,
           EOrderStatus.COMPLETED,
           EOrderStatus.CANCELLED,
-          EOrderStatus.REFUNDED
+          EOrderStatus.REFUNDED,
         ]);
       } else {
         where.status = query.status as EOrderStatus;
@@ -202,19 +227,19 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     const where: FindOptionsWhere<Order> = { userId: userId };
 
     if (query.status) {
-      if (query.status === 'ongoing') {
+      if (query.status === "ongoing") {
         where.status = In([
           EOrderStatus.NEW,
           EOrderStatus.IN_REVIEW,
           EOrderStatus.PREPARING,
-          EOrderStatus.SHIPPED
+          EOrderStatus.SHIPPED,
         ]);
-      } else if (query.status === 'done') {
+      } else if (query.status === "done") {
         where.status = In([
           EOrderStatus.DELIVERED,
           EOrderStatus.COMPLETED,
           EOrderStatus.CANCELLED,
-          EOrderStatus.REFUNDED
+          EOrderStatus.REFUNDED,
         ]);
       } else {
         where.status = query.status as EOrderStatus;
@@ -224,14 +249,14 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     return this.orderRepository.findOne({
       relations: ["items"],
       where,
-      order: { createdAt: 'DESC' }
+      order: { createdAt: "DESC" },
     });
   }
 
   async show(id: number) {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ["items"],
+      relations: ["items", "paymentSession"],
     });
 
     if (!order) {
@@ -242,7 +267,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       order.items!.map(async (item) => {
         const product = await this.productService.findOne({
           where: { id: item.productId },
-          relations: ['category']
+          relations: ["category"],
         });
 
         return {
@@ -251,9 +276,9 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
             ...item.productData,
             image: product?.image ?? null,
             category: product?.category?.slug ?? null,
-          }
+          },
         };
-      }),
+      })
     );
 
     return {
@@ -263,54 +288,152 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
   }
 
   async createOrder(userId: number, dto: CreateOrderDto) {
-    return this.dataSource.transaction(async (manager) => {
+    switch (dto.gateway) {
+      case EGatewayType.MEEZAN:
+        return this.paymentSessionService.initiatePayment(userId, dto);
+      case EGatewayType.COD:
+        return this.createCODOrder(userId, dto);
+      default:
+        throw new BadRequestException(`Invalid gateway type: ${dto.gateway}`);
+    }
+  }
+
+  // ----------------------
+  // 1️⃣ PURE ORDER CREATION
+  // ----------------------
+  async createOrderData(
+    manager: EntityManager,
+    userId: number,
+    dto: CreateOrderDto,
+    paymentSessionId?: number
+  ) {
+    this.logger.log(`🟡 Starting order creation for userId=${userId}`);
+    try {
       const orderRepo = manager.getRepository(Order);
       const orderItemRepo = manager.getRepository(OrderItem);
-
+      this.logger.log(`🔹 Creating order record...`);
       const { items, ...rest } = dto;
 
-      const { shippingAddressLine1, shippingAddressLine2, shippingPostalCode, shippingCity, shippingCountry, shippingState } = rest;
+      this.logger.log(`🔹 Creating order record...`, JSON.stringify(dto));
+      const {
+        shippingAddressLine1,
+        shippingAddressLine2,
+        shippingPostalCode,
+        shippingCity,
+        shippingCountry,
+        shippingState,
+      } = rest;
 
+      // Create order
       const order = orderRepo.create({
-        orderUID: generateOrderUID(),
         userId,
         ...rest,
         status: EOrderStatus.NEW,
+        paymentSessionId,
+        orderUID: generateOrderUID(),
       });
-
       const savedOrder = await orderRepo.save(order);
-
-      await orderRepo.update({ id: savedOrder.id! }, { orderUID: generateOrderUidV2(savedOrder.id!) })
-
+      this.logger.log(`✅ Order record created with ID=${savedOrder.id}`);
+      // Create order items
       const finalItems = items.map((item) =>
         orderItemRepo.create({
           orderId: savedOrder.id,
           ...item,
         })
       );
+      this.logger.log(`🧾 Creating ${finalItems.length} order item(s)...`);
 
       await orderItemRepo.save(finalItems);
 
-      await this.addressService.createOrUpdate({
+      // Update address
+      this.logger.log(`🔹 Updating/creating address record...`);
+      await this.addressService.createOrUpdate(
+        {
+          userId,
+          shippingAddressLine1,
+          shippingAddressLine2,
+          shippingPostalCode,
+          shippingCity,
+          shippingCountry,
+          shippingState,
+        },
+        ["userId"]
+      );
+      this.logger.log(`✅ Address record updated/created.`);
+
+      // Generate formatted order UID
+      await orderRepo.update(
+        { id: savedOrder.id },
+        { orderUID: generateOrderUidV2(savedOrder.id!) }
+      );
+      this.logger.log(`✅ Formatted Order UID generated.`);
+
+      return { savedOrder, finalItems };
+    } catch (error) {
+      this.logger.error("Error in createOrderData transaction", error.stack);
+      throw error;
+    }
+  }
+
+  // ----------------------
+  // 2️⃣ COD ORDER CREATION
+  // ----------------------
+  private async createCODOrder(userId: number, dto: CreateOrderDto) {
+    return this.dataSource.transaction(async (manager) => {
+      const pendingOrderRepo = manager.getRepository(PendingOrder);
+      const paymentSessionRepo = manager.getRepository(PaymentSession);
+
+      // 1️⃣ Create Pending Order
+      const pendingOrder = await pendingOrderRepo.save({
         userId,
-        shippingAddressLine1,
-        shippingAddressLine2,
-        shippingPostalCode,
-        shippingCity,
-        shippingCountry,
-        shippingState
-      }, ['userId']);
+        merchantOrderId: generateOrderUID(),
+        dto,
+        status: "SUCCESS",
+      });
 
-      try {
-        await this.notificationService.sendNotification({
-          userIds: [userId],
-          title: 'Order Placed',
-          body: 'Your order has been created successfully. We’ll start processing it soon.'
-        })
-      } catch (error) {
-        this.logger.error('Failed to send order created notification', error.stack)
-      }
+      // 2️⃣ Create Payment Session
+      const paymentSessionData: IPaymentSession = {
+        pendingOrderId: pendingOrder.id!,
+        gateway: dto.gateway,
+        amount: dto.totalAmount,
+        status: EPaymentSessionStatus.PENDING,
+        actionLogs: [
+          {
+            action: "COD_ORDER_CREATED",
+            message: "Cash on Delivery order created",
+            timestamp: new Date().toISOString(),
+            details: {},
+          },
+        ],
+      };
+      const savedPaymentSession =
+        await paymentSessionRepo.save(paymentSessionData);
 
+      // 3️⃣ Create Actual Order
+      const { savedOrder, finalItems } = await this.createOrderData(
+        manager,
+        userId,
+        dto,
+        savedPaymentSession.id
+      );
+
+      // 4️⃣ Link payment session with actual order
+      await paymentSessionRepo.update(savedPaymentSession.id!, {
+        status: EPaymentSessionStatus.SUCCESS,
+        actionLogs: [
+          ...savedPaymentSession.actionLogs,
+          {
+            action: "ORDER_LINKED",
+            message: "Order linked to payment session",
+            timestamp: new Date().toISOString(),
+            details: { orderId: savedOrder.id },
+          },
+        ],
+      });
+
+      // 5️⃣ Send notification
+      this.sendOrderSuccessNotification(userId);
+      // ✅ Final Response
       return {
         success: true,
         message: "Order created successfully",
@@ -319,43 +442,147 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     });
   }
 
+  async orderCallback(merchantOrderId: string) {
+    const logger = new Logger("OrderCallback");
+    logger.log(
+      `🟡 Starting order callback for merchantOrderId: ${merchantOrderId}`
+    );
+
+    const { success, detail, paymentSession, pendingOrder } =
+      await this.paymentSessionService.paymentCallback(merchantOrderId);
+
+    if (!success) {
+      logger.error(`❌ Payment callback failed: ${JSON.stringify(detail)}`);
+      throw new BadRequestException("Unable to process payment callback", {
+        cause: "Payment Callback error",
+        description: JSON.stringify(detail),
+      });
+    }
+
+    logger.log(
+      "✅ Payment callback successful. Proceeding with transaction..."
+    );
+
+    return this.dataSource.transaction(async (manager) => {
+      try {
+        logger.log("🔹 Checking pending order data...");
+        if (!pendingOrder) {
+          logger.error("❌ Missing pendingOrder in payment callback data.");
+          throw new BadRequestException("Invalid pending order data");
+        }
+
+        const { dto, userId } = pendingOrder;
+        if (!dto || !userId) {
+          logger.error(
+            `❌ Missing DTO or userId. dto=${!!dto}, userId=${userId}`
+          );
+          throw new BadRequestException("Incomplete pending order data");
+        }
+
+        logger.log(`🔹 Creating order data for userId=${userId}`);
+        const { savedOrder, finalItems } = await this.createOrderData(
+          manager,
+          userId,
+          dto,
+          paymentSession?.id
+        );
+        logger.log(
+          `✅ Order created successfully with orderId=${savedOrder.id}`
+        );
+
+        logger.log("🔹 Linking payment session with order...");
+        await this.paymentSessionService.updateById(
+          paymentSession.id!,
+          {
+            status: EPaymentSessionStatus.SUCCESS,
+            actionLogs: [
+              ...(paymentSession.actionLogs || []),
+              {
+                action: "ORDER_LINKED",
+                message: "Order linked to payment session",
+                timestamp: new Date().toISOString(),
+                details: { orderId: savedOrder.id },
+              },
+            ],
+          },
+          { manager }
+        );
+        logger.log("✅ Payment session updated and linked with order.");
+
+        logger.log("🔹 Sending success notification...");
+        this.sendOrderSuccessNotification(userId);
+        logger.log(`✅ Order success notification sent to userId=${userId}`);
+
+        logger.log("✅ Transaction completed successfully.");
+        return {
+          success: true,
+          message: "Order created successfully",
+          data: { ...savedOrder, items: finalItems },
+        };
+      } catch (error) {
+        logger.error(`❌ Error in transaction: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+
+  private sendOrderSuccessNotification = async (userId: number) => {
+    try {
+      await this.notificationService.sendNotification({
+        userIds: [userId],
+        title: "Order Placed",
+        body: "Your order has been created successfully. We’ll start processing it soon.",
+      });
+    } catch (error) {
+      this.logger.error(
+        "Failed to send order created notification",
+        error.stack
+      );
+    }
+  };
+
   private async handleOrderNotification(userId: number, status: EOrderStatus) {
-    const notificationData = { title: '', body: '' }
+    const notificationData = { title: "", body: "" };
 
     switch (status) {
       case EOrderStatus.IN_REVIEW:
-        notificationData.title = 'Order Under Review';
-        notificationData.body = 'We’re checking your order details before processing.';
+        notificationData.title = "Order Under Review";
+        notificationData.body =
+          "We’re checking your order details before processing.";
         break;
 
       case EOrderStatus.PREPARING:
-        notificationData.title = 'Order Prepared';
-        notificationData.body = 'Your order is ready and will be shipped soon.';
+        notificationData.title = "Order Prepared";
+        notificationData.body = "Your order is ready and will be shipped soon.";
         break;
 
       case EOrderStatus.SHIPPED:
-        notificationData.title = 'Order Shipped';
-        notificationData.body = 'Your order is on the way. Track it for updates.';
+        notificationData.title = "Order Shipped";
+        notificationData.body =
+          "Your order is on the way. Track it for updates.";
         break;
 
       case EOrderStatus.DELIVERED:
-        notificationData.title = 'Order Delivered';
-        notificationData.body = 'Your order has been delivered. Enjoy!';
+        notificationData.title = "Order Delivered";
+        notificationData.body = "Your order has been delivered. Enjoy!";
         break;
 
       case EOrderStatus.COMPLETED:
-        notificationData.title = 'Order Completed';
-        notificationData.body = 'Thank you! Your order is successfully completed.';
+        notificationData.title = "Order Completed";
+        notificationData.body =
+          "Thank you! Your order is successfully completed.";
         break;
 
       case EOrderStatus.CANCELLED:
-        notificationData.title = 'Order Cancelled';
-        notificationData.body = 'Your order has been cancelled. Contact support if needed.';
+        notificationData.title = "Order Cancelled";
+        notificationData.body =
+          "Your order has been cancelled. Contact support if needed.";
         break;
 
       case EOrderStatus.REFUNDED:
-        notificationData.title = 'Refund Processed';
-        notificationData.body = 'Your refund has been issued. Please check your account.';
+        notificationData.title = "Refund Processed";
+        notificationData.body =
+          "Your refund has been issued. Please check your account.";
         break;
 
       default:
@@ -366,22 +593,28 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       await this.notificationService.sendNotification({
         userIds: [userId],
         title: notificationData.title,
-        body: notificationData.body
-      })
+        body: notificationData.body,
+      });
     } catch (error) {
-      this.logger.error('Failed to send order status update notification', error.stack)
+      this.logger.error(
+        "Failed to send order status update notification",
+        error.stack
+      );
     }
   }
 
   async update(id: number, body: UpdateOrderDto) {
-    const order = await this.orderRepository.findOne({ where: { id }, withDeleted: true });
+    const order = await this.orderRepository.findOne({
+      where: { id },
+      withDeleted: true,
+    });
 
     if (!order) {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
 
     if (body.status && order.status !== body.status) {
-      await this.handleOrderNotification(order.userId, body.status)
+      await this.handleOrderNotification(order.userId, body.status);
     }
 
     const updatedOrder = this.orderRepository.merge(order, body);
@@ -414,7 +647,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     // recalc order
     const order = await this.orderRepository.findOne({
       where: { id: item.orderId },
-      relations: ['items'],
+      relations: ["items"],
     });
 
     if (!order) {
@@ -426,7 +659,9 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
     order.items?.forEach((orderItem) => {
       const qty = Number(orderItem.quantity || 0);
-      const basePrice = Number(orderItem.productData.discountedPrice ?? orderItem.productData.price);
+      const basePrice = Number(
+        orderItem.productData.discountedPrice ?? orderItem.productData.price
+      );
       const itemSubtotal = basePrice * qty;
 
       const gstRate = Number(orderItem.productData.gstFee || 0);
@@ -466,7 +701,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     // ---- load new product ----
     const newProduct = await this.productService.findOne({
       where: { id: newProductId },
-      relations: ['category'],
+      relations: ["category"],
     });
 
     if (!newProduct) {
@@ -477,25 +712,30 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     item.productId = newProduct.id!;
     item.productData = {
       name: newProduct.title,
-      sku: newProduct.sku ?? '',
+      sku: newProduct.sku ?? "",
       price: newProduct.price,
       discountedPrice: newProduct.salePrice ?? undefined,
       gstFee: newProduct.gstFee ?? 0,
-      category: newProduct.category?.slug ?? '',
+      category: newProduct.category?.slug ?? "",
       image: newProduct.image,
     };
     item.replacementStatus = EOrderReplacementStatus.ACCEPTED;
     item.timestamp = null;
-    item.suggestedProducts = null
-    item.totalPrice = item.quantity * (newProduct.salePrice || newProduct.price);
-    item.totalGstAmount = newProduct.gstFee ? item.quantity * (newProduct.salePrice || newProduct.price) * (newProduct.gstFee / 100) : undefined
+    item.suggestedProducts = null;
+    item.totalPrice =
+      item.quantity * (newProduct.salePrice || newProduct.price);
+    item.totalGstAmount = newProduct.gstFee
+      ? item.quantity *
+        (newProduct.salePrice || newProduct.price) *
+        (newProduct.gstFee / 100)
+      : undefined;
 
     await this.orderItemRepository.save(item);
 
     // ---- recalc order ----
     const order = await this.orderRepository.findOne({
       where: { id: item.orderId },
-      relations: ['items'],
+      relations: ["items"],
     });
 
     if (!order) {
@@ -507,7 +747,9 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
     order.items?.forEach((orderItem) => {
       const qty = Number(orderItem.quantity || 0);
-      const basePrice = Number(orderItem.productData.discountedPrice ?? orderItem.productData.price);
+      const basePrice = Number(
+        orderItem.productData.discountedPrice ?? orderItem.productData.price
+      );
       const itemSubtotal = basePrice * qty;
 
       const gstRate = Number(orderItem.productData.gstFee || 0);
@@ -542,18 +784,20 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
         } else {
           await this.deleteItem(id);
           throw new BadRequestException(
-            `Replacement approval time expired for Order Item ID ${id}`,
+            `Replacement approval time expired for Order Item ID ${id}`
           );
         }
       } else {
         throw new BadRequestException(
-          `New Product ID is required in case of approval`,
+          `New Product ID is required in case of approval`
         );
       }
     } else if (body.replacementStatus === EOrderReplacementStatus.REJECTED) {
       return this.deleteItem(id);
     } else {
-      throw new BadRequestException(`Only Accepted and Rejected Status allowed`);
+      throw new BadRequestException(
+        `Only Accepted and Rejected Status allowed`
+      );
     }
   }
 }

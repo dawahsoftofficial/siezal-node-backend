@@ -296,8 +296,9 @@ export const normalizePakistaniPhone = (phone: string): string | null => {
 };
 
 export function generateOtpMessage(otp: string): string {
-  return `Your Siezal verification code is ${otp}. 
-Do not share this code with anyone.`;
+  // return `Your Siezal verification code is ${otp}.
+  // Do not share this code with anyone.`;
+  return otp;
 }
 
 export const generateSessionId = () => {

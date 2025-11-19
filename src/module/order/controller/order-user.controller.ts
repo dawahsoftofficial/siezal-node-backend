@@ -15,7 +15,10 @@ import {
   SuccessResponseArrayDto,
   SuccessResponseSingleObjectDto,
 } from "src/common/dto/app.dto";
-import { GetOrderItemParamDto, GetOrderParamDto } from "src/module/order/dto/order-show.dto";
+import {
+  GetOrderItemParamDto,
+  GetOrderParamDto,
+} from "src/module/order/dto/order-show.dto";
 import { OrderService } from "../order.service";
 import { GetOrdersQueryDto } from "../dto/order-list.dto";
 import { CreateOrderDto } from "../dto/create-order.dto";
@@ -27,11 +30,12 @@ import { IAuthRequest } from "src/common/interfaces/app.interface";
 import { SuccessResponse } from "src/common/utils/api-response.util";
 import { UpdateOrderItemDto } from "../dto/create-order-item.dto";
 import { ReplaceOrderItemDto } from "../dto/replace-order-item.dto";
+import { GetOrderPaymentSessionCallbackDto } from "../../payment-callback/dto/callback.dto";
 
 @ApiTags("Orders Management")
 @UserRouteController("orders")
 export class UserOrderController {
-  constructor(private readonly orderService: OrderService) { }
+  constructor(private readonly orderService: OrderService) {}
 
   @GenerateSwaggerDoc({
     summary: "Get latest order for a user",
@@ -44,7 +48,7 @@ export class UserOrderController {
     ],
   })
   @HttpCode(HttpStatus.OK)
-  @Get('/latest')
+  @Get("/latest")
   async getLatestOrder(
     @AuthUser() { id }: IAuthRequest,
     @Query() query: GetOrdersQueryDto

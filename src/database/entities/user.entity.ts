@@ -7,6 +7,8 @@ import { IUserSession } from "src/module/user-session/interface/user-session.int
 import { IFcmToken } from "src/module/fcm-token/interface/fcm-token.interface";
 import { FcmToken } from "./fcm-token.entity";
 import { Address } from "./address.entity";
+import { PendingOrder } from "./pending-order.entity";
+import { IPendingOrder } from "src/module/pending-order/interface/pending-order.interface";
 
 @Entity({ name: "users" })
 export class User extends BaseEntity implements IUser {
@@ -62,4 +64,9 @@ export class User extends BaseEntity implements IUser {
 
   @OneToMany(() => Address, (address) => address.user, { cascade: true })
   addresses: Address[];
+
+  @OneToMany(() => PendingOrder, (data) => data.user, {
+    cascade: true,
+  })
+  pendingOrders?: Partial<IPendingOrder[]> | null;
 }

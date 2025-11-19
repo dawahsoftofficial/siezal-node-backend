@@ -1,5 +1,3 @@
-
-
 export interface IEntityBase {
   id?: number;
   createdAt?: Date;

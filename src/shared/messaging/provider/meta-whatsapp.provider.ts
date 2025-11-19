@@ -22,18 +22,47 @@ export class MetaWhatsappProvider implements IMessagingProvider {
     this.accessToken = this.config.getOrThrow("META_ACCESS_TOKEN");
   }
 
-  async sendWhatsapp(to: string, body: string) {
-    const payload = {
-      messaging_product: "whatsapp",
-      to: to.replace("+", ""),
-      type: "text",
-      text: { body },
-    };
+  async sendWhatsapp(to: string, body: string, isOTP = false) {
+    const payload = isOTP ?
+      {
+        messaging_product: "whatsapp",
+        to: to.replace("+", ""),
+        type: "template",
+        template: {
+          name: "siezal_otp_verification_template",
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: body }
+              ]
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [
+                { type: "text", text: body }
+              ]
+            }
+          ]
+        }
+      }
+      :
+      {
+        messaging_product: "whatsapp",
+        to: to.replace("+", ""),
+        type: "text",
+        text: { body },
+      };
 
     try {
+      const url = `${this.baseUrl}/${this.phoneNumberId}/messages`;
+
       const response = await firstValueFrom(
         this.httpService.post(
-          `${this.baseUrl}/${this.phoneNumberId}/messages`,
+          url,
           payload,
           {
             headers: {
@@ -43,6 +72,7 @@ export class MetaWhatsappProvider implements IMessagingProvider {
           }
         )
       );
+
       await this.generateLog("Send WhatsApp Message", ELogLevel.INFO, {
         to,
         body,

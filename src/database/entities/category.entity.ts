@@ -3,6 +3,7 @@ import { BaseEntity } from "src/core/base/entity/entity.base";
 import { ICategory } from "src/module/category/interface/category.interface";
 import { IProduct } from "src/module/product/interface/product.interface";
 import { Product } from "./product.entity";
+import { ECategoryStatus } from "src/common/enums/category-status.enum";
 
 @Entity({ name: "categories" })
 export class Category extends BaseEntity implements ICategory {
@@ -26,6 +27,14 @@ export class Category extends BaseEntity implements ICategory {
 
   @Column({ name: "images", type: "json", nullable: true })
   images: string[] | null;
+
+  @Column({
+    name: "status",
+    type: "enum",
+    enum: ECategoryStatus,
+    default: ECategoryStatus.PUBLISHED,
+  })
+  status: ECategoryStatus;
 
   @Column({ name: "parent_id", type: "int", nullable: true })
   parentId?: number | null;
