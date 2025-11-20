@@ -287,7 +287,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       if (existing) {
         existing.imported = true;
         existing.price = Number(payload.price);
-        existing.salePrice = Number(payload.salePrice);
+        existing.salePrice = Number(payload.salePrice) || null;
         existing.description = payload.description;
         toUpdate.push(existing);
         continue;

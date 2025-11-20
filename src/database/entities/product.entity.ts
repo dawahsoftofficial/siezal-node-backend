@@ -51,7 +51,7 @@ export class Product extends BaseEntity implements IProduct {
     scale: 2,
     nullable: true,
   })
-  salePrice?: number;
+  salePrice?: number | null;
 
   @Column({ name: "stock_quantity", type: "int" })
   stockQuantity: number;
