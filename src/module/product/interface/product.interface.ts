@@ -13,7 +13,7 @@ export interface IProduct extends IEntityBase {
   seoTitle?: string;
   seoDescription?: string;
   price: number;
-  salePrice?: number;
+  salePrice?: number | null;
   stockQuantity: number;
   status: EInventoryStatus;
   categoryId: number;
