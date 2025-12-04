@@ -15,7 +15,7 @@ const config = {
   entities: ['src/database/entities/*.ts'],
   logger: 'advanced-console', // remove custom logger for CLI
 
-
+  
 } as any;
 
 export const AppDataSource = new DataSource(config);

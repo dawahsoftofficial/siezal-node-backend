@@ -2,6 +2,7 @@ import { EOrderStatus } from "src/common/enums/order-status.enum";
 import { IEntityBase } from "src/core/base/entity/interface/entity-interface.base";
 import { IOrderItem } from "./order-item.interface";
 import { IPaymentSession } from "src/module/payment-session/interface/payment-session.interface";
+
 export enum EGatewayType {
   MEEZAN = "meezan",
   EASYPaisa = "easypaisa",
