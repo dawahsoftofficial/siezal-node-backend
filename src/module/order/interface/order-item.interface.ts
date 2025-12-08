@@ -10,7 +10,7 @@ export interface IOrderItem extends IEntityBase {
   totalGstAmount?: number;
   productData: {
     name: string;
-    sku: string;
+    sku: string[];
     price: number;
     discountedPrice?: number;
     gstFee?: number;

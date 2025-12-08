@@ -712,7 +712,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     item.productId = newProduct.id!;
     item.productData = {
       name: newProduct.title,
-      sku: newProduct.sku ?? "",
+      sku: newProduct.sku ?? [],
       price: newProduct.price,
       discountedPrice: newProduct.salePrice ?? undefined,
       gstFee: newProduct.gstFee ?? 0,

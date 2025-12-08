@@ -57,12 +57,16 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       .leftJoinAndSelect("product.category", "category");
 
     if (filters.q) {
+      const searchTerm = `%${filters.q}%`;
       qb.andWhere(
         new Brackets((qb) => {
-          qb.where("product.title LIKE :q", { q: `%${filters.q}%` })
-            .orWhere("product.sku LIKE :q", { q: `%${filters.q}%` })
-            .orWhere("category.name LIKE :q", { q: `%${filters.q}%` })
-            .orWhere("category.slug LIKE :q", { q: `%${filters.q}%` });
+          qb.where("product.title LIKE :q", { q: searchTerm })
+            .orWhere(
+              "JSON_SEARCH(product.sku, 'one', :skuQuery, NULL, '$[*]') IS NOT NULL",
+              { skuQuery: searchTerm }
+            )
+            .orWhere("category.name LIKE :q", { q: searchTerm })
+            .orWhere("category.slug LIKE :q", { q: searchTerm });
         })
       );
     }
@@ -407,6 +411,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
       if (existing) {
         existing.imported = true;
+        existing.sku = payload.sku ?? existing.sku;
         existing.price = Number(payload.price);
         existing.salePrice = Number(payload.salePrice) || null;
         existing.description = payload.description;
@@ -422,7 +427,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       }
 
       const entity = this.productRepository.create({
-        sku: payload.sku,
+        sku: payload.sku?.length ? payload.sku : null,
         title: payload.title,
         slug: payload.slug,
         shortDescription: payload.shortDescription ?? null,
@@ -448,8 +453,8 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         imported: true,
       } as Product);
 
-      toCreate.push(entity);
-    }
+        toCreate.push(entity);
+      }
 
     if (toUpdate.length) {
       await this.productRepository.save(toUpdate);
@@ -485,7 +490,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         title: product.title,
         slug: product.slug,
         categorySlug: product.category.slug,
-        sku: product.sku,
+        sku: product.sku ?? [],
         shortDescription: product.shortDescription ?? undefined,
         description: product.description ?? undefined,
         seoTitle: product.seoTitle ?? undefined,

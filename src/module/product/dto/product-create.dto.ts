@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
+  IsArray,
   IsInt,
   IsNumber,
   IsOptional,
@@ -16,10 +17,11 @@ import { EProductUnit } from "src/common/enums/product-unit.enum";
 import { ToBoolean } from "src/common/utils/app.util";
 
 export class CreateProductBodyDto {
-  @ApiProperty({ example: "SKU-001", description: "Stock Keeping Unit" })
-  @IsString()
+  @ApiProperty({ example: ["SKU-001"], description: "Stock Keeping Units", type: [String] })
+  @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  sku?: string;
+  sku?: string[];
 
   @ApiProperty({ example: "Gaming Laptop", description: "Product title" })
   @IsString()

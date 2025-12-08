@@ -241,8 +241,19 @@ export default class RealProductSeeder {
         //   console.log('Progress:', Object.keys(uploadedImagesMap).length)
         // }
 
+        const skuCell = row["SKU"];
+        const skus =
+          typeof skuCell === "string"
+            ? skuCell
+                .split(",")
+                .map((value) => value.trim())
+                .filter(Boolean)
+            : skuCell
+            ? [String(skuCell)]
+            : [];
+
         const product = productRepo.create({
-          sku: row["SKU"],
+          sku: skus,
           title,
           slug: this.makeUniqueSlug(title),
           shortDescription: row["Short Description"],
