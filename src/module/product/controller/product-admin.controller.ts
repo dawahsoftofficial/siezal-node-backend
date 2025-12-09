@@ -32,6 +32,7 @@ import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { ProductBulkSyncDto } from "../dto/product-bulk-sync.dto";
 import { BulkDeleteProductsDto } from "../dto/product-bulk-delete.dto";
 import { ProductImagesBulkUploadDto } from "../dto/product-images-bulk-upload.dto";
+import { ProductLinkImagesQueryDto } from "../dto/product-link-images.dto";
 
 @ApiTags("Products Inventory Management")
 @AdminRouteController("products")
@@ -253,8 +254,8 @@ export class AdminProductController {
     })
     @HttpCode(HttpStatus.OK)
     @Get("/link-images")
-    async linkImages() {
-        const result = await this.productService.linkImages();
+    async linkImages(@Query() query: ProductLinkImagesQueryDto) {
+        const result = await this.productService.linkImages(query.date);
         return SuccessResponse("Product images linked successfully", result);
     }
 

@@ -3,5 +3,4 @@ import { IEntityBase } from "src/core/base/entity/interface/entity-interface.bas
 export interface IProductImage extends IEntityBase {
   title: string;
   url: string;
-  linked: boolean;
 }

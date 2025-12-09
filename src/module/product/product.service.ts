@@ -288,8 +288,28 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     return result.affected || 0;
   }
 
-  async linkImages(): Promise<{ linked: number; notFound: number }> {
-    const images = await this.productImageRepository.find({ where: { linked: false } });
+  async linkImages(date: string): Promise<{ linked: number; notFound: number }> {
+    if (!date) {
+      throw new BadRequestException("Date is required");
+    }
+
+    const targetDate = new Date(date);
+
+    if (isNaN(targetDate.getTime())) {
+      throw new BadRequestException("Invalid date format");
+    }
+
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const images = await this.productImageRepository.find({
+      where: {
+        createdAt: Between(startOfDay, endOfDay),
+      },
+    });
 
     if (!images.length) {
       return { linked: 0, notFound: 0 };
@@ -306,7 +326,6 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     const productMap = new Map(products.map((product) => [normalize(product.title), product]));
 
     const productsToUpdate: Product[] = [];
-    const imagesToUpdate: ProductImage[] = [];
     let linked = 0;
     let notFound = 0;
 
@@ -315,9 +334,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
       if (product) {
         product.image = image.url;
-        image.linked = true;
         productsToUpdate.push(product);
-        imagesToUpdate.push(image);
         linked += 1;
       } else {
         notFound += 1;
@@ -326,10 +343,6 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
     if (productsToUpdate.length) {
       await this.productRepository.save(productsToUpdate);
-    }
-
-    if (imagesToUpdate.length) {
-      await this.productImageRepository.save(imagesToUpdate);
     }
 
     return { linked, notFound };
@@ -353,7 +366,6 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       const entity = this.productImageRepository.create({
         title,
         url,
-        linked: false,
       });
 
       records.push(entity);
