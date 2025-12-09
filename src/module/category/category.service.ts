@@ -30,6 +30,7 @@ import { ECategoryStatus } from "src/common/enums/category-status.enum";
 import { getPaginationMetadata } from "src/common/utils/pagination.utils";
 import { Product } from "src/database/entities/product.entity";
 import { CategoryLiveSyncService } from "./category-sync.service";
+import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import {
   CategoryBulkCreateItemDto,
 } from "./dto/category-bulk-create.dto";
@@ -166,17 +167,6 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
       .andWhere("category.status = :status", {
         status: ECategoryStatus.PUBLISHED,
       })
-      .andWhere((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select("1")
-          .from(Product, "product")
-          .where("product.categoryId = category.id")
-          .limit(1)
-          .getQuery();
-
-        return `EXISTS ${subQuery}`;
-      })
       .orderBy("category.position", "ASC")
       .skip((currentPage - 1) * perPage)
       .take(perPage);
@@ -244,8 +234,32 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     });
 
     if (category?.subCategories?.length) {
+      const publishedSubCategoryIds = category.subCategories
+        .filter((subCategory) => subCategory.status === ECategoryStatus.PUBLISHED)
+        .map((subCategory) => subCategory.id);
+
+      if (!publishedSubCategoryIds.length) {
+        category.subCategories = [];
+        return category;
+      }
+
+      const counts = await this.categoryRepository.manager
+        .getRepository(Product)
+        .createQueryBuilder("product")
+        .select("product.categoryId", "categoryId")
+        .addSelect("COUNT(product.id)", "count")
+        .where("product.categoryId IN (:...ids)", { ids: publishedSubCategoryIds })
+        .andWhere("product.status = :status", { status: EInventoryStatus.AVAILABLE })
+        .andWhere("product.imported = :imported", { imported: false })
+        .groupBy("product.categoryId")
+        .getRawMany();
+
+      const countMap = new Map<number, number>(
+        counts.map((row) => [Number(row.categoryId), Number(row.count)])
+      );
+
       category.subCategories = category.subCategories.filter(
-        (subCategory) => subCategory.status === ECategoryStatus.PUBLISHED
+        (subCategory) => (countMap.get(subCategory.id!) ?? 0) > 0
       );
     }
 
