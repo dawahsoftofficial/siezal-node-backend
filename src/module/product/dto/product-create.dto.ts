@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsArray,
   IsInt,
@@ -69,12 +69,17 @@ export class CreateProductBodyDto {
   @Min(0)
   price: number;
 
-  @ApiProperty({ example: 1299.99, description: "Sale price of the product" })
-  @Type(() => Number)
+  @ApiPropertyOptional({
+    example: 1299.99,
+    description: "Sale price of the product",
+    nullable: true,
+  })
+  @Transform(({ value }) =>
+    value === null || value === undefined || value === "" ? null : Number(value)
+  )
   @IsNumber()
-  @Min(0)
   @IsOptional()
-  salePrice?: number;
+  salePrice?: number | null;
 
   @ApiProperty({ example: 25, description: "Available stock quantity" })
   @Type(() => Number)
