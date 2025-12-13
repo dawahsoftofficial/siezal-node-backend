@@ -10,10 +10,11 @@ import { Attribute } from "src/database/entities/attribute.entity";
 import { SettingModule } from "../setting/setting.module";
 import { ProductLiveSyncService } from "./product-sync.service";
 import { Category } from "src/database/entities/category.entity";
+import { ProductImage } from "src/database/entities/product-image.entity";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Product, ProductAttributePivot, Attribute, Category]),
+    TypeOrmModule.forFeature([Product, ProductAttributePivot, Attribute, Category, ProductImage]),
     forwardRef(() => SettingModule),
     HttpModule,
   ],

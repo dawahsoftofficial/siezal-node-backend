@@ -10,6 +10,7 @@ import {
     Query,
     UseInterceptors,
     UploadedFile,
+    UploadedFiles,
     ParseFilePipe,
     Patch,
 } from "@nestjs/common";
@@ -26,9 +27,12 @@ import { GetProductsQueryDtoAdmin } from "../dto/product-index.dto";
 import { CreateProductBodyDto } from "../dto/product-create.dto";
 import { UpdateProductBodyDto } from "../dto/product-update.dto";
 import { SuccessResponse } from "src/common/utils/api-response.util";
-import { FileInterceptor } from "@nestjs/platform-express";
+import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { ProductBulkSyncDto } from "../dto/product-bulk-sync.dto";
+import { BulkDeleteProductsDto } from "../dto/product-bulk-delete.dto";
+import { ProductImagesBulkUploadDto } from "../dto/product-images-bulk-upload.dto";
+import { ProductLinkImagesQueryDto } from "../dto/product-link-images.dto";
 
 @ApiTags("Products Inventory Management")
 @AdminRouteController("products")
@@ -159,6 +163,23 @@ export class AdminProductController {
     }
 
     @GenerateSwaggerDoc({
+        summary: "Bulk delete products by creation date range",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Post("/bulk-delete")
+    async bulkDeleteProducts(@Body() body: BulkDeleteProductsDto) {
+        const deleted = await this.productService.bulkDeleteByDateRange(body.dateRange);
+        return SuccessResponse("Products deleted successfully", { deleted });
+    }
+
+    @GenerateSwaggerDoc({
         summary: "Accept or Reject import batch",
         responses: [
             { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
@@ -194,6 +215,48 @@ export class AdminProductController {
     async bulkSync(@Body() body: ProductBulkSyncDto) {
         const result = await this.productService.bulkSync(body.products);
         return SuccessResponse("Products synced successfully", result);
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Bulk upload product images",
+        consumesMultipart: true,
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Post("/product-images/bulk-upload")
+    @UseInterceptors(FilesInterceptor("images"))
+    async bulkUploadProductImages(
+        @UploadedFiles() images: Express.Multer.File[],
+        @Body() body: ProductImagesBulkUploadDto
+    ) {
+        const result = await this.productService.bulkUploadProductImages(
+            images,
+            body.titles
+        );
+        return SuccessResponse("Product images uploaded successfully", result);
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Link product images by title",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Get("/link-images")
+    async linkImages(@Query() query: ProductLinkImagesQueryDto) {
+        const result = await this.productService.linkImages(query.date);
+        return SuccessResponse("Product images linked successfully", result);
     }
 
     @GenerateSwaggerDoc({

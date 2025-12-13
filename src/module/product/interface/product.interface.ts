@@ -4,7 +4,7 @@ import { IEntityBase } from "src/core/base/entity/interface/entity-interface.bas
 import { ICategory } from "src/module/category/interface/category.interface";
 
 export interface IProduct extends IEntityBase {
-  sku?: string;
+  sku?: string[];
   imported: boolean;
   title: string;
   slug: string;

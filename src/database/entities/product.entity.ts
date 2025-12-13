@@ -17,8 +17,8 @@ import { EProductUnit } from "src/common/enums/product-unit.enum";
 
 @Entity({ name: "products" })
 export class Product extends BaseEntity implements IProduct {
-  @Column({ name: "sku", type: "varchar", length: 100, nullable: true })
-  sku?: string;
+  @Column({ name: "sku", type: "json", nullable: true })
+  sku?: string[];
 
   @Column({ name: "imported", type: "boolean", default: false })
   imported: boolean;

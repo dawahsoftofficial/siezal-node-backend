@@ -35,7 +35,7 @@ export class OrderItem extends BaseEntity implements IOrderItem {
   @Column({ name: "product_data", type: "json" })
   productData: {
     name: string;
-    sku: string;
+    sku: string[];
     price: number;
     discountedPrice?: number;
     gstFee?: number;

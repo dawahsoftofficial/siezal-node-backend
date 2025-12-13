@@ -59,7 +59,7 @@ export default class OrderSeeder {
                         productId: product.id,
                         productData: {
                             name: product.title,
-                            sku: product.sku,
+                            sku: product.sku ?? [],
                             price: product.price,
                             discountedPrice: product.salePrice ?? undefined,
                         },

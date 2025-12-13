@@ -8,7 +8,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { Product } from "src/database/entities/product.entity";
-import { Brackets, In, Repository } from "typeorm";
+import { Between, Brackets, In, Repository } from "typeorm";
 import { IProduct } from "./interface/product.interface";
 import {
   IPaginatedResponse,
@@ -24,6 +24,7 @@ import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { ProductLiveSyncService } from "./product-sync.service";
 import { ProductBulkSyncItemDto } from "./dto/product-bulk-sync.dto";
 import { Category } from "src/database/entities/category.entity";
+import { ProductImage } from "src/database/entities/product-image.entity";
 
 @Injectable()
 export class ProductService extends BaseSqlService<Product, IProduct> {
@@ -32,6 +33,8 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+    @InjectRepository(ProductImage)
+    private readonly productImageRepository: Repository<ProductImage>,
     private readonly s3Service: S3Service,
     private readonly productLiveSyncService: ProductLiveSyncService,
     @Inject(forwardRef(() => SettingService))
@@ -54,12 +57,16 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       .leftJoinAndSelect("product.category", "category");
 
     if (filters.q) {
+      const searchTerm = `%${filters.q}%`;
       qb.andWhere(
         new Brackets((qb) => {
-          qb.where("product.title LIKE :q", { q: `%${filters.q}%` })
-            .orWhere("product.sku LIKE :q", { q: `%${filters.q}%` })
-            .orWhere("category.name LIKE :q", { q: `%${filters.q}%` })
-            .orWhere("category.slug LIKE :q", { q: `%${filters.q}%` });
+          qb.where("product.title LIKE :q", { q: searchTerm })
+            .orWhere(
+              "JSON_SEARCH(product.sku, 'one', :skuQuery, NULL, '$[*]') IS NOT NULL",
+              { skuQuery: searchTerm }
+            )
+            .orWhere("category.name LIKE :q", { q: searchTerm })
+            .orWhere("category.slug LIKE :q", { q: searchTerm });
         })
       );
     }
@@ -241,6 +248,136 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     }
   }
 
+  async bulkDeleteByDateRange(dateRange: string): Promise<number> {
+    const [startRaw, endRaw] = dateRange.split("-");
+
+    const parseDate = (value: string, endOfDay = false) => {
+      const [dayStr, monthStr, yearStr] = value.split("/");
+      const day = Number(dayStr);
+      const month = Number(monthStr);
+      const year = Number(yearStr);
+
+      const date = endOfDay
+        ? new Date(year, month - 1, day, 23, 59, 59, 999)
+        : new Date(year, month - 1, day, 0, 0, 0, 0);
+
+      const isValid =
+        !isNaN(date.getTime()) &&
+        date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day;
+
+      if (!isValid) {
+        throw new BadRequestException("Invalid date range");
+      }
+
+      return date;
+    };
+
+    const startDate = parseDate(startRaw);
+    const endDate = parseDate(endRaw, true);
+
+    if (startDate > endDate) {
+      throw new BadRequestException("Start date cannot be after end date");
+    }
+
+    const result = await this.productRepository.delete({
+      createdAt: Between(startDate, endDate),
+    });
+
+    return result.affected || 0;
+  }
+
+  async linkImages(date: string): Promise<{ linked: number; notFound: number }> {
+    if (!date) {
+      throw new BadRequestException("Date is required");
+    }
+
+    const targetDate = new Date(date);
+
+    if (isNaN(targetDate.getTime())) {
+      throw new BadRequestException("Invalid date format");
+    }
+
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const images = await this.productImageRepository.find({
+      where: {
+        createdAt: Between(startOfDay, endOfDay),
+      },
+    });
+
+    if (!images.length) {
+      return { linked: 0, notFound: 0 };
+    }
+
+    const normalize = (value: string) => value.trim().toLowerCase();
+    const titles = Array.from(new Set(images.map((img) => normalize(img.title))));
+
+    const products = await this.productRepository
+      .createQueryBuilder("product")
+      .where("LOWER(product.title) IN (:...titles)", { titles })
+      .getMany();
+
+    const productMap = new Map(products.map((product) => [normalize(product.title), product]));
+
+    const productsToUpdate: Product[] = [];
+    let linked = 0;
+    let notFound = 0;
+
+    for (const image of images) {
+      const product = productMap.get(normalize(image.title));
+
+      if (product) {
+        product.image = image.url;
+        productsToUpdate.push(product);
+        linked += 1;
+      } else {
+        notFound += 1;
+      }
+    }
+
+    if (productsToUpdate.length) {
+      await this.productRepository.save(productsToUpdate);
+    }
+
+    return { linked, notFound };
+  }
+
+  async bulkUploadProductImages(
+    files: Express.Multer.File[],
+    titles?: string[]
+  ): Promise<{ saved: number }> {
+    if (!files?.length) {
+      throw new BadRequestException("No images provided");
+    }
+
+    const records: ProductImage[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const title = titles?.[i] || file.originalname;
+
+      const { url } = await this.s3Service.uploadImage(file, "product-images");
+      const entity = this.productImageRepository.create({
+        title,
+        url,
+      });
+
+      records.push(entity);
+    }
+
+    if (records.length) {
+      await this.productImageRepository.save(records);
+    }
+
+    return { saved: records.length };
+  }
+
   async bulkSync(products: ProductBulkSyncItemDto[]) {
     if (!products.length) {
       return { created: 0, updated: 0 };
@@ -286,6 +423,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
       if (existing) {
         existing.imported = true;
+        existing.sku = payload.sku ?? existing.sku;
         existing.price = Number(payload.price);
         existing.salePrice = Number(payload.salePrice) || null;
         existing.description = payload.description;
@@ -301,7 +439,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       }
 
       const entity = this.productRepository.create({
-        sku: payload.sku,
+        sku: payload.sku?.length ? payload.sku : null,
         title: payload.title,
         slug: payload.slug,
         shortDescription: payload.shortDescription ?? null,
@@ -327,8 +465,8 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         imported: true,
       } as Product);
 
-      toCreate.push(entity);
-    }
+        toCreate.push(entity);
+      }
 
     if (toUpdate.length) {
       await this.productRepository.save(toUpdate);
@@ -364,7 +502,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         title: product.title,
         slug: product.slug,
         categorySlug: product.category.slug,
-        sku: product.sku,
+        sku: product.sku ?? [],
         shortDescription: product.shortDescription ?? undefined,
         description: product.description ?? undefined,
         seoTitle: product.seoTitle ?? undefined,

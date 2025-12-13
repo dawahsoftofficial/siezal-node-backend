@@ -56,7 +56,7 @@ export default class ProductSeeder {
 
                         products.push(
                             productRepository.create({
-                                sku,
+                                sku: [sku],
                                 title,
                                 slug,
                                 shortDescription: `${title} — fresh, high-quality, and perfect for your kitchen.`,

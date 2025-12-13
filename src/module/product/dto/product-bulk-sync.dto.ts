@@ -31,10 +31,11 @@ export class ProductBulkSyncItemDto {
   @IsNotEmpty()
   categorySlug: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false, type: [String] })
   @IsOptional()
-  @IsString()
-  sku?: string;
+  @IsArray()
+  @IsString({ each: true })
+  sku?: string[];
 
   @ApiProperty({ required: false })
   @IsOptional()

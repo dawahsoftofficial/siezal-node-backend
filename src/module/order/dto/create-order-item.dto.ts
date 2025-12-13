@@ -26,7 +26,7 @@ export class CreateOrderItemDto {
   @ApiProperty({
     example: {
       name: "Gaming Mouse",
-      sku: "GM-001",
+      sku: ["GM-001"],
       price: 500,
       discountedPrice: 450,
       gstFee: 18,
@@ -38,7 +38,7 @@ export class CreateOrderItemDto {
   @IsNotEmpty()
   productData: {
     name: string;
-    sku: string;
+    sku: string[];
     price: number;
     discountedPrice?: number;
     gstFee?: number;
