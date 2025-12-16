@@ -14,8 +14,13 @@ const TIME_FORMAT = "DD/MM/YYYY hh:mm:ss A";
 
 export const now = (timeZone = TIME_ZONE) => dayjs().tz(timeZone);
 
+export const convertToTimeZone = (
+  date: string | Date,
+  timeZone = TIME_ZONE
+): Date => dayjs(date).tz(timeZone).toDate();
+
 /**
- * Format a date in a specific format
+ * Format a date in a specific formaDate t
  */
 export const formatDate = (
   date: string | Date,
