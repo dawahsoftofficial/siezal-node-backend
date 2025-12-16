@@ -13,9 +13,7 @@ export class TimezoneTransformer implements ValueTransformer {
    * @returns The value to store in the database.
    */
   to(value: Date | string | null): Date | string | null {
-    // Transform when saving to DB (if needed)
-    if (!value) return now().toDate();
-    return convertToTimeZone(value);
+    return value;
   }
 
   /**
@@ -24,6 +22,7 @@ export class TimezoneTransformer implements ValueTransformer {
    * @returns The full image URL or null if value is empty.
    */
   from(value: Date | string | null): Date | string | null {
-    return value;
+    if (!value) return null;
+    return convertToTimeZone(value);
   }
 }
