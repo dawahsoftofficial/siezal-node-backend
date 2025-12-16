@@ -11,6 +11,7 @@ import { ValidationError } from "class-validator";
 import { ICordinate } from "../interfaces/app.interface";
 import { instanceToPlain, Transform } from "class-transformer";
 import { ESettingType } from "../enums/setting-type.enum";
+import { convertToPakistanTime } from "./date.util";
 
 /**
  * Generates a random 5-digit integer between 10000 and 99999.
@@ -303,4 +304,30 @@ export function generateOtpMessage(otp: string): string {
 
 export const generateSessionId = () => {
   return uuidv4();
+};
+
+export const convertTimestampsInResponse = (data: any): any => {
+  if (!data) return data;
+
+  if (Array.isArray(data)) {
+    return data.map((item) => convertTimestampsInResponse(item));
+  }
+
+  if (typeof data === "object") {
+    const converted: any = { ...data };
+
+    for (const key in converted) {
+      const value = converted[key];
+      if (key.endsWith("At") && value) {
+        const convertedValue = convertToPakistanTime(value);
+        converted[key] = convertedValue;
+      } else if (typeof converted[key] === "object") {
+        converted[key] = convertTimestampsInResponse(converted[key]);
+      }
+    }
+
+    return converted;
+  }
+
+  return data;
 };

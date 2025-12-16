@@ -1,4 +1,3 @@
-import { TimezoneTransformer } from "src/common/transformers/timezone.transformer";
 import {
   BaseEntity as defaultBaseEntity,
   Column,
@@ -15,14 +14,12 @@ export abstract class BaseEntity extends defaultBaseEntity {
   @CreateDateColumn({
     name: "created_at",
     type: "datetime",
-    transformer: new TimezoneTransformer(),
   })
   createdAt: Date;
 
   @UpdateDateColumn({
     name: "updated_at",
     type: "datetime",
-    transformer: new TimezoneTransformer(),
   })
   updatedAt: Date;
 }
