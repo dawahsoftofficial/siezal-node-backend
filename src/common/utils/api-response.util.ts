@@ -3,7 +3,6 @@
  * Use these static methods to format success and custom responses consistently.
  */
 import { IPaginationMetadata } from "../interfaces/app.interface";
-import { convertTimestampsInResponse } from "./app.util";
 import { currentDateTime } from "./date.util";
 
 /**
@@ -21,11 +20,10 @@ export function SuccessResponse<T>(
   pagination?: IPaginationMetadata,
   extra?: any
 ) {
-  const converted = convertTimestampsInResponse(data);
   return {
     success: true,
     message,
-    data: converted,
+    data,
     ...(tokens ?? {}),
     ...(extra ? { extra } : {}),
     ...(pagination ? { pagination } : {}),
