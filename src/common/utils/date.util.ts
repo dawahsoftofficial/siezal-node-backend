@@ -9,10 +9,23 @@ dayjs.extend(timezone);
 dayjs.extend(duration);
 dayjs.extend(relativeTime);
 
-const TIME_ZONE = process.env.TZ;
+const TIME_ZONE = process.env.TZ || "Asia/Karachi";
 const TIME_FORMAT = "DD/MM/YYYY hh:mm:ss A";
 
 export const now = (timeZone = TIME_ZONE) => dayjs().tz(timeZone);
+
+export const convertToPakistanTime = (
+  value: Date | string | null
+): Date | string | null => {
+  if (!value) return null;
+
+  const tz = dayjs(value).tz(TIME_ZONE);
+  if (typeof value === "string") {
+    return tz.format("YYYY-MM-DD HH:mm:ss"); // or your preferred string format
+  }
+  return tz.toDate();
+  // fallback
+};
 
 export const convertToTimeZone = (
   date: string | Date,

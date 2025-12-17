@@ -11,6 +11,7 @@ import { ValidationError } from "class-validator";
 import { ICordinate } from "../interfaces/app.interface";
 import { instanceToPlain, Transform } from "class-transformer";
 import { ESettingType } from "../enums/setting-type.enum";
+import { convertToPakistanTime } from "./date.util";
 
 /**
  * Generates a random 5-digit integer between 10000 and 99999.
@@ -304,3 +305,4 @@ export function generateOtpMessage(otp: string): string {
 export const generateSessionId = () => {
   return uuidv4();
 };
+
