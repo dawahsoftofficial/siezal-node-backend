@@ -18,7 +18,7 @@ export const getDatabaseConfig = (
       database: configService.get<string>("DB_MAIN_NAME"),
       autoLoadEntities: true,
       synchronize: false,
-      // timezone: "+05:00",
+      timezone: "UTC",
 
       logging: true,
       // subscribers: [BaseSubscriber],
