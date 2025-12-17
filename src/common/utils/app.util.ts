@@ -306,28 +306,3 @@ export const generateSessionId = () => {
   return uuidv4();
 };
 
-export const convertTimestampsInResponse = (data: any): any => {
-  if (!data) return data;
-
-  if (Array.isArray(data)) {
-    return data.map((item) => convertTimestampsInResponse(item));
-  }
-
-  if (typeof data === "object") {
-    const converted: any = { ...data };
-
-    for (const key in converted) {
-      const value = converted[key];
-      if (key.endsWith("At") && value) {
-        const convertedValue = convertToPakistanTime(value);
-        converted[key] = convertedValue;
-      } else if (typeof converted[key] === "object") {
-        converted[key] = convertTimestampsInResponse(converted[key]);
-      }
-    }
-
-    return converted;
-  }
-
-  return data;
-};
