@@ -44,6 +44,7 @@ import {
 } from "../payment-session/interface/payment-session.interface";
 import { PendingOrderService } from "../pending-order/pending-order.service";
 import { PaymentSessionService } from "../payment-session/payment-session.service";
+import { EventsGateway } from "../../shared/event-gateway/event.gateway";
 
 @Injectable()
 export class OrderService extends BaseSqlService<Order, IOrder> {
@@ -60,7 +61,8 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     private readonly addressService: AddressService,
     private readonly notificationService: NotificationService,
     private readonly dataSource: DataSource,
-    private readonly paymentSessionService: PaymentSessionService
+    private readonly paymentSessionService: PaymentSessionService,
+    private readonly eventsGateway: EventsGateway
   ) {
     super(orderRepository);
   }
@@ -367,7 +369,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
         { orderUID: generateOrderUidV2(savedOrder.id!) }
       );
       this.logger.log(`✅ Formatted Order UID generated.`);
-
+      this.eventsGateway.emitEvent("newOrder", savedOrder);
       return { savedOrder, finalItems };
     } catch (error) {
       this.logger.error("Error in createOrderData transaction", error.stack);
