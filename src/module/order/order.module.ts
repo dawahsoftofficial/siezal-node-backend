@@ -10,6 +10,7 @@ import { AddressModule } from "../address/address.module";
 import { NotificationModule } from "../notification/notification.module";
 import { PendingOrderModule } from "../pending-order/pending-order.module";
 import { PaymentSessionModule } from "../payment-session/payment-session.module";
+import { EventModule } from "src/shared/event-gateway/event.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { PaymentSessionModule } from "../payment-session/payment-session.module"
     NotificationModule,
     PendingOrderModule,
     PaymentSessionModule,
+    EventModule,
   ],
   controllers: [UserOrderController, AdminOrderController],
   providers: [OrderService],
