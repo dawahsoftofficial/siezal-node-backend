@@ -43,6 +43,20 @@ const COMMON_HEADERS = new Set([
   "x-api-key",
   "x-requested-with",
   "dnt",
+  
+  // reverse proxy / CDN
+  "x-forwarded-proto",
+  "x-forwarded-host",
+  "x-forwarded-port",
+  "x-forwarded-server",
+  "x-forwarded-prefix",
+
+  // cloudflare
+  "cf-ray",
+  "cf-connecting-ip",
+  "cf-ipcountry",
+  "cf-visitor",
+  "cdn-loop",
 ]);
 
 const HEADER_TRANSFORMERS: Record<string, (value: any) => any> = {};
