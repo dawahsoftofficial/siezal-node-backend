@@ -666,8 +666,10 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       );
       const itemSubtotal = basePrice * qty;
 
-      const gstRate = Number(orderItem.productData.gstFee || 0);
-      const itemGst = itemSubtotal * (gstRate / 100);
+      const gstPerItem = Number(orderItem.productData.gstFee || 0);
+      // const itemGst = itemSubtotal * (gstPerItem / 100);
+
+      const itemGst = gstPerItem * qty;
 
       gstAmount += itemGst;
       totalAmount += itemSubtotal + itemGst;
@@ -726,10 +728,13 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     item.suggestedProducts = null;
     item.totalPrice =
       item.quantity * (newProduct.salePrice || newProduct.price);
+    // item.totalGstAmount = newProduct.gstFee
+    //   ? item.quantity *
+    //     (newProduct.salePrice || newProduct.price) *
+    //     (newProduct.gstFee / 100)
+    //   : undefined;
     item.totalGstAmount = newProduct.gstFee
-      ? item.quantity *
-        (newProduct.salePrice || newProduct.price) *
-        (newProduct.gstFee / 100)
+      ? item.quantity * newProduct.gstFee
       : undefined;
 
     await this.orderItemRepository.save(item);
@@ -754,8 +759,10 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       );
       const itemSubtotal = basePrice * qty;
 
-      const gstRate = Number(orderItem.productData.gstFee || 0);
-      const itemGst = itemSubtotal * (gstRate / 100);
+      // const gstRate = Number(orderItem.productData.gstFee || 0);
+      // const itemGst = itemSubtotal * (gstRate / 100);
+      const gstPerItem = Number(orderItem.productData.gstFee || 0);
+      const itemGst = gstPerItem * qty;
 
       gstAmount += itemGst;
       totalAmount += itemSubtotal + itemGst;
