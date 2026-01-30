@@ -44,7 +44,7 @@ export class PaymentSessionService extends BaseSqlService<
 
     const response = await this.meezanGateway.registerOrder({
       merchantOrderId: pendingOrder.merchantOrderId,
-      amount: dto.totalAmount,
+      amount: Number(Math.round(dto.totalAmount)),
     });
 
     if (response.success) {
