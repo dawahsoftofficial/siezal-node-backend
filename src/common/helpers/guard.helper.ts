@@ -56,8 +56,9 @@ export class GuardHelper {
       throw new BadRequestException("Missing payload header");
     }
 
+    const urlPath = (request.originalUrl || request.url || "").split("?")[0];
     const expectedPayload =
-      request.path + request.method + this.configService.get("PUB_Q");
+      urlPath + request.method + this.configService.get("PUB_Q");
 
     console.log(request.path, request.method, this.configService.get("PUB_Q"));
 
