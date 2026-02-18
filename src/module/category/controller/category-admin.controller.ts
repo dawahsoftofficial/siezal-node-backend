@@ -202,7 +202,7 @@ export class AdminCategoryController {
     @HttpCode(200)
     @Get("/:slug")
     async detail(@Param() { slug }: CategorySlugParamDto) {
-        const data = await this.categoryService.detail(slug);
+        const data = await this.categoryService.detailAdmin(slug);
         return SuccessResponse("Data fetch successfully", data);
     }
 

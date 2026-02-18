@@ -266,6 +266,18 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     return category;
   };
 
+  detailAdmin = async (slug: string) => {
+    return this.findOne({
+      where: { slug },
+      relations: ["subCategories"],
+      order: {
+        subCategories: {
+          position: "ASC",
+        },
+      },
+    });
+  };
+
   async show(id: number) {
     const category = await this.categoryRepository.findOne({ where: { id } });
 
