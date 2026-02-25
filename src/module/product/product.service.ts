@@ -384,6 +384,23 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     }
 
     const normalize = (value: string) => value.trim().toLowerCase();
+    const normalizeImportedSalePrice = (
+      price: number,
+      salePrice?: number | null
+    ): number | null => {
+      if (typeof salePrice !== "number") {
+        return null;
+      }
+
+      const normalizedPrice = Number(price);
+      const normalizedSalePrice = Number(salePrice);
+
+      if (!Number.isFinite(normalizedSalePrice)) {
+        return null;
+      }
+
+      return normalizedSalePrice === normalizedPrice ? null : normalizedSalePrice;
+    };
     const titles = Array.from(new Set(products.map((p) => normalize(p.title))));
 
     const existingProducts = await this.productRepository
@@ -425,7 +442,10 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         existing.imported = true;
         existing.sku = payload.sku ?? existing.sku;
         existing.price = Number(payload.price);
-        existing.salePrice = Number(payload.salePrice) || null;
+        existing.salePrice = normalizeImportedSalePrice(
+          payload.price,
+          payload.salePrice
+        );
         existing.description = payload.description;
         toUpdate.push(existing);
         continue;
@@ -447,10 +467,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         seoTitle: payload.seoTitle ?? null,
         seoDescription: payload.seoDescription ?? null,
         price: Number(payload.price),
-        salePrice:
-          typeof payload.salePrice === "number"
-            ? Number(payload.salePrice)
-            : null,
+        salePrice: normalizeImportedSalePrice(payload.price, payload.salePrice),
         stockQuantity: payload.stockQuantity,
         status: payload.status,
         categoryId,
