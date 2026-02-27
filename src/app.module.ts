@@ -21,6 +21,7 @@ import { RedisModule } from "./shared/redis/redis.module";
 import { ProductModule } from "./module/product/product.module";
 import { CategoryModule } from "./module/category/category.module";
 import { InventoryModule } from "./module/inventory/inventory.module";
+import { BranchModule } from "./module/branch/branch.module";
 import { OrderModule } from "./module/order/order.module";
 import { SettingModule } from "./module/setting/setting.module";
 import { DashboardModule } from "./module/dashboard/dashboard.module";
@@ -68,6 +69,7 @@ import { PaymentCallbackModule } from "./module/payment-callback/payment-callbac
     ProductModule,
     CategoryModule,
     InventoryModule,
+    BranchModule,
     OrderModule,
     SettingModule,
     DashboardModule,
