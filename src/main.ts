@@ -18,6 +18,16 @@ async function bootstrap() {
     origin: "*", // Change this to restrict the origins
   });
 
+  app.use((req, res, next) => {
+    const path = req.path || req.url || "";
+
+    if (path === "/docs" || path.startsWith("/docs/") || path === "/docs-json") {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    }
+
+    next();
+  });
+
   if (process.env.NODE_ENV !== "prod") {
     // Swagger Configuration
     const config = new DocumentBuilder()
