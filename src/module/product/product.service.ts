@@ -25,6 +25,7 @@ import { ProductLiveSyncService } from "./product-sync.service";
 import { ProductBulkSyncItemDto } from "./dto/product-bulk-sync.dto";
 import { Category } from "src/database/entities/category.entity";
 import { ProductImage } from "src/database/entities/product-image.entity";
+import { Branch } from "src/database/entities/branch.entity";
 
 @Injectable()
 export class ProductService extends BaseSqlService<Product, IProduct> {
@@ -35,6 +36,8 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     private readonly categoryRepository: Repository<Category>,
     @InjectRepository(ProductImage)
     private readonly productImageRepository: Repository<ProductImage>,
+    @InjectRepository(Branch)
+    private readonly branchRepository: Repository<Branch>,
     private readonly s3Service: S3Service,
     private readonly productLiveSyncService: ProductLiveSyncService,
     @Inject(forwardRef(() => SettingService))
@@ -54,7 +57,8 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       .leftJoinAndSelect("product.inventory", "inventory")
       .leftJoinAndSelect("product.attributePivots", "attributePivots")
       .leftJoinAndSelect("attributePivots.attribute", "attribute")
-      .leftJoinAndSelect("product.category", "category");
+      .leftJoinAndSelect("product.category", "category")
+      .leftJoinAndSelect("product.branch", "branch");
 
     if (filters.q) {
       const searchTerm = `%${filters.q}%`;
@@ -126,6 +130,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       .leftJoinAndSelect("product.attributePivots", "pivot")
       .leftJoinAndSelect("pivot.attribute", "attribute")
       .leftJoin("product.category", "category")
+      .leftJoin("product.branch", "branch")
       .where("product.status = :status", {
         status: EInventoryStatus.AVAILABLE,
       }).andWhere("product.imported = :imported", {
@@ -165,9 +170,11 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         "product.createdAt",
         "category.id",
         "category.slug",
+        "branch.id",
+        "branch.name",
       ]);
     } else {
-      qb.addSelect("category.slug");
+      qb.addSelect(["category.slug", "branch.id", "branch.name"]);
     }
 
     qb.skip((page - 1) * limit)
@@ -194,6 +201,16 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     body: CreateProductBodyDto,
     image: Express.Multer.File
   ): Promise<IProduct> {
+    if (body.branchId) {
+      const branch = await this.branchRepository.findOne({
+        where: { id: body.branchId },
+      });
+
+      if (!branch) {
+        throw new NotFoundException(`Branch with ID ${body.branchId} not found`);
+      }
+    }
+
     if (image.buffer instanceof Buffer) {
       const { url } = await this.s3Service.uploadImage(image);
 
@@ -212,6 +229,16 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    if (body.branchId) {
+      const branch = await this.branchRepository.findOne({
+        where: { id: body.branchId },
+      });
+
+      if (!branch) {
+        throw new NotFoundException(`Branch with ID ${body.branchId} not found`);
+      }
     }
 
     let updatedProduct;
@@ -431,10 +458,33 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       categories.map((category) => [category.slug.toLowerCase(), category.id])
     );
 
+    const branchIds = Array.from(
+      new Set(
+        products
+          .map((p) => p.branchId)
+          .filter((branchId): branchId is number => typeof branchId === "number")
+      )
+    );
+
+    const branches = branchIds.length
+      ? await this.branchRepository.find({
+          where: { id: In(branchIds) },
+          select: ["id"],
+        })
+      : [];
+
+    const branchIdSet = new Set(branches.map((branch) => branch.id));
+
     const toCreate: Product[] = [];
     const toUpdate: Product[] = [];
 
     for (const payload of products) {
+      if (payload.branchId && !branchIdSet.has(payload.branchId)) {
+        throw new BadRequestException(
+          `Branch with ID "${payload.branchId}" not found`
+        );
+      }
+
       const key = normalize(payload.title);
       const existing = existingMap.get(key);
 
@@ -447,6 +497,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
           payload.salePrice
         );
         existing.description = payload.description;
+        existing.branchId = payload.branchId ?? null;
         toUpdate.push(existing);
         continue;
       }
@@ -471,6 +522,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         stockQuantity: payload.stockQuantity,
         status: payload.status,
         categoryId,
+        branchId: payload.branchId ?? null,
         inventoryId: payload.inventoryId,
         unit: payload.unit,
         isGstEnabled: payload.isGstEnabled,
@@ -528,6 +580,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         salePrice: product.salePrice ? Number(product.salePrice) : undefined,
         stockQuantity: product.stockQuantity,
         status: product.status,
+        branchId: product.branchId ?? undefined,
         inventoryId: product.inventoryId,
         unit: product.unit,
         isGstEnabled: product.isGstEnabled,

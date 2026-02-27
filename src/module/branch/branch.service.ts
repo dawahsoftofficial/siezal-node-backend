@@ -67,6 +67,18 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
     return branch;
   }
 
+  async listActive() {
+    return this.findAll({
+      where: {
+        isActive: true,
+        deletedAt: IsNull(),
+      },
+      order: {
+        name: "ASC",
+      },
+    });
+  }
+
   async createBranch(body: CreateBranchDto) {
     return this.create({
       ...body,

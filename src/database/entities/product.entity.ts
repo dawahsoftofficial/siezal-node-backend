@@ -14,6 +14,7 @@ import { Inventory } from "./inventory.entity";
 import { ProductAttributePivot } from "./product-attributes.entity";
 import { Category } from "./category.entity";
 import { EProductUnit } from "src/common/enums/product-unit.enum";
+import { Branch } from "./branch.entity";
 
 @Entity({ name: "products" })
 export class Product extends BaseEntity implements IProduct {
@@ -92,6 +93,13 @@ export class Product extends BaseEntity implements IProduct {
   @ManyToOne(() => Category, { onDelete: 'CASCADE' })
   @JoinColumn({ name: "category_id" })
   category: Category;
+
+  @Column({ name: "branch_id", type: "int", nullable: true })
+  branchId?: number | null;
+
+  @ManyToOne(() => Branch, { nullable: true, onDelete: "SET NULL" })
+  @JoinColumn({ name: "branch_id" })
+  branch?: Branch | null;
 
   @ManyToOne(() => Inventory)
   @JoinColumn({ name: "inventory_id" })
