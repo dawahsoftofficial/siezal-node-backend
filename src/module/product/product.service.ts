@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
@@ -26,6 +27,9 @@ import { ProductBulkSyncItemDto } from "./dto/product-bulk-sync.dto";
 import { Category } from "src/database/entities/category.entity";
 import { ProductImage } from "src/database/entities/product-image.entity";
 import { Branch } from "src/database/entities/branch.entity";
+import slugify from "slugify";
+import { CreateVendorProductDto } from "../vendor/dto/vendor-product.dto";
+import { UpdateVendorProductDto } from "../vendor/dto/update-vendor-product.dto";
 
 @Injectable()
 export class ProductService extends BaseSqlService<Product, IProduct> {
@@ -403,6 +407,126 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     }
 
     return { saved: records.length };
+  }
+
+  async findBySku(sku: string): Promise<Product | null> {
+    return this.productRepository
+      .createQueryBuilder("product")
+      .where(
+        "JSON_SEARCH(product.sku, 'one', :sku, NULL, '$[*]') IS NOT NULL",
+        { sku },
+      )
+      .getOne();
+  }
+
+  private async resolveImportedCategoryId(categorySlug: string) {
+    const category = await this.categoryRepository.findOne({
+      where: { slug: categorySlug.trim().toLowerCase() },
+      select: ["id", "slug"],
+    });
+
+    if (!category) {
+      throw new BadRequestException(`Category with slug "${categorySlug}" not found`);
+    }
+
+    return category.id;
+  }
+
+  private async ensureBranchExists(branchId?: number | null) {
+    if (branchId) {
+      const branch = await this.branchRepository.findOne({
+        where: { id: branchId },
+      });
+
+      if (!branch) {
+        throw new BadRequestException(`Branch with ID "${branchId}" not found`);
+      }
+    }
+  }
+
+  async createImportedVendorProduct(body: CreateVendorProductDto): Promise<IProduct> {
+    const existing = await this.findBySku(body.sku);
+
+    if (existing) {
+      throw new ConflictException(`Product with SKU "${body.sku}" already exists`);
+    }
+
+    const categoryId = await this.resolveImportedCategoryId(body.categorySlug);
+
+    await this.ensureBranchExists(body.branchId);
+
+    return this.create({
+      sku: [body.sku],
+      title: body.title,
+      slug: body.slug || slugify(body.title, { lower: true, strict: true }),
+      shortDescription: body.shortDescription ?? undefined,
+      description: body.description ?? undefined,
+      seoTitle: body.seoTitle ?? undefined,
+      seoDescription: body.seoDescription ?? undefined,
+      price: body.price,
+      salePrice: body.salePrice ?? null,
+      stockQuantity: body.stockQuantity,
+      status: body.status,
+      categoryId,
+      branchId: body.branchId ?? null,
+      inventoryId: body.inventoryId ?? 1,
+      unit: body.unit,
+      isGstEnabled: body.isGstEnabled,
+      gstFee: body.isGstEnabled ? body.gstFee ?? null : null,
+      image: body.image || "https://siezal-next.vercel.app/placeholder.svg",
+      imported: true,
+    });
+  }
+
+  async updateImportedVendorProductBySku(
+    sku: string,
+    body: UpdateVendorProductDto,
+  ): Promise<IProduct> {
+    const product = await this.findBySku(sku);
+
+    if (!product) {
+      throw new NotFoundException(`Product with SKU "${sku}" not found`);
+    }
+
+    let relationPayload: { categoryId?: number; branchId?: number | null } = {};
+
+    if (body.categorySlug) {
+      relationPayload.categoryId = await this.resolveImportedCategoryId(body.categorySlug);
+    }
+
+    if (body.branchId !== undefined) {
+      await this.ensureBranchExists(body.branchId);
+      relationPayload.branchId = body.branchId ?? null;
+    }
+
+    const updatedProduct = this.productRepository.merge(product, {
+      ...(body.sku ? { sku: [body.sku] } : {}),
+      ...(body.title !== undefined ? { title: body.title } : {}),
+      ...(body.slug !== undefined
+        ? { slug: body.slug || slugify(body.title || product.title, { lower: true, strict: true }) }
+        : {}),
+      ...(body.shortDescription !== undefined ? { shortDescription: body.shortDescription } : {}),
+      ...(body.description !== undefined ? { description: body.description } : {}),
+      ...(body.seoTitle !== undefined ? { seoTitle: body.seoTitle } : {}),
+      ...(body.seoDescription !== undefined ? { seoDescription: body.seoDescription } : {}),
+      ...(body.price !== undefined ? { price: body.price } : {}),
+      ...(body.salePrice !== undefined ? { salePrice: body.salePrice } : {}),
+      ...(body.stockQuantity !== undefined ? { stockQuantity: body.stockQuantity } : {}),
+      ...(body.status !== undefined ? { status: body.status } : {}),
+      ...(body.inventoryId !== undefined ? { inventoryId: body.inventoryId } : {}),
+      ...(body.unit !== undefined ? { unit: body.unit } : {}),
+      ...(body.isGstEnabled !== undefined ? { isGstEnabled: body.isGstEnabled } : {}),
+      ...(body.gstFee !== undefined ? { gstFee: body.gstFee } : {}),
+      ...(body.image !== undefined ? { image: body.image } : {}),
+      ...relationPayload,
+      imported: true,
+    });
+
+    if (body.isGstEnabled === false) {
+      updatedProduct.gstFee = null;
+    }
+
+    return this.productRepository.save(updatedProduct);
   }
 
   async bulkSync(products: ProductBulkSyncItemDto[]) {

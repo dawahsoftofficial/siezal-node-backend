@@ -33,6 +33,7 @@ import { LeadModule } from "./module/lead/lead.module";
 import { StaffModule } from "./module/staff/staff.module";
 import { MessagingModule } from "./shared/messaging/messaging.module";
 import { PaymentCallbackModule } from "./module/payment-callback/payment-callback.module";
+import { VendorModule } from "./module/vendor/vendor.module";
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { PaymentCallbackModule } from "./module/payment-callback/payment-callbac
     NotificationModule,
     LeadModule,
     StaffModule,
+    VendorModule,
     PaymentCallbackModule,
   ],
   controllers: [AppController],
