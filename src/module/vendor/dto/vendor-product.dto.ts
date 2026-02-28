@@ -15,7 +15,7 @@ import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { EProductUnit } from "src/common/enums/product-unit.enum";
 
 export class CreateVendorProductDto {
-  @ApiProperty({ example: "SKU-001", description: "Vendor SKU identifier" })
+  @ApiProperty({ example: "SZ-001", description: "Vendor SKU identifier" })
   @IsString()
   @IsNotEmpty()
   sku: string;
@@ -30,7 +30,7 @@ export class CreateVendorProductDto {
   @IsString()
   slug?: string;
 
-  @ApiProperty({ example: "groceries", description: "Category slug resolved server-side" })
+  @ApiProperty({ example: "pos-category", description: "Category slug resolved server-side" })
   @IsString()
   @IsNotEmpty()
   categorySlug: string;
@@ -80,7 +80,7 @@ export class CreateVendorProductDto {
   @IsEnum(EInventoryStatus)
   status: EInventoryStatus;
 
-  @ApiPropertyOptional({ example: 2, nullable: true, description: "Optional branch ID" })
+  @ApiPropertyOptional({ example: null, nullable: true, description: "Optional branch ID" })
   @Transform(({ value }) =>
     value === null || value === undefined || value === "" ? null : Number(value)
   )
