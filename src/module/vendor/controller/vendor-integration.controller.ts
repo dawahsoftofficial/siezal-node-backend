@@ -43,6 +43,7 @@ export class VendorIntegrationController {
 
   @GenerateSwaggerDoc({
     summary: "Vendor login",
+    isOpenRoute: true,
     responses: [{ status: HttpStatus.OK, type: SuccessResponseSingleObjectDto }],
   })
   @NoGuard()

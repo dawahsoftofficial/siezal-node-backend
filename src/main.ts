@@ -3,12 +3,46 @@ import { AppModule } from "./app.module";
 import { UnprocessableEntityException, ValidationPipe } from "@nestjs/common";
 import {
   DocumentBuilder,
+  OpenAPIObject,
   SwaggerDocumentOptions,
+  SwaggerCustomOptions,
   SwaggerModule,
 } from "@nestjs/swagger";
 import { ValidationError } from "class-validator";
 import * as fs from "fs";
 import * as path from "path";
+
+const SWAGGER_NO_CACHE_PATHS = [
+  "/docs",
+  "/docs-json",
+  "/vendor-docs",
+  "/vendor-docs-json",
+];
+
+const createVendorDocument = (document: OpenAPIObject): OpenAPIObject => {
+  const vendorPathPrefix = "/v1/integrations/vendor/";
+  const vendorPaths = Object.entries(document.paths).reduce<OpenAPIObject["paths"]>(
+    (acc, [route, routeConfig]) => {
+      if (route.startsWith(vendorPathPrefix)) {
+        acc[route] = routeConfig;
+      }
+
+      return acc;
+    },
+    {},
+  );
+
+  return {
+    ...document,
+    info: {
+      ...document.info,
+      title: "Siezal Vendor API Docs",
+      description: "Vendor integration endpoints only",
+    },
+    tags: (document.tags || []).filter((tag) => tag.name === "Vendor integrations"),
+    paths: vendorPaths,
+  };
+};
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -21,7 +55,7 @@ async function bootstrap() {
   app.use((req, res, next) => {
     const path = req.path || req.url || "";
 
-    if (path === "/docs" || path.startsWith("/docs/") || path === "/docs-json") {
+    if (SWAGGER_NO_CACHE_PATHS.some((swaggerPath) => path === swaggerPath || path.startsWith(`${swaggerPath}/`))) {
       res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     }
 
@@ -43,11 +77,15 @@ async function bootstrap() {
       operationIdFactory: (controllerKey: string, methodKey: string) =>
         methodKey,
     };
-    const documentFactory = () =>
-      SwaggerModule.createDocument(app, config, options);
+    const document = SwaggerModule.createDocument(app, config, options);
+    const vendorDocument = createVendorDocument(document);
+    const vendorSwaggerOptions: SwaggerCustomOptions = {
+      jsonDocumentUrl: "vendor-docs-json",
+    };
 
     // Setup Swagger Module
-    SwaggerModule.setup("docs", app, documentFactory());
+    SwaggerModule.setup("docs", app, document);
+    SwaggerModule.setup("vendor-docs", app, vendorDocument, vendorSwaggerOptions);
   }
 
   // Global validation pipe
