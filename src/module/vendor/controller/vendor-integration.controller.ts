@@ -12,7 +12,11 @@ import {
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { Request } from "express";
-import { NoGuard, PublicRouteController } from "src/common/decorators/app.decorator";
+import {
+  ApplyHeader,
+  NoGuard,
+  PublicRouteController,
+} from "src/common/decorators/app.decorator";
 import { GenerateSwaggerDoc } from "src/common/decorators/swagger-generate.decorator";
 import { SuccessResponseSingleObjectDto, SuccessResponseArrayDto } from "src/common/dto/app.dto";
 import { SuccessResponse } from "src/common/utils/api-response.util";
@@ -42,6 +46,7 @@ export class VendorIntegrationController {
     responses: [{ status: HttpStatus.OK, type: SuccessResponseSingleObjectDto }],
   })
   @NoGuard()
+  @ApplyHeader()
   @HttpCode(HttpStatus.OK)
   @Post("/auth/login")
   async login(@Body() body: VendorLoginDto) {
