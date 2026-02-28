@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
@@ -25,6 +26,10 @@ import { ProductLiveSyncService } from "./product-sync.service";
 import { ProductBulkSyncItemDto } from "./dto/product-bulk-sync.dto";
 import { Category } from "src/database/entities/category.entity";
 import { ProductImage } from "src/database/entities/product-image.entity";
+import { Branch } from "src/database/entities/branch.entity";
+import slugify from "slugify";
+import { CreateVendorProductDto } from "../vendor/dto/vendor-product.dto";
+import { UpdateVendorProductDto } from "../vendor/dto/update-vendor-product.dto";
 
 @Injectable()
 export class ProductService extends BaseSqlService<Product, IProduct> {
@@ -35,6 +40,8 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     private readonly categoryRepository: Repository<Category>,
     @InjectRepository(ProductImage)
     private readonly productImageRepository: Repository<ProductImage>,
+    @InjectRepository(Branch)
+    private readonly branchRepository: Repository<Branch>,
     private readonly s3Service: S3Service,
     private readonly productLiveSyncService: ProductLiveSyncService,
     @Inject(forwardRef(() => SettingService))
@@ -54,7 +61,8 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       .leftJoinAndSelect("product.inventory", "inventory")
       .leftJoinAndSelect("product.attributePivots", "attributePivots")
       .leftJoinAndSelect("attributePivots.attribute", "attribute")
-      .leftJoinAndSelect("product.category", "category");
+      .leftJoinAndSelect("product.category", "category")
+      .leftJoinAndSelect("product.branch", "branch");
 
     if (filters.q) {
       const searchTerm = `%${filters.q}%`;
@@ -126,6 +134,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       .leftJoinAndSelect("product.attributePivots", "pivot")
       .leftJoinAndSelect("pivot.attribute", "attribute")
       .leftJoin("product.category", "category")
+      .leftJoin("product.branch", "branch")
       .where("product.status = :status", {
         status: EInventoryStatus.AVAILABLE,
       }).andWhere("product.imported = :imported", {
@@ -165,9 +174,11 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         "product.createdAt",
         "category.id",
         "category.slug",
+        "branch.id",
+        "branch.name",
       ]);
     } else {
-      qb.addSelect("category.slug");
+      qb.addSelect(["category.slug", "branch.id", "branch.name"]);
     }
 
     qb.skip((page - 1) * limit)
@@ -194,6 +205,16 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     body: CreateProductBodyDto,
     image: Express.Multer.File
   ): Promise<IProduct> {
+    if (body.branchId) {
+      const branch = await this.branchRepository.findOne({
+        where: { id: body.branchId },
+      });
+
+      if (!branch) {
+        throw new NotFoundException(`Branch with ID ${body.branchId} not found`);
+      }
+    }
+
     if (image.buffer instanceof Buffer) {
       const { url } = await this.s3Service.uploadImage(image);
 
@@ -212,6 +233,16 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    if (body.branchId) {
+      const branch = await this.branchRepository.findOne({
+        where: { id: body.branchId },
+      });
+
+      if (!branch) {
+        throw new NotFoundException(`Branch with ID ${body.branchId} not found`);
+      }
     }
 
     let updatedProduct;
@@ -378,12 +409,149 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     return { saved: records.length };
   }
 
+  async findBySku(sku: string): Promise<Product | null> {
+    return this.productRepository
+      .createQueryBuilder("product")
+      .where(
+        "JSON_SEARCH(product.sku, 'one', :sku, NULL, '$[*]') IS NOT NULL",
+        { sku },
+      )
+      .getOne();
+  }
+
+  private async resolveImportedCategoryId(categorySlug: string) {
+    const category = await this.categoryRepository.findOne({
+      where: { slug: categorySlug.trim().toLowerCase() },
+      select: ["id", "slug"],
+    });
+
+    if (!category) {
+      throw new BadRequestException(`Category with slug "${categorySlug}" not found`);
+    }
+
+    return category.id;
+  }
+
+  private async ensureBranchExists(branchId?: number | null) {
+    if (branchId) {
+      const branch = await this.branchRepository.findOne({
+        where: { id: branchId },
+      });
+
+      if (!branch) {
+        throw new BadRequestException(`Branch with ID "${branchId}" not found`);
+      }
+    }
+  }
+
+  async createImportedVendorProduct(body: CreateVendorProductDto): Promise<IProduct> {
+    const existing = await this.findBySku(body.sku);
+
+    if (existing) {
+      throw new ConflictException(`Product with SKU "${body.sku}" already exists`);
+    }
+
+    const categoryId = await this.resolveImportedCategoryId(body.categorySlug);
+
+    await this.ensureBranchExists(body.branchId);
+
+    return this.create({
+      sku: [body.sku],
+      title: body.title,
+      slug: body.slug || slugify(body.title, { lower: true, strict: true }),
+      shortDescription: body.shortDescription ?? undefined,
+      description: body.description ?? undefined,
+      seoTitle: body.seoTitle ?? undefined,
+      seoDescription: body.seoDescription ?? undefined,
+      price: body.price,
+      salePrice: body.salePrice ?? null,
+      stockQuantity: body.stockQuantity,
+      status: body.status,
+      categoryId,
+      branchId: body.branchId ?? null,
+      inventoryId: body.inventoryId ?? 1,
+      unit: body.unit,
+      isGstEnabled: body.isGstEnabled,
+      gstFee: body.isGstEnabled ? body.gstFee ?? null : null,
+      image: body.image || "https://siezal-next.vercel.app/placeholder.svg",
+      imported: true,
+    });
+  }
+
+  async updateImportedVendorProductBySku(
+    sku: string,
+    body: UpdateVendorProductDto,
+  ): Promise<IProduct> {
+    const product = await this.findBySku(sku);
+
+    if (!product) {
+      throw new NotFoundException(`Product with SKU "${sku}" not found`);
+    }
+
+    let relationPayload: { categoryId?: number; branchId?: number | null } = {};
+
+    if (body.categorySlug) {
+      relationPayload.categoryId = await this.resolveImportedCategoryId(body.categorySlug);
+    }
+
+    if (body.branchId !== undefined) {
+      await this.ensureBranchExists(body.branchId);
+      relationPayload.branchId = body.branchId ?? null;
+    }
+
+    const updatedProduct = this.productRepository.merge(product, {
+      ...(body.sku ? { sku: [body.sku] } : {}),
+      ...(body.title !== undefined ? { title: body.title } : {}),
+      ...(body.slug !== undefined
+        ? { slug: body.slug || slugify(body.title || product.title, { lower: true, strict: true }) }
+        : {}),
+      ...(body.shortDescription !== undefined ? { shortDescription: body.shortDescription } : {}),
+      ...(body.description !== undefined ? { description: body.description } : {}),
+      ...(body.seoTitle !== undefined ? { seoTitle: body.seoTitle } : {}),
+      ...(body.seoDescription !== undefined ? { seoDescription: body.seoDescription } : {}),
+      ...(body.price !== undefined ? { price: body.price } : {}),
+      ...(body.salePrice !== undefined ? { salePrice: body.salePrice } : {}),
+      ...(body.stockQuantity !== undefined ? { stockQuantity: body.stockQuantity } : {}),
+      ...(body.status !== undefined ? { status: body.status } : {}),
+      ...(body.inventoryId !== undefined ? { inventoryId: body.inventoryId } : {}),
+      ...(body.unit !== undefined ? { unit: body.unit } : {}),
+      ...(body.isGstEnabled !== undefined ? { isGstEnabled: body.isGstEnabled } : {}),
+      ...(body.gstFee !== undefined ? { gstFee: body.gstFee } : {}),
+      ...(body.image !== undefined ? { image: body.image } : {}),
+      ...relationPayload,
+      imported: true,
+    });
+
+    if (body.isGstEnabled === false) {
+      updatedProduct.gstFee = null;
+    }
+
+    return this.productRepository.save(updatedProduct);
+  }
+
   async bulkSync(products: ProductBulkSyncItemDto[]) {
     if (!products.length) {
       return { created: 0, updated: 0 };
     }
 
     const normalize = (value: string) => value.trim().toLowerCase();
+    const normalizeImportedSalePrice = (
+      price: number,
+      salePrice?: number | null
+    ): number | null => {
+      if (typeof salePrice !== "number") {
+        return null;
+      }
+
+      const normalizedPrice = Number(price);
+      const normalizedSalePrice = Number(salePrice);
+
+      if (!Number.isFinite(normalizedSalePrice)) {
+        return null;
+      }
+
+      return normalizedSalePrice === normalizedPrice ? null : normalizedSalePrice;
+    };
     const titles = Array.from(new Set(products.map((p) => normalize(p.title))));
 
     const existingProducts = await this.productRepository
@@ -414,10 +582,33 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       categories.map((category) => [category.slug.toLowerCase(), category.id])
     );
 
+    const branchIds = Array.from(
+      new Set(
+        products
+          .map((p) => p.branchId)
+          .filter((branchId): branchId is number => typeof branchId === "number")
+      )
+    );
+
+    const branches = branchIds.length
+      ? await this.branchRepository.find({
+          where: { id: In(branchIds) },
+          select: ["id"],
+        })
+      : [];
+
+    const branchIdSet = new Set(branches.map((branch) => branch.id));
+
     const toCreate: Product[] = [];
     const toUpdate: Product[] = [];
 
     for (const payload of products) {
+      if (payload.branchId && !branchIdSet.has(payload.branchId)) {
+        throw new BadRequestException(
+          `Branch with ID "${payload.branchId}" not found`
+        );
+      }
+
       const key = normalize(payload.title);
       const existing = existingMap.get(key);
 
@@ -425,8 +616,12 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         existing.imported = true;
         existing.sku = payload.sku ?? existing.sku;
         existing.price = Number(payload.price);
-        existing.salePrice = Number(payload.salePrice) || null;
+        existing.salePrice = normalizeImportedSalePrice(
+          payload.price,
+          payload.salePrice
+        );
         existing.description = payload.description;
+        existing.branchId = payload.branchId ?? null;
         toUpdate.push(existing);
         continue;
       }
@@ -447,13 +642,11 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         seoTitle: payload.seoTitle ?? null,
         seoDescription: payload.seoDescription ?? null,
         price: Number(payload.price),
-        salePrice:
-          typeof payload.salePrice === "number"
-            ? Number(payload.salePrice)
-            : null,
+        salePrice: normalizeImportedSalePrice(payload.price, payload.salePrice),
         stockQuantity: payload.stockQuantity,
         status: payload.status,
         categoryId,
+        branchId: payload.branchId ?? null,
         inventoryId: payload.inventoryId,
         unit: payload.unit,
         isGstEnabled: payload.isGstEnabled,
@@ -511,6 +704,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         salePrice: product.salePrice ? Number(product.salePrice) : undefined,
         stockQuantity: product.stockQuantity,
         status: product.status,
+        branchId: product.branchId ?? undefined,
         inventoryId: product.inventoryId,
         unit: product.unit,
         isGstEnabled: product.isGstEnabled,
