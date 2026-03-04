@@ -478,16 +478,72 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     });
   }
 
-  async updateImportedVendorProductBySku(
+  private buildCreateVendorProductPayloadFromUpdate(
     sku: string,
     body: UpdateVendorProductDto,
-  ): Promise<IProduct> {
-    const product = await this.findBySku(sku);
+  ): CreateVendorProductDto {
+    const missingFields: string[] = [];
 
-    if (!product) {
-      throw new NotFoundException(`Product with SKU "${sku}" not found`);
+    if (body.title === undefined) {
+      missingFields.push("title");
     }
 
+    if (body.categorySlug === undefined) {
+      missingFields.push("categorySlug");
+    }
+
+    if (body.price === undefined) {
+      missingFields.push("price");
+    }
+
+    if (body.stockQuantity === undefined) {
+      missingFields.push("stockQuantity");
+    }
+
+    if (body.status === undefined) {
+      missingFields.push("status");
+    }
+
+    if (body.unit === undefined) {
+      missingFields.push("unit");
+    }
+
+    if (body.isGstEnabled === undefined) {
+      missingFields.push("isGstEnabled");
+    }
+
+    if (missingFields.length) {
+      throw new BadRequestException(
+        `Product with SKU "${sku}" not found. To create it through this endpoint, provide: ${missingFields.join(", ")}`
+      );
+    }
+
+    return {
+      sku: body.sku || sku,
+      title: body.title!,
+      slug: body.slug,
+      categorySlug: body.categorySlug!,
+      shortDescription: body.shortDescription,
+      description: body.description,
+      seoTitle: body.seoTitle,
+      seoDescription: body.seoDescription,
+      price: body.price!,
+      salePrice: body.salePrice,
+      stockQuantity: body.stockQuantity!,
+      status: body.status!,
+      branchId: body.branchId,
+      inventoryId: body.inventoryId,
+      unit: body.unit!,
+      isGstEnabled: body.isGstEnabled!,
+      gstFee: body.gstFee,
+      image: body.image,
+    };
+  }
+
+  private async updateImportedVendorProduct(
+    product: Product,
+    body: UpdateVendorProductDto,
+  ): Promise<IProduct> {
     let relationPayload: { categoryId?: number; branchId?: number | null } = {};
 
     if (body.categorySlug) {
@@ -527,6 +583,40 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     }
 
     return this.productRepository.save(updatedProduct);
+  }
+
+  async upsertImportedVendorProductBySku(
+    sku: string,
+    body: UpdateVendorProductDto,
+  ): Promise<{ product: IProduct; created: boolean }> {
+    const product = await this.findBySku(sku);
+
+    if (!product) {
+      const createBody = this.buildCreateVendorProductPayloadFromUpdate(sku, body);
+
+      return {
+        product: await this.createImportedVendorProduct(createBody),
+        created: true,
+      };
+    }
+
+    return {
+      product: await this.updateImportedVendorProduct(product, body),
+      created: false,
+    };
+  }
+
+  async updateImportedVendorProductBySku(
+    sku: string,
+    body: UpdateVendorProductDto,
+  ): Promise<IProduct> {
+    const product = await this.findBySku(sku);
+
+    if (!product) {
+      throw new NotFoundException(`Product with SKU "${sku}" not found`);
+    }
+
+    return this.updateImportedVendorProduct(product, body);
   }
 
   async bulkSync(products: ProductBulkSyncItemDto[]) {
