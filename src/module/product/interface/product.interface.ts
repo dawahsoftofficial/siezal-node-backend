@@ -2,6 +2,7 @@ import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { EProductUnit } from "src/common/enums/product-unit.enum";
 import { IEntityBase } from "src/core/base/entity/interface/entity-interface.base";
 import { ICategory } from "src/module/category/interface/category.interface";
+import { IBranch } from "src/module/branch/interface/branch.interface";
 
 export interface IProduct extends IEntityBase {
   sku?: string[];
@@ -17,6 +18,7 @@ export interface IProduct extends IEntityBase {
   stockQuantity: number;
   status: EInventoryStatus;
   categoryId: number;
+  branchId?: number | null;
   inventoryId: number;
   image: string;
   unit: EProductUnit;
@@ -25,4 +27,5 @@ export interface IProduct extends IEntityBase {
   // gallery?: string[];
 
   category?: ICategory
+  branch?: IBranch | null
 }

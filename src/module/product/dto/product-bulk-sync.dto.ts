@@ -85,6 +85,12 @@ export class ProductBulkSyncItemDto {
   @IsInt()
   inventoryId: number;
 
+  @ApiProperty({ required: false, nullable: true })
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  branchId?: number | null;
+
   @ApiProperty({ enum: EProductUnit })
   @IsEnum(EProductUnit)
   unit: EProductUnit;

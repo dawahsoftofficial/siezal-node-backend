@@ -100,6 +100,15 @@ export class CreateProductBodyDto {
   @IsInt()
   categoryId: number;
 
+  @ApiPropertyOptional({ example: 2, description: "Optional branch ID", nullable: true })
+  @Transform(({ value }) =>
+    value === null || value === undefined || value === "" ? null : Number(value)
+  )
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsInt()
+  branchId?: number | null;
+
   @ApiProperty({ example: 1, description: "Inventory ID" })
   @Type(() => Number)
   @IsInt()
