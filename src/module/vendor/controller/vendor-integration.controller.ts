@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   HttpException,
+  Query,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { Request } from "express";
@@ -29,6 +30,7 @@ import { CreateVendorProductDto } from "../dto/vendor-product.dto";
 import { UpdateVendorProductDto } from "../dto/update-vendor-product.dto";
 import { VendorProductParamDto } from "../dto/vendor-product-param.dto";
 import { IVendorTokenPayload } from "../interface/vendor-auth.interface";
+import { VendorProductListDto } from "../dto/vendor-product-list.dto";
 
 type VendorRequest = Request & { vendor: IVendorTokenPayload };
 
@@ -100,6 +102,39 @@ export class VendorIntegrationController {
     });
 
     return SuccessResponse("Data fetch successfully", data);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Get imported products for vendor",
+    responses: [{ status: HttpStatus.OK, type: SuccessResponseArrayDto }],
+  })
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(VendorAuthGuard)
+  @Get("/products")
+  async products(@Req() req: VendorRequest, @Query() query: VendorProductListDto) {
+    const { data, pagination } = await this.productService.indexAdmin(
+      query.page,
+      query.limit,
+      {
+        q: query.q,
+        imported: true,
+      },
+      true,
+    );
+
+    await this.vendorService.createLog({
+      vendorId: req.vendor.vendorId,
+      type: "product_list",
+      endpoint: "/v1/integrations/vendor/products",
+      method: "GET",
+      requestPayload: query,
+      responsePayload: { count: data.length },
+      statusCode: HttpStatus.OK,
+      success: true,
+      errorMessage: null,
+    });
+
+    return SuccessResponse("Data fetch successfully", data, undefined, pagination);
   }
 
   @GenerateSwaggerDoc({
