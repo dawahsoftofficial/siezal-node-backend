@@ -1,0 +1,9 @@
+InstallScriptPackages=8
+(no-name) | 1.13.0 | dev=false | opt=false | node_modules/@firebase/util
+(no-name) | 11.1.5 | dev=false | opt=false | node_modules/@nestjs/core
+(no-name) | 1.4.0 | dev=false | opt=false | node_modules/@scarf/scarf
+(no-name) | 1.13.2 | dev=true | opt=false | node_modules/@swc/core
+(no-name) | 6.0.0 | dev=false | opt=false | node_modules/bcrypt
+(no-name) | 2.3.3 | dev=true | opt=true | node_modules/fsevents
+(no-name) | 7.5.3 | dev=false | opt=true | node_modules/protobufjs
+(no-name) | 0.34.3 | dev=false | opt=false | node_modules/sharp
