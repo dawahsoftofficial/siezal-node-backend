@@ -14,6 +14,12 @@ import { Logger, ServiceUnavailableException } from '@nestjs/common';
 
 const logger = new Logger('RedisCache');
 
+const isStrictRedisEnvironment = (configService: ConfigService) => {
+  const nodeEnv = configService.get<string>('NODE_ENV')?.toLowerCase();
+
+  return nodeEnv === 'prod' || nodeEnv === 'staging';
+};
+
 /**
  * Helper to build a Keyv Redis store with custom options and logging.
  * @param configService NestJS ConfigService for env/config access
@@ -25,6 +31,7 @@ const buildKeyv = (
   db: number,
   namespace?: string,
 ) => {
+  const shouldThrowOnConnectError = isStrictRedisEnvironment(configService);
   const redisOptions = {
     socket: {
       host: configService.get<string>('REDIS_HOST'),
@@ -51,7 +58,12 @@ const buildKeyv = (
       err.message.includes('Socket closed unexpectedly')
     ) {
       logger.warn(`Redis connection refused. Retrying...`);
-    } else {
+      if (!shouldThrowOnConnectError) {
+        return;
+      }
+    }
+
+    if (shouldThrowOnConnectError) {
       throw new ServiceUnavailableException(err);
     }
   });
@@ -62,8 +74,14 @@ const buildKeyv = (
     );
   });
 
-  // Test connection (optional)
-  keyv.set('test', 'test', 10000);
+  void keyv.set('test', 'test', 10000).catch((err) => {
+    if (shouldThrowOnConnectError) {
+      throw new ServiceUnavailableException(err);
+    }
+
+    logger.warn('Redis is unavailable. Continuing without cache connectivity.');
+  });
+
   return keyv;
 };
 

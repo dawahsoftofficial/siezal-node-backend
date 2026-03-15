@@ -21,6 +21,7 @@ import { RedisModule } from "./shared/redis/redis.module";
 import { ProductModule } from "./module/product/product.module";
 import { CategoryModule } from "./module/category/category.module";
 import { InventoryModule } from "./module/inventory/inventory.module";
+import { BranchModule } from "./module/branch/branch.module";
 import { OrderModule } from "./module/order/order.module";
 import { SettingModule } from "./module/setting/setting.module";
 import { DashboardModule } from "./module/dashboard/dashboard.module";
@@ -32,6 +33,7 @@ import { LeadModule } from "./module/lead/lead.module";
 import { StaffModule } from "./module/staff/staff.module";
 import { MessagingModule } from "./shared/messaging/messaging.module";
 import { PaymentCallbackModule } from "./module/payment-callback/payment-callback.module";
+import { VendorModule } from "./module/vendor/vendor.module";
 
 @Module({
   imports: [
@@ -68,6 +70,7 @@ import { PaymentCallbackModule } from "./module/payment-callback/payment-callbac
     ProductModule,
     CategoryModule,
     InventoryModule,
+    BranchModule,
     OrderModule,
     SettingModule,
     DashboardModule,
@@ -78,6 +81,7 @@ import { PaymentCallbackModule } from "./module/payment-callback/payment-callbac
     NotificationModule,
     LeadModule,
     StaffModule,
+    VendorModule,
     PaymentCallbackModule,
   ],
   controllers: [AppController],
