@@ -14,6 +14,16 @@ export class GetProductsQueryDtoAdmin extends PaginationDto {
     q?: string;
 
     @ApiPropertyOptional({
+        description: 'Branch ID to filter with',
+        example: 2,
+    })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @IsPositive()
+    branchId?: number;
+
+    @ApiPropertyOptional({
         description: 'Category Slug to filter with',
         example: 'dairy',
     })

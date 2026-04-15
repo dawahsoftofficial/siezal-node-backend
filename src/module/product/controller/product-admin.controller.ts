@@ -59,7 +59,8 @@ export class AdminProductController {
                 q: query.q,
                 category: query.category,
                 price: query.price,
-                imported: query.imported
+                imported: query.imported,
+                branchId: query.branchId
             },
             true
         );

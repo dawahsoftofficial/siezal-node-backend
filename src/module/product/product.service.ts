@@ -83,6 +83,12 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       qb.andWhere("category.slug = :slug", { slug: filters.category });
     }
 
+    if (filters.branchId) {
+      qb.andWhere("product.branchId = :branchId", {
+        branchId: filters.branchId,
+      });
+    }
+
     if (filters.price) {
       const setting = await this.settingService.findOne({
         where: { key: "replacementProductPriceRange" },
