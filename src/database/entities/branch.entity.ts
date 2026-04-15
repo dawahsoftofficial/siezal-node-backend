@@ -1,6 +1,7 @@
 import { BaseEntity } from "src/core/base/entity/entity.base";
 import {
   IBranch,
+  IBranchServiceAreaPoint,
   IBranchWeeklySchedule,
 } from "src/module/branch/interface/branch.interface";
 import { Column, DeleteDateColumn, Entity } from "typeorm";
@@ -33,6 +34,9 @@ export class Branch extends BaseEntity implements IBranch {
 
   @Column({ name: "delivery_areas", type: "json", nullable: true })
   deliveryAreas?: string[] | null;
+
+  @Column({ name: "service_area", type: "json", nullable: true })
+  serviceArea?: IBranchServiceAreaPoint[] | null;
 
   @DeleteDateColumn({ name: "deleted_at", type: "timestamp", nullable: true })
   deletedAt?: Date | null;

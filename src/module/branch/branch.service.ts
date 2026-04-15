@@ -5,6 +5,7 @@ import { Branch } from "src/database/entities/branch.entity";
 import { FindOptionsWhere, IsNull, Like, Not, Repository } from "typeorm";
 import {
   normalizeBranchDeliveryAreas,
+  normalizeBranchServiceArea,
   normalizeBranchWeeklySchedule,
 } from "./branch.utils";
 import { CreateBranchDto, UpdateBranchDto } from "./dto/create-branch.dto";
@@ -101,6 +102,7 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
       isActive: body.isActive ?? true,
       weeklySchedule: normalizeBranchWeeklySchedule(body.weeklySchedule),
       deliveryAreas: normalizeBranchDeliveryAreas(body.deliveryAreas),
+      serviceArea: normalizeBranchServiceArea(body.serviceArea),
     });
 
     return this.normalizeBranch(created);
@@ -126,6 +128,10 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
       nextBody.deliveryAreas = normalizeBranchDeliveryAreas(body.deliveryAreas);
     }
 
+    if (Object.prototype.hasOwnProperty.call(body, "serviceArea")) {
+      nextBody.serviceArea = normalizeBranchServiceArea(body.serviceArea);
+    }
+
     const updatedBranch = this.branchRepository.merge(branch, nextBody);
 
     const savedBranch = await this.branchRepository.save(updatedBranch);
@@ -138,6 +144,7 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
       ...branch,
       weeklySchedule: normalizeBranchWeeklySchedule(branch.weeklySchedule),
       deliveryAreas: normalizeBranchDeliveryAreas(branch.deliveryAreas),
+      serviceArea: normalizeBranchServiceArea(branch.serviceArea),
     };
   }
 }

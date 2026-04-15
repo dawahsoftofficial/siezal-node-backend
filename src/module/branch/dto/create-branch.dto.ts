@@ -10,6 +10,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  ArrayMinSize,
   Matches,
   ValidateIf,
   ValidateNested,
@@ -86,6 +87,24 @@ class BranchWeeklyScheduleDto {
   sat: BranchDayScheduleDto;
 }
 
+class BranchServiceAreaPointDto {
+  @ApiProperty({
+    example: 31.4725,
+    description: "Polygon latitude coordinate",
+  })
+  @Type(() => Number)
+  @IsNumber()
+  lat: number;
+
+  @ApiProperty({
+    example: 74.4107,
+    description: "Polygon longitude coordinate",
+  })
+  @Type(() => Number)
+  @IsNumber()
+  lng: number;
+}
+
 export class CreateBranchDto {
   @ApiProperty({ example: "DHA Lahore", description: "Branch name" })
   @IsString()
@@ -159,6 +178,17 @@ export class CreateBranchDto {
   @IsString({ each: true })
   @MaxLength(100, { each: true })
   deliveryAreas?: string[];
+
+  @ApiPropertyOptional({
+    type: [BranchServiceAreaPointDto],
+    description: "Service area polygon points for the branch",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => BranchServiceAreaPointDto)
+  serviceArea?: BranchServiceAreaPointDto[] | null;
 
   @ApiPropertyOptional({ example: null, description: "Deletion timestamp" })
   @IsOptional()

@@ -1,6 +1,7 @@
 import { BRANCH_TIME_PATTERN, BRANCH_WEEK_DAYS } from "./branch.constants";
 import type {
   IBranchDaySchedule,
+  IBranchServiceAreaPoint,
   IBranchWeeklySchedule,
 } from "./interface/branch.interface";
 
@@ -72,4 +73,15 @@ export const normalizeBranchDeliveryAreas = (
         .filter((area): area is string => Boolean(area)),
     ),
   );
+};
+
+export const normalizeBranchServiceArea = (
+  serviceArea?: IBranchServiceAreaPoint[] | null,
+) => {
+  const normalized = (serviceArea || []).filter(
+    (point): point is IBranchServiceAreaPoint =>
+      Number.isFinite(point?.lat) && Number.isFinite(point?.lng),
+  );
+
+  return normalized.length >= 3 ? normalized : null;
 };

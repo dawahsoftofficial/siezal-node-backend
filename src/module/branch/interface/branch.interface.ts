@@ -13,6 +13,11 @@ export interface IBranchDaySchedule {
   endTime: string | null;
 }
 
+export interface IBranchServiceAreaPoint {
+  lat: number;
+  lng: number;
+}
+
 export type IBranchWeeklySchedule = Record<BranchWeekDay, IBranchDaySchedule>;
 
 export interface IBranch {
@@ -26,6 +31,7 @@ export interface IBranch {
   isActive: boolean;
   weeklySchedule?: IBranchWeeklySchedule | null;
   deliveryAreas?: string[] | null;
+  serviceArea?: IBranchServiceAreaPoint[] | null;
   createdAt?: Date | string;
   updatedAt?: Date | string;
   deletedAt?: Date | string | null;
