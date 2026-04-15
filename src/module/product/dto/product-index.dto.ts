@@ -66,8 +66,17 @@ export class GetProductsQueryDtoUser extends GetProductsQueryDtoAdmin {
         example: ['red', 'large', '12'],
         type: [String],
     })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+    @ApiPropertyOptional({
+        description: 'Show only general inventory without a branch assignment',
+        example: true,
+    })
     @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    tags?: string[];
+    @ToBoolean()
+    @IsBoolean()
+    generalOnly?: boolean;
 }

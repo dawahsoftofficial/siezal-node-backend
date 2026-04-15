@@ -153,6 +153,14 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       });
     }
 
+    if (filters.branchId) {
+      qb.andWhere("product.branchId = :branchId", {
+        branchId: filters.branchId,
+      });
+    } else if (filters.generalOnly) {
+      qb.andWhere("product.branchId IS NULL");
+    }
+
     if (filters.q) {
       qb.andWhere(
         "(LOWER(product.title) LIKE LOWER(:q) OR LOWER(product.description) LIKE LOWER(:q))",
