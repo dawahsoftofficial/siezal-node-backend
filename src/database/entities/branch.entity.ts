@@ -1,5 +1,8 @@
 import { BaseEntity } from "src/core/base/entity/entity.base";
-import { IBranch } from "src/module/branch/interface/branch.interface";
+import {
+  IBranch,
+  IBranchWeeklySchedule,
+} from "src/module/branch/interface/branch.interface";
 import { Column, DeleteDateColumn, Entity } from "typeorm";
 
 @Entity({ name: "branches" })
@@ -24,6 +27,12 @@ export class Branch extends BaseEntity implements IBranch {
 
   @Column({ name: "is_active", type: "boolean", default: true })
   isActive: boolean;
+
+  @Column({ name: "weekly_schedule", type: "json", nullable: true })
+  weeklySchedule?: IBranchWeeklySchedule | null;
+
+  @Column({ name: "delivery_areas", type: "json", nullable: true })
+  deliveryAreas?: string[] | null;
 
   @DeleteDateColumn({ name: "deleted_at", type: "timestamp", nullable: true })
   deletedAt?: Date | null;

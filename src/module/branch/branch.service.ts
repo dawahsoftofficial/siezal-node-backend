@@ -3,6 +3,10 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { Branch } from "src/database/entities/branch.entity";
 import { FindOptionsWhere, IsNull, Like, Not, Repository } from "typeorm";
+import {
+  normalizeBranchDeliveryAreas,
+  normalizeBranchWeeklySchedule,
+} from "./branch.utils";
 import { CreateBranchDto, UpdateBranchDto } from "./dto/create-branch.dto";
 import { IBranch } from "./interface/branch.interface";
 
@@ -44,17 +48,27 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
         };
       }
 
-      return this.paginate<IBranch>(page, limit, {
+      const paginated = await this.paginate<IBranch>(page, limit, {
         where,
         withDeleted: true,
         order: { createdAt: "DESC" },
       });
+
+      return {
+        ...paginated,
+        data: paginated.data.map(branch => this.normalizeBranch(branch)),
+      };
     }
 
-    return this.paginate<IBranch>(page, limit, {
+    const paginated = await this.paginate<IBranch>(page, limit, {
       where,
       order: { createdAt: "DESC" },
     });
+
+    return {
+      ...paginated,
+      data: paginated.data.map(branch => this.normalizeBranch(branch)),
+    };
   }
 
   async show(id: number) {
@@ -64,11 +78,11 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
       throw new NotFoundException("Branch not found");
     }
 
-    return branch;
+    return this.normalizeBranch(branch);
   }
 
   async listActive() {
-    return this.findAll({
+    const branches = await this.findAll({
       where: {
         isActive: true,
         deletedAt: IsNull(),
@@ -77,13 +91,19 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
         name: "ASC",
       },
     });
+
+    return branches.map(branch => this.normalizeBranch(branch));
   }
 
   async createBranch(body: CreateBranchDto) {
-    return this.create({
+    const created = await this.create({
       ...body,
       isActive: body.isActive ?? true,
+      weeklySchedule: normalizeBranchWeeklySchedule(body.weeklySchedule),
+      deliveryAreas: normalizeBranchDeliveryAreas(body.deliveryAreas),
     });
+
+    return this.normalizeBranch(created);
   }
 
   async updateBranch(id: number, body: UpdateBranchDto) {
@@ -96,8 +116,28 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
       throw new NotFoundException(`Branch with ID ${id} not found`);
     }
 
-    const updatedBranch = this.branchRepository.merge(branch, body);
+    const nextBody: UpdateBranchDto = { ...body };
 
-    return this.branchRepository.save(updatedBranch);
+    if (Object.prototype.hasOwnProperty.call(body, "weeklySchedule")) {
+      nextBody.weeklySchedule = normalizeBranchWeeklySchedule(body.weeklySchedule);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "deliveryAreas")) {
+      nextBody.deliveryAreas = normalizeBranchDeliveryAreas(body.deliveryAreas);
+    }
+
+    const updatedBranch = this.branchRepository.merge(branch, nextBody);
+
+    const savedBranch = await this.branchRepository.save(updatedBranch);
+
+    return this.normalizeBranch(savedBranch);
+  }
+
+  private normalizeBranch(branch: IBranch): IBranch {
+    return {
+      ...branch,
+      weeklySchedule: normalizeBranchWeeklySchedule(branch.weeklySchedule),
+      deliveryAreas: normalizeBranchDeliveryAreas(branch.deliveryAreas),
+    };
   }
 }
