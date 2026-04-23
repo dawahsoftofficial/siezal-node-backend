@@ -13,6 +13,7 @@ export type IAuthRequest = {
   phone: string;
   email?: string | null;
   role: ERole;
+  branchId?: number | null;
 };
 
 // Extends the Express Request interface to include the authenticated user

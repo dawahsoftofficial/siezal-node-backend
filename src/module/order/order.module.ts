@@ -11,10 +11,12 @@ import { NotificationModule } from "../notification/notification.module";
 import { PendingOrderModule } from "../pending-order/pending-order.module";
 import { PaymentSessionModule } from "../payment-session/payment-session.module";
 import { EventModule } from "src/shared/event-gateway/event.module";
+import { User } from "src/database/entities/user.entity";
+import { Product } from "src/database/entities/product.entity";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem]),
+    TypeOrmModule.forFeature([Order, OrderItem, User, Product]),
     AddressModule,
     ProductModule,
     NotificationModule,
