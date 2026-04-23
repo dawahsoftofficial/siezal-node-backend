@@ -12,6 +12,7 @@ import {
   In,
   Repository,
   SelectQueryBuilder,
+  Between,
 } from "typeorm";
 import {
   GetOrdersQueryDto,
@@ -204,6 +205,16 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
         "(order.userFullName LIKE :search OR order.userPhone LIKE :search OR order.orderUID LIKE :search)",
         { search: `%${query.q}%` },
       );
+    }
+
+    if (query.orderDate) {
+      const startOfDay = new Date(`${query.orderDate}T00:00:00.000Z`);
+      const endOfDay = new Date(`${query.orderDate}T23:59:59.999Z`);
+
+      qb.andWhere("order.createdAt BETWEEN :startOfDay AND :endOfDay", {
+        startOfDay,
+        endOfDay,
+      });
     }
 
     qb.orderBy("order.createdAt", "DESC");
