@@ -140,7 +140,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
     const [data, total] = await ordersQuery.getManyAndCount();
 
-    const countsRaw = await this.buildAdminOrdersQuery(query, branchId, false, false)
+    const countsRaw = await this.buildAdminOrdersQuery(query, branchId, false, false, false)
       .select("order.status", "status")
       .addSelect("COUNT(DISTINCT order.id)", "count")
       .groupBy("order.status")
@@ -170,6 +170,7 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
     branchId?: number,
     includeRelations = false,
     includeStatusFilter = true,
+    includeOrdering = true,
   ): SelectQueryBuilder<Order> {
     const qb = this.orderRepository.createQueryBuilder("order").distinct(true);
 
@@ -217,7 +218,9 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
       });
     }
 
-    qb.orderBy("order.createdAt", "DESC");
+    if (includeOrdering) {
+      qb.orderBy("order.createdAt", "DESC");
+    }
 
     return qb;
   }
