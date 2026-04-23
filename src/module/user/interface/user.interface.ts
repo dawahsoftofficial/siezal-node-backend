@@ -4,6 +4,7 @@ import { IAddress } from "src/module/address/interface/address.interface";
 import { IFcmToken } from "src/module/fcm-token/interface/fcm-token.interface";
 import { IPendingOrder } from "src/module/pending-order/interface/pending-order.interface";
 import { IUserSession } from "src/module/user-session/interface/user-session.interface";
+import { IBranch } from "src/module/branch/interface/branch.interface";
 
 export interface IUser extends IEntityBase {
   firstName: string;
@@ -14,6 +15,8 @@ export interface IUser extends IEntityBase {
 
   password?: string;
   role?: ERole;
+  branchId?: number | null;
+  branch?: IBranch | null;
 
   verifiedAt?: Date;
 

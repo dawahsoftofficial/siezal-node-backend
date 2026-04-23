@@ -4,7 +4,9 @@ import {
   IBranchServiceAreaPoint,
   IBranchWeeklySchedule,
 } from "src/module/branch/interface/branch.interface";
-import { Column, DeleteDateColumn, Entity } from "typeorm";
+import { IUser } from "src/module/user/interface/user.interface";
+import { Column, DeleteDateColumn, Entity, OneToMany } from "typeorm";
+import { User } from "./user.entity";
 
 @Entity({ name: "branches" })
 export class Branch extends BaseEntity implements IBranch {
@@ -40,4 +42,7 @@ export class Branch extends BaseEntity implements IBranch {
 
   @DeleteDateColumn({ name: "deleted_at", type: "timestamp", nullable: true })
   deletedAt?: Date | null;
+
+  @OneToMany(() => User, (user) => user.branch)
+  users?: Partial<IUser[]> | null;
 }
