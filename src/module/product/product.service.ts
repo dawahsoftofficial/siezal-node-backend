@@ -30,6 +30,11 @@ import { Branch } from "src/database/entities/branch.entity";
 import slugify from "slugify";
 import { CreateVendorProductDto } from "../vendor/dto/vendor-product.dto";
 import { UpdateVendorProductDto } from "../vendor/dto/update-vendor-product.dto";
+import { EProductUnit } from "src/common/enums/product-unit.enum";
+import {
+  ProductCsvImportChunkDto,
+  ProductCsvImportRowDto,
+} from "./dto/product-csv-import.dto";
 
 @Injectable()
 export class ProductService extends BaseSqlService<Product, IProduct> {
@@ -431,6 +436,245 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         { sku },
       )
       .getOne();
+  }
+
+  private async findAllBySku(sku: string): Promise<Product[]> {
+    return this.productRepository
+      .createQueryBuilder("product")
+      .where(
+        "JSON_SEARCH(product.sku, 'one', :sku, NULL, '$[*]') IS NOT NULL",
+        { sku },
+      )
+      .getMany();
+  }
+
+  private normalizeImportedSalePrice(
+    regularPrice: number,
+    salePrice?: number | null,
+  ): number | null {
+    if (salePrice === undefined || salePrice === null) {
+      return null;
+    }
+
+    const normalizedSalePrice = Number(salePrice);
+
+    if (!Number.isFinite(normalizedSalePrice) || normalizedSalePrice <= 0) {
+      return null;
+    }
+
+    return normalizedSalePrice === Number(regularPrice)
+      ? null
+      : normalizedSalePrice;
+  }
+
+  private buildCsvImportSlug(
+    title: string,
+    itemCode: string,
+    branchId: number | null,
+  ) {
+    const branchSuffix = branchId === null ? "general" : `branch-${branchId}`;
+
+    return slugify(`${title}-${itemCode}-${branchSuffix}`, {
+      lower: true,
+      strict: true,
+    }).slice(0, 255);
+  }
+
+  private async resolveCsvImportTargets(
+    body: ProductCsvImportChunkDto,
+  ): Promise<Array<number | null>> {
+    if (body.applyToAllBranches) {
+      const branches = await this.branchRepository.find({
+        where: { isActive: true },
+        select: ["id"],
+      });
+
+      return branches.map((branch) => branch.id!);
+    }
+
+    const branchIds = Array.from(new Set(body.branchIds || []));
+
+    if (branchIds.length) {
+      const branches = await this.branchRepository.find({
+        where: { id: In(branchIds) },
+        select: ["id"],
+      });
+      const foundBranchIds = new Set(branches.map((branch) => branch.id));
+      const missingBranchIds = branchIds.filter((id) => !foundBranchIds.has(id));
+
+      if (missingBranchIds.length) {
+        throw new BadRequestException(
+          `Branch with ID "${missingBranchIds.join(", ")}" not found`
+        );
+      }
+    }
+
+    const targets: Array<number | null> = [
+      ...branchIds,
+      ...(body.includeUnassigned || !branchIds.length ? [null] : []),
+    ];
+
+    return targets;
+  }
+
+  private async resolveCsvImportDefaultCategoryId(
+    defaultCategoryId?: number,
+  ): Promise<number> {
+    if (defaultCategoryId) {
+      const category = await this.categoryRepository.findOne({
+        where: { id: defaultCategoryId },
+        select: ["id"],
+      });
+
+      if (!category) {
+        throw new BadRequestException(
+          `Category with ID "${defaultCategoryId}" not found`
+        );
+      }
+
+      return category.id!;
+    }
+
+    const category = await this.categoryRepository.findOne({
+      where: {},
+      order: { id: "ASC" },
+      select: ["id"],
+    });
+
+    if (!category) {
+      throw new BadRequestException(
+        "No category exists. Create a category before importing new products."
+      );
+    }
+
+    return category.id!;
+  }
+
+  private buildCsvImportedProduct(
+    row: ProductCsvImportRowDto,
+    branchId: number | null,
+    template: Product | null,
+    defaultCategoryId: number,
+  ): Product {
+    const gstPercentage = Number(row.gstPercentage || 0);
+    const description = row.description?.trim() || undefined;
+
+    return this.productRepository.create({
+      sku: [row.itemCode],
+      title: row.title,
+      slug: this.buildCsvImportSlug(row.title, row.itemCode, branchId),
+      shortDescription: description,
+      description,
+      seoTitle: template?.seoTitle ?? undefined,
+      seoDescription: template?.seoDescription ?? undefined,
+      price: Number(row.regularPrice),
+      salePrice: this.normalizeImportedSalePrice(
+        row.regularPrice,
+        row.salePrice,
+      ),
+      stockQuantity: template?.stockQuantity ?? 0,
+      status: template?.status ?? EInventoryStatus.AVAILABLE,
+      categoryId: template?.categoryId ?? defaultCategoryId,
+      branchId,
+      inventoryId: template?.inventoryId ?? 1,
+      unit: template?.unit ?? EProductUnit.PIECE,
+      isGstEnabled: gstPercentage > 0,
+      gstFee: gstPercentage > 0 ? gstPercentage : null,
+      image:
+        template?.image || "https://siezal-next.vercel.app/placeholder.svg",
+      imported: true,
+    } as Product);
+  }
+
+  async importCsvChunk(body: ProductCsvImportChunkDto) {
+    if (!body.rows.length) {
+      return { processed: 0, created: 0, updated: 0, skipped: 0 };
+    }
+
+    const targetBranchIds = await this.resolveCsvImportTargets(body);
+    const defaultCategoryId = await this.resolveCsvImportDefaultCategoryId(
+      body.defaultCategoryId,
+    );
+    const toSave: Product[] = [];
+    const seenItemCodes = new Set<string>();
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const payload of body.rows) {
+      const itemCode = payload.itemCode.trim();
+      const title = payload.title.trim();
+      const regularPrice = Number(payload.regularPrice);
+
+      if (!itemCode || !title || !Number.isFinite(regularPrice)) {
+        skipped += 1;
+        continue;
+      }
+
+      const seenKey = itemCode.toLowerCase();
+
+      if (seenItemCodes.has(seenKey)) {
+        skipped += 1;
+        continue;
+      }
+
+      seenItemCodes.add(seenKey);
+
+      const row: ProductCsvImportRowDto = {
+        ...payload,
+        itemCode,
+        title,
+        regularPrice,
+      };
+      const existingProducts = await this.findAllBySku(itemCode);
+      const template = existingProducts[0] || null;
+
+      for (const branchId of targetBranchIds) {
+        const existing = existingProducts.find(
+          (product) => (product.branchId ?? null) === branchId,
+        );
+        const gstPercentage = Number(row.gstPercentage || 0);
+        const description = row.description?.trim() || undefined;
+
+        if (existing) {
+          existing.title = row.title;
+          existing.shortDescription = description;
+          existing.description = description;
+          existing.price = Number(row.regularPrice);
+          existing.salePrice = this.normalizeImportedSalePrice(
+            row.regularPrice,
+            row.salePrice,
+          );
+          existing.isGstEnabled = gstPercentage > 0;
+          existing.gstFee = gstPercentage > 0 ? gstPercentage : null;
+          existing.imported = true;
+          toSave.push(existing);
+          updated += 1;
+          continue;
+        }
+
+        toSave.push(
+          this.buildCsvImportedProduct(
+            row,
+            branchId,
+            template,
+            defaultCategoryId,
+          ),
+        );
+        created += 1;
+      }
+    }
+
+    if (toSave.length) {
+      await this.productRepository.save(toSave);
+    }
+
+    return {
+      processed: body.rows.length,
+      created,
+      updated,
+      skipped,
+    };
   }
 
   private async resolveImportedCategoryId(categorySlug: string) {
