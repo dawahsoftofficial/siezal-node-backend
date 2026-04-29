@@ -56,7 +56,7 @@ export class AdminProductController {
     @HttpCode(200)
     @Get("/list")
     async getProducts(@Query() query: GetProductsQueryDtoAdmin) {
-        const { data, pagination } = await this.productService.indexAdmin(
+        const { data, pagination, extra } = await this.productService.indexAdmin(
             query.page,
             query.limit,
             {
@@ -64,7 +64,8 @@ export class AdminProductController {
                 category: query.category,
                 price: query.price,
                 imported: query.imported,
-                branchId: query.branchId
+                branchId: query.branchId,
+                imageState: query.imageState
             },
             true
         );
@@ -72,7 +73,8 @@ export class AdminProductController {
             "Data fetch successfully",
             data,
             undefined,
-            pagination
+            pagination,
+            extra
         );
     }
 

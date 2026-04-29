@@ -10,6 +10,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { Product } from "src/database/entities/product.entity";
 import { Between, Brackets, In, Repository } from "typeorm";
+import type { SelectQueryBuilder } from "typeorm";
 import { IProduct } from "./interface/product.interface";
 import {
   IPaginatedResponse,
@@ -39,6 +40,9 @@ import {
 
 @Injectable()
 export class ProductService extends BaseSqlService<Product, IProduct> {
+  private static readonly PLACEHOLDER_IMAGE_URL =
+    "https://siezal-next.vercel.app/placeholder.svg";
+
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
@@ -61,7 +65,16 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     limit: number,
     filters: any,
     onlyList = false
-  ): Promise<IPaginatedResponse<IProduct>> {
+  ): Promise<
+    IPaginatedResponse<IProduct> & {
+      extra: {
+        imageCounts: {
+          with: number;
+          without: number;
+        };
+      };
+    }
+  > {
     const qb = this.productRepository
       .createQueryBuilder("product")
       .leftJoinAndSelect("product.inventory", "inventory")
@@ -118,6 +131,14 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       });
     }
 
+    const countsQb = qb.clone();
+
+    if (filters.imageState === "with") {
+      this.applyImageStateFilter(qb, "with");
+    } else if (filters.imageState === "without") {
+      this.applyImageStateFilter(qb, "without");
+    }
+
     qb.skip((page - 1) * limit)
       .take(limit)
       .orderBy(
@@ -136,8 +157,54 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       page,
       limit
     );
+    const imageCounts = await this.getImageCounts(countsQb);
 
-    return { data: plainObjects, pagination };
+    return {
+      data: plainObjects,
+      pagination,
+      extra: {
+        imageCounts,
+      },
+    };
+  }
+
+  private applyImageStateFilter(
+    qb: SelectQueryBuilder<Product>,
+    imageState: "with" | "without",
+  ) {
+    const placeholderImageUrl = ProductService.PLACEHOLDER_IMAGE_URL;
+
+    if (imageState === "with") {
+      qb.andWhere(
+        "product.image IS NOT NULL AND TRIM(product.image) != '' AND product.image != :placeholderImageUrl",
+        { placeholderImageUrl },
+      );
+
+      return;
+    }
+
+    qb.andWhere(
+      "(product.image IS NULL OR TRIM(product.image) = '' OR product.image = :placeholderImageUrl)",
+      { placeholderImageUrl },
+    );
+  }
+
+  private async getImageCounts(baseQb: SelectQueryBuilder<Product>) {
+    const withCountQb = baseQb.clone();
+    const withoutCountQb = baseQb.clone();
+
+    this.applyImageStateFilter(withCountQb, "with");
+    this.applyImageStateFilter(withoutCountQb, "without");
+
+    const [withImage, withoutImage] = await Promise.all([
+      withCountQb.getCount(),
+      withoutCountQb.getCount(),
+    ]);
+
+    return {
+      with: withImage,
+      without: withoutImage,
+    };
   }
 
   async index(

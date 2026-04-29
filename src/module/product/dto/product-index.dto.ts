@@ -6,6 +6,14 @@ import { ToBoolean } from 'src/common/utils/app.util';
 
 export class GetProductsQueryDtoAdmin extends PaginationDto {
     @ApiPropertyOptional({
+        description: 'Filter products by image state',
+        example: 'with',
+    })
+    @IsOptional()
+    @IsString()
+    imageState?: 'with' | 'without';
+
+    @ApiPropertyOptional({
         description: 'Search term to match in title or description',
         example: 'laptop',
     })
