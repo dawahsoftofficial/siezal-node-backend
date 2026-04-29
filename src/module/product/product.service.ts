@@ -556,8 +556,8 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     template: Product | null,
     defaultCategoryId: number,
   ): Product {
-    const gstPercentage = Number(row.gstPercentage || 0);
     const description = row.description?.trim() || undefined;
+    const isAvailable = row.isAvailable !== false;
 
     return this.productRepository.create({
       sku: [row.itemCode],
@@ -572,18 +572,72 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         row.regularPrice,
         row.salePrice,
       ),
-      stockQuantity: template?.stockQuantity ?? 0,
-      status: template?.status ?? EInventoryStatus.AVAILABLE,
+      stockQuantity:
+        template?.stockQuantity && template.stockQuantity > 0
+          ? template.stockQuantity
+          : isAvailable
+            ? 1
+            : 0,
+      status: isAvailable
+        ? EInventoryStatus.AVAILABLE
+        : EInventoryStatus.OUT_OF_STOCK,
       categoryId: template?.categoryId ?? defaultCategoryId,
       branchId,
       inventoryId: template?.inventoryId ?? 1,
       unit: template?.unit ?? EProductUnit.PIECE,
-      isGstEnabled: gstPercentage > 0,
-      gstFee: gstPercentage > 0 ? gstPercentage : null,
+      isGstEnabled: false,
+      gstFee: null,
       image:
         template?.image || "https://siezal-next.vercel.app/placeholder.svg",
       imported: true,
     } as Product);
+  }
+
+  private async markMissingImportedProductsOutOfStock(
+    itemCodes: string[],
+    targetBranchIds: Array<number | null>,
+  ): Promise<void> {
+    const normalizedItemCodes = new Set(
+      itemCodes.map((itemCode) => itemCode.trim().toLowerCase()).filter(Boolean),
+    );
+    const branchIds = targetBranchIds.filter(
+      (branchId): branchId is number => branchId !== null,
+    );
+
+    const qb = this.productRepository.createQueryBuilder("product");
+
+    if (branchIds.length && targetBranchIds.includes(null)) {
+      qb.where("product.branchId IN (:...branchIds)", { branchIds }).orWhere(
+        "product.branchId IS NULL",
+      );
+    } else if (branchIds.length) {
+      qb.where("product.branchId IN (:...branchIds)", { branchIds });
+    } else if (targetBranchIds.includes(null)) {
+      qb.where("product.branchId IS NULL");
+    } else {
+      return;
+    }
+
+    const scopedProducts = await qb.getMany();
+    const productsToUpdate = scopedProducts.filter((product) => {
+      const productSkus = Array.isArray(product.sku) ? product.sku : [];
+
+      return !productSkus.some((sku) =>
+        normalizedItemCodes.has(String(sku).trim().toLowerCase()),
+      );
+    });
+
+    if (!productsToUpdate.length) {
+      return;
+    }
+
+    for (const product of productsToUpdate) {
+      product.stockQuantity = 0;
+      product.status = EInventoryStatus.OUT_OF_STOCK;
+      product.imported = true;
+    }
+
+    await this.productRepository.save(productsToUpdate);
   }
 
   async importCsvChunk(body: ProductCsvImportChunkDto) {
@@ -625,6 +679,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         itemCode,
         title,
         regularPrice,
+        isAvailable: payload.isAvailable !== false,
       };
       const existingProducts = await this.findAllBySku(itemCode);
       const template = existingProducts[0] || null;
@@ -633,20 +688,23 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         const existing = existingProducts.find(
           (product) => (product.branchId ?? null) === branchId,
         );
-        const gstPercentage = Number(row.gstPercentage || 0);
-        const description = row.description?.trim() || undefined;
+        const isAvailable = row.isAvailable !== false;
 
         if (existing) {
-          existing.title = row.title;
-          existing.shortDescription = description;
-          existing.description = description;
           existing.price = Number(row.regularPrice);
           existing.salePrice = this.normalizeImportedSalePrice(
             row.regularPrice,
             row.salePrice,
           );
-          existing.isGstEnabled = gstPercentage > 0;
-          existing.gstFee = gstPercentage > 0 ? gstPercentage : null;
+          existing.status = isAvailable
+            ? EInventoryStatus.AVAILABLE
+            : EInventoryStatus.OUT_OF_STOCK;
+          existing.stockQuantity =
+            isAvailable && existing.stockQuantity <= 0
+              ? 1
+              : isAvailable
+                ? existing.stockQuantity
+                : 0;
           existing.imported = true;
           toSave.push(existing);
           updated += 1;
@@ -667,6 +725,13 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
     if (toSave.length) {
       await this.productRepository.save(toSave);
+    }
+
+    if (body.finalChunk) {
+      await this.markMissingImportedProductsOutOfStock(
+        body.allItemCodes || [],
+        targetBranchIds,
+      );
     }
 
     return {

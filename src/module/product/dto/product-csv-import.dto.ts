@@ -43,11 +43,10 @@ export class ProductCsvImportRowDto {
   salePrice?: number;
 
   @ApiPropertyOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
   @IsOptional()
-  gstPercentage?: number;
+  @Type(() => Boolean)
+  @IsBoolean()
+  isAvailable?: boolean;
 }
 
 export class ProductCsvImportChunkDto {
@@ -80,4 +79,15 @@ export class ProductCsvImportChunkDto {
   @IsInt()
   @IsOptional()
   defaultCategoryId?: number;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  allItemCodes?: string[];
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  finalChunk?: boolean;
 }
