@@ -119,7 +119,13 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
     qb.skip((page - 1) * limit)
       .take(limit)
-      .orderBy("product.createdAt", "DESC");
+      .orderBy(
+        typeof filters.imported === "boolean" && filters.imported
+          ? "product.updatedAt"
+          : "product.createdAt",
+        "DESC",
+      )
+      .addOrderBy("product.createdAt", "DESC");
 
     const [data, total] = await qb.getManyAndCount();
 
