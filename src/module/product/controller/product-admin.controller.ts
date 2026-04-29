@@ -33,7 +33,10 @@ import { ProductBulkSyncDto } from "../dto/product-bulk-sync.dto";
 import { BulkDeleteProductsDto } from "../dto/product-bulk-delete.dto";
 import { ProductImagesBulkUploadDto } from "../dto/product-images-bulk-upload.dto";
 import { ProductLinkImagesQueryDto } from "../dto/product-link-images.dto";
-import { ProductCsvImportChunkDto } from "../dto/product-csv-import.dto";
+import {
+    ProductCsvImportChunkDto,
+    ProductCsvImportFinalizeDto,
+} from "../dto/product-csv-import.dto";
 
 @ApiTags("Products Inventory Management")
 @AdminRouteController("products")
@@ -234,6 +237,23 @@ export class AdminProductController {
     async importCsvChunk(@Body() body: ProductCsvImportChunkDto) {
         const result = await this.productService.importCsvChunk(body);
         return SuccessResponse("Products imported successfully", result);
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Finalize CSV product import",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Post("/import-csv-finalize")
+    async finalizeCsvImport(@Body() body: ProductCsvImportFinalizeDto) {
+        const result = await this.productService.finalizeCsvImport(body);
+        return SuccessResponse("Product import finalized successfully", result);
     }
 
     @GenerateSwaggerDoc({

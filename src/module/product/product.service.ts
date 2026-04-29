@@ -33,6 +33,7 @@ import { UpdateVendorProductDto } from "../vendor/dto/update-vendor-product.dto"
 import { EProductUnit } from "src/common/enums/product-unit.enum";
 import {
   ProductCsvImportChunkDto,
+  ProductCsvImportFinalizeDto,
   ProductCsvImportRowDto,
 } from "./dto/product-csv-import.dto";
 
@@ -487,7 +488,10 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
   }
 
   private async resolveCsvImportTargets(
-    body: ProductCsvImportChunkDto,
+    body: Pick<
+      ProductCsvImportChunkDto,
+      "applyToAllBranches" | "includeUnassigned" | "branchIds"
+    >,
   ): Promise<Array<number | null>> {
     if (body.applyToAllBranches) {
       const branches = await this.branchRepository.find({
@@ -733,18 +737,26 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       await this.productRepository.save(toSave);
     }
 
-    if (body.finalChunk) {
-      await this.markMissingImportedProductsOutOfStock(
-        body.allItemCodes || [],
-        targetBranchIds,
-      );
-    }
-
     return {
       processed: body.rows.length,
       created,
       updated,
       skipped,
+    };
+  }
+
+  async finalizeCsvImport(body: ProductCsvImportFinalizeDto) {
+    const targetBranchIds = await this.resolveCsvImportTargets(body);
+
+    await this.markMissingImportedProductsOutOfStock(
+      body.allItemCodes || [],
+      targetBranchIds,
+    );
+
+    return {
+      finalized: true,
+      branchTargets: targetBranchIds.length,
+      itemCodes: body.allItemCodes?.length || 0,
     };
   }
 

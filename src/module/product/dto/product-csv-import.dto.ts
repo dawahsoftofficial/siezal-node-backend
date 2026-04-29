@@ -81,8 +81,6 @@ export class ProductCsvImportChunkDto {
   defaultCategoryId?: number;
 
   @ApiPropertyOptional({ type: [String] })
-  @IsArray()
-  @IsString({ each: true })
   @IsOptional()
   allItemCodes?: string[];
 
@@ -90,4 +88,28 @@ export class ProductCsvImportChunkDto {
   @IsBoolean()
   @IsOptional()
   finalChunk?: boolean;
+}
+
+export class ProductCsvImportFinalizeDto {
+  @ApiPropertyOptional({ type: [Number] })
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @IsOptional()
+  branchIds?: number[];
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  applyToAllBranches?: boolean;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  includeUnassigned?: boolean;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  allItemCodes: string[];
 }
