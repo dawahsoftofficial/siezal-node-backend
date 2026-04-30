@@ -159,6 +159,14 @@ export class CreateBranchDto {
   isActive?: boolean;
 
   @ApiPropertyOptional({
+    example: true,
+    description: "Whether the branch is enabled for ecommerce",
+  })
+  @IsOptional()
+  @IsBoolean()
+  isEcommerceEnabled?: boolean;
+
+  @ApiPropertyOptional({
     type: BranchWeeklyScheduleDto,
     description: "Opening schedule for each day of the week",
   })

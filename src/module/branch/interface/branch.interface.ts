@@ -29,6 +29,7 @@ export interface IBranch {
   phone: string;
   email?: string | null;
   isActive: boolean;
+  isEcommerceEnabled: boolean;
   weeklySchedule?: IBranchWeeklySchedule | null;
   deliveryAreas?: string[] | null;
   serviceArea?: IBranchServiceAreaPoint[] | null;

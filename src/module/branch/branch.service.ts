@@ -100,6 +100,7 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
     const created = await this.create({
       ...body,
       isActive: body.isActive ?? true,
+      isEcommerceEnabled: body.isEcommerceEnabled ?? true,
       weeklySchedule: normalizeBranchWeeklySchedule(body.weeklySchedule),
       deliveryAreas: normalizeBranchDeliveryAreas(body.deliveryAreas),
       serviceArea: normalizeBranchServiceArea(body.serviceArea),
