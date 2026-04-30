@@ -4,7 +4,6 @@ import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { Branch } from "src/database/entities/branch.entity";
 import { FindOptionsWhere, IsNull, Like, Not, Repository } from "typeorm";
 import {
-  normalizeBranchDeliveryAreas,
   normalizeBranchServiceArea,
   normalizeBranchWeeklySchedule,
 } from "./branch.utils";
@@ -102,7 +101,6 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
       isActive: body.isActive ?? true,
       isEcommerceEnabled: body.isEcommerceEnabled ?? true,
       weeklySchedule: normalizeBranchWeeklySchedule(body.weeklySchedule),
-      deliveryAreas: normalizeBranchDeliveryAreas(body.deliveryAreas),
       serviceArea: normalizeBranchServiceArea(body.serviceArea),
     });
 
@@ -125,10 +123,6 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
       nextBody.weeklySchedule = normalizeBranchWeeklySchedule(body.weeklySchedule);
     }
 
-    if (Object.prototype.hasOwnProperty.call(body, "deliveryAreas")) {
-      nextBody.deliveryAreas = normalizeBranchDeliveryAreas(body.deliveryAreas);
-    }
-
     if (Object.prototype.hasOwnProperty.call(body, "serviceArea")) {
       nextBody.serviceArea = normalizeBranchServiceArea(body.serviceArea);
     }
@@ -144,7 +138,6 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
     return {
       ...branch,
       weeklySchedule: normalizeBranchWeeklySchedule(branch.weeklySchedule),
-      deliveryAreas: normalizeBranchDeliveryAreas(branch.deliveryAreas),
       serviceArea: normalizeBranchServiceArea(branch.serviceArea),
     };
   }

@@ -22,8 +22,8 @@ export class Branch extends BaseEntity implements IBranch {
   @Column({ name: "longitude", type: "double precision" })
   longitude: number;
 
-  @Column({ name: "phone", type: "varchar", length: 50 })
-  phone: string;
+  @Column({ name: "phone", type: "varchar", length: 50, nullable: true })
+  phone?: string | null;
 
   @Column({ name: "email", type: "varchar", length: 255, nullable: true })
   email?: string | null;
@@ -36,9 +36,6 @@ export class Branch extends BaseEntity implements IBranch {
 
   @Column({ name: "weekly_schedule", type: "json", nullable: true })
   weeklySchedule?: IBranchWeeklySchedule | null;
-
-  @Column({ name: "delivery_areas", type: "json", nullable: true })
-  deliveryAreas?: string[] | null;
 
   @Column({ name: "service_area", type: "json", nullable: true })
   serviceArea?: IBranchServiceAreaPoint[] | null;
