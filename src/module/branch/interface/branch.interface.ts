@@ -26,12 +26,11 @@ export interface IBranch {
   address: string;
   latitude: number;
   longitude: number;
-  phone: string;
+  phone?: string | null;
   email?: string | null;
   isActive: boolean;
   isEcommerceEnabled: boolean;
   weeklySchedule?: IBranchWeeklySchedule | null;
-  deliveryAreas?: string[] | null;
   serviceArea?: IBranchServiceAreaPoint[] | null;
   createdAt?: Date | string;
   updatedAt?: Date | string;
