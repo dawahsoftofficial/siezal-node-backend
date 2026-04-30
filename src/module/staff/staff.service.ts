@@ -93,6 +93,28 @@ export class StaffService extends BaseSqlService<User, IUser> {
       throw new NotFoundException(`Staff with ID ${id} not found`);
     }
 
+    if (body.email) {
+      const existingByEmail = await this.userRepository.findOne({
+        where: { email: body.email },
+        withDeleted: true,
+      });
+
+      if (existingByEmail && existingByEmail.id !== id) {
+        throw new ConflictException("A user with this email already exists");
+      }
+    }
+
+    if (body.phone) {
+      const existingByPhone = await this.userRepository.findOne({
+        where: { phone: body.phone },
+        withDeleted: true,
+      });
+
+      if (existingByPhone && existingByPhone.id !== id) {
+        throw new ConflictException("A user with this phone number already exists");
+      }
+    }
+
     if (Object.prototype.hasOwnProperty.call(body, "branchId")) {
       if (body.branchId === null) {
         user.branch = null;
@@ -139,12 +161,22 @@ export class StaffService extends BaseSqlService<User, IUser> {
   }
 
   async createStaff(body: CreateStaffDto) {
-    const existing = await this.userRepository.findOne({
+    const existingByEmail = await this.userRepository.findOne({
       where: { email: body.email },
+      withDeleted: true,
     });
 
-    if (existing) {
-      throw new ConflictException("Staff with this email already exists");
+    if (existingByEmail) {
+      throw new ConflictException("A user with this email already exists");
+    }
+
+    const existingByPhone = await this.userRepository.findOne({
+      where: { phone: body.phone },
+      withDeleted: true,
+    });
+
+    if (existingByPhone) {
+      throw new ConflictException("A user with this phone number already exists");
     }
 
     const hashedPassword = await hashBcrypt(body.password);
