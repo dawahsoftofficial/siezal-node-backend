@@ -8,12 +8,11 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/database/entities/order.entity";
 import {
   EntityManager,
-  IsNull,
-  Not,
   FindOptionsWhere,
   In,
-  Like,
   Repository,
+  SelectQueryBuilder,
+  Between,
 } from "typeorm";
 import {
   GetOrdersQueryDto,
@@ -45,6 +44,10 @@ import {
 import { PendingOrderService } from "../pending-order/pending-order.service";
 import { PaymentSessionService } from "../payment-session/payment-session.service";
 import { EventsGateway } from "../../shared/event-gateway/event.gateway";
+import { IAuthRequest } from "src/common/interfaces/app.interface";
+import { User } from "src/database/entities/user.entity";
+import { Product } from "src/database/entities/product.entity";
+import { ERole } from "src/common/enums/role.enum";
 
 @Injectable()
 export class OrderService extends BaseSqlService<Order, IOrder> {
@@ -56,6 +59,9 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
 
     @InjectRepository(OrderItem)
     private readonly orderItemRepository: Repository<OrderItem>,
+
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
 
     private readonly productService: ProductService,
     private readonly addressService: AddressService,
@@ -110,86 +116,133 @@ export class OrderService extends BaseSqlService<Order, IOrder> {
   //   };
   // }
 
-  async list(query: GetOrdersQueryDtoAdmin) {
-    const { page, limit, trash } = query;
-    let where: FindOptionsWhere<Order>[] = [];
+  async list(query: GetOrdersQueryDtoAdmin, authUser: IAuthRequest) {
+    const { page, limit } = query;
+    const branchId = await this.resolveOrderScopeBranchId(query, authUser);
 
-    const baseWhere: FindOptionsWhere<Order> = {};
+    if (authUser.role === ERole.ORDER_MANAGER && !branchId) {
+      return {
+        data: [],
+        pagination: {
+          currentPage: page,
+          itemsPerPage: limit,
+          totalItems: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: page > 1,
+        },
+        counts: {},
+      };
+    }
 
-    if (query.status) baseWhere.status = query.status as EOrderStatus;
-    if (query.userId) baseWhere.userId = query.userId;
+    const ordersQuery = this.buildAdminOrdersQuery(query, branchId, true);
+    ordersQuery.skip((page - 1) * limit).take(limit);
+
+    const [data, total] = await ordersQuery.getManyAndCount();
+
+    const countsRaw = await this.buildAdminOrdersQuery(query, branchId, false, false, false)
+      .select("order.status", "status")
+      .addSelect("COUNT(DISTINCT order.id)", "count")
+      .groupBy("order.status")
+      .getRawMany<{ status: string; count: string }>();
+
+    const counts: Record<string, number> = {};
+    for (const row of countsRaw) {
+      counts[row.status] = Number(row.count);
+    }
+
+    return {
+      data,
+      pagination: {
+        currentPage: page,
+        itemsPerPage: limit,
+        totalItems: total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPreviousPage: page > 1,
+      },
+      counts,
+    };
+  }
+
+  private buildAdminOrdersQuery(
+    query: GetOrdersQueryDtoAdmin,
+    branchId?: number,
+    includeRelations = false,
+    includeStatusFilter = true,
+    includeOrdering = true,
+  ): SelectQueryBuilder<Order> {
+    const qb = this.orderRepository.createQueryBuilder("order").distinct(true);
+
+    if (includeRelations) {
+      qb.leftJoinAndSelect("order.items", "items");
+      qb.leftJoinAndSelect("order.paymentSession", "paymentSession");
+    } else {
+      qb.leftJoin("order.items", "items");
+    }
+
+    if (branchId) {
+      qb.leftJoin(Product, "product", "product.id = items.productId");
+      qb.andWhere("product.branchId = :branchId", { branchId });
+    }
+
+    if (query.trash) {
+      qb.withDeleted();
+      qb.andWhere("order.deletedAt IS NOT NULL");
+    } else {
+      qb.andWhere("order.deletedAt IS NULL");
+    }
+
+    if (includeStatusFilter && query.status) {
+      qb.andWhere("order.status = :status", { status: query.status });
+    }
+
+    if (query.userId) {
+      qb.andWhere("order.userId = :userId", { userId: query.userId });
+    }
 
     if (query.q) {
-      where.push(
-        { ...baseWhere, userFullName: Like(`%${query.q}%`) },
-        { ...baseWhere, userPhone: Like(`%${query.q}%`) },
-        { ...baseWhere, orderUID: Like(`%${query.q}%`) }
+      qb.andWhere(
+        "(order.userFullName LIKE :search OR order.userPhone LIKE :search OR order.orderUID LIKE :search)",
+        { search: `%${query.q}%` },
       );
-    } else {
-      where.push(baseWhere);
     }
 
-    if (trash) {
-      if (Array.isArray(where) && where.length > 0) {
-        where = where.map((w) => ({ ...w, deletedAt: Not(IsNull()) }));
-      } else {
-        where = [{ deletedAt: Not(IsNull()) }];
-      }
+    if (query.orderDate) {
+      const startOfDay = new Date(`${query.orderDate}T00:00:00.000Z`);
+      const endOfDay = new Date(`${query.orderDate}T23:59:59.999Z`);
 
-      const data = await this.paginate<IOrder>(page, limit, {
-        relations: ["items", "paymentSession"],
-        where,
-        order: { createdAt: "DESC" },
-        withDeleted: true,
+      qb.andWhere("order.createdAt BETWEEN :startOfDay AND :endOfDay", {
+        startOfDay,
+        endOfDay,
       });
-
-      const countsRaw = await this.orderRepository
-        .createQueryBuilder("order")
-        .select("order.status", "status")
-        .addSelect("COUNT(order.id)", "count")
-        .where("order.deletedAt IS NOT NULL")
-        .groupBy("order.status")
-        .getRawMany<{ status: string; count: string }>();
-
-      const counts: Record<string, number> = {};
-      for (const row of countsRaw) {
-        counts[row.status] = Number(row.count);
-      }
-
-      return {
-        ...data,
-        counts,
-      };
-    } else {
-      // Non-trash (active records)
-      if (Array.isArray(where) && where.length > 0) {
-        where = where.map((w) => ({ ...w }));
-      }
-
-      const data = await this.paginate<IOrder>(page, limit, {
-        relations: ["items", "paymentSession"],
-        where,
-        order: { createdAt: "DESC" },
-      });
-
-      const countsRaw = await this.orderRepository
-        .createQueryBuilder("order")
-        .select("order.status", "status")
-        .addSelect("COUNT(order.id)", "count")
-        .where("order.deletedAt IS NULL")
-        .groupBy("order.status")
-        .getRawMany<{ status: string; count: string }>();
-
-      const counts: Record<string, number> = {};
-      for (const row of countsRaw) {
-        counts[row.status] = Number(row.count);
-      }
-
-      return {
-        ...data,
-        counts,
-      };
     }
+
+    if (includeOrdering) {
+      qb.orderBy("order.createdAt", "DESC");
+    }
+
+    return qb;
+  }
+
+  private async resolveOrderScopeBranchId(
+    query: GetOrdersQueryDtoAdmin,
+    authUser: IAuthRequest,
+  ): Promise<number | undefined> {
+    if (authUser.role !== ERole.ORDER_MANAGER) {
+      return query.branchId;
+    }
+
+    if (authUser.branchId) {
+      return authUser.branchId;
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: authUser.id },
+      select: ["id", "branchId"],
+    });
+
+    return user?.branchId ?? undefined;
   }
 
   async listByUser(userId: number, query: GetOrdersQueryDto) {

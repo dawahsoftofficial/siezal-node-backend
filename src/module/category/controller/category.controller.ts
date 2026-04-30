@@ -88,8 +88,11 @@ export class CategoryController {
   @HttpCode(200)
   @Get("/:slug")
   @UseGuards(GuestAuthGuard)
-  async detail(@Param() { slug }: CategorySlugParamDto) {
-    const data = await this.categoryService.detail(slug);
+  async detail(
+    @Param() { slug }: CategorySlugParamDto,
+    @Query() query: CategoryListQueryDto
+  ) {
+    const data = await this.categoryService.detail(slug, query);
     return SuccessResponse("Data fetch successfully", data);
   }
 }

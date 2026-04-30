@@ -29,6 +29,18 @@ export class GetOrdersQueryDtoAdmin extends GetOrdersQueryDto {
     @IsString()
     q?: string;
 
+    @ApiPropertyOptional({ example: '2026-04-24', description: 'Filter orders by creation date (YYYY-MM-DD)' })
+    @IsOptional()
+    @IsString()
+    orderDate?: string;
+
+    @ApiPropertyOptional({ example: 1, description: 'Filter by branch id' })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    branchId?: number;
+
     @ApiPropertyOptional({
         description: 'Show the trash list or normal index list',
         example: true,

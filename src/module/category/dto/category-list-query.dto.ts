@@ -1,8 +1,29 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsIn, IsOptional, IsString } from "class-validator";
+import { Type } from "class-transformer";
+import { IsBoolean, IsIn, IsInt, IsOptional, IsPositive, IsString } from "class-validator";
 import { PaginationDto } from "src/common/dto/pagination.dto";
+import { ToBoolean } from "src/common/utils/app.util";
 
-export class CategoryListQueryDto extends PaginationDto { }
+export class CategoryListQueryDto extends PaginationDto {
+    @ApiPropertyOptional({
+        description: 'Branch ID to filter visible categories with',
+        example: 2,
+    })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @IsPositive()
+    branchId?: number;
+
+    @ApiPropertyOptional({
+        description: 'Show only categories that contain general inventory without a branch assignment',
+        example: true,
+    })
+    @IsOptional()
+    @ToBoolean()
+    @IsBoolean()
+    generalOnly?: boolean;
+}
 
 export class CategoryListQueryDtoAdmin extends CategoryListQueryDto {
     @ApiPropertyOptional({

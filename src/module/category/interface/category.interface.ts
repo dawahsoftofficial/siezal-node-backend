@@ -15,4 +15,5 @@ export interface ICategory extends IEntityBase {
   position: number;
   images: string[] | null;
   status: ECategoryStatus;
+  hasProducts?: boolean;
 }

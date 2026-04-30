@@ -6,12 +6,30 @@ import { ToBoolean } from 'src/common/utils/app.util';
 
 export class GetProductsQueryDtoAdmin extends PaginationDto {
     @ApiPropertyOptional({
+        description: 'Filter products by image state',
+        example: 'with',
+    })
+    @IsOptional()
+    @IsString()
+    imageState?: 'with' | 'without';
+
+    @ApiPropertyOptional({
         description: 'Search term to match in title or description',
         example: 'laptop',
     })
     @IsOptional()
     @IsString()
     q?: string;
+
+    @ApiPropertyOptional({
+        description: 'Branch ID to filter with',
+        example: 2,
+    })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @IsPositive()
+    branchId?: number;
 
     @ApiPropertyOptional({
         description: 'Category Slug to filter with',
@@ -56,8 +74,17 @@ export class GetProductsQueryDtoUser extends GetProductsQueryDtoAdmin {
         example: ['red', 'large', '12'],
         type: [String],
     })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+    @ApiPropertyOptional({
+        description: 'Show only general inventory without a branch assignment',
+        example: true,
+    })
     @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    tags?: string[];
+    @ToBoolean()
+    @IsBoolean()
+    generalOnly?: boolean;
 }

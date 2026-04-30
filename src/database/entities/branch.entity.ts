@@ -1,6 +1,12 @@
 import { BaseEntity } from "src/core/base/entity/entity.base";
-import { IBranch } from "src/module/branch/interface/branch.interface";
-import { Column, DeleteDateColumn, Entity } from "typeorm";
+import {
+  IBranch,
+  IBranchServiceAreaPoint,
+  IBranchWeeklySchedule,
+} from "src/module/branch/interface/branch.interface";
+import { IUser } from "src/module/user/interface/user.interface";
+import { Column, DeleteDateColumn, Entity, OneToMany } from "typeorm";
+import { User } from "./user.entity";
 
 @Entity({ name: "branches" })
 export class Branch extends BaseEntity implements IBranch {
@@ -25,6 +31,21 @@ export class Branch extends BaseEntity implements IBranch {
   @Column({ name: "is_active", type: "boolean", default: true })
   isActive: boolean;
 
+  @Column({ name: "is_ecommerce_enabled", type: "boolean", default: true })
+  isEcommerceEnabled: boolean;
+
+  @Column({ name: "weekly_schedule", type: "json", nullable: true })
+  weeklySchedule?: IBranchWeeklySchedule | null;
+
+  @Column({ name: "delivery_areas", type: "json", nullable: true })
+  deliveryAreas?: string[] | null;
+
+  @Column({ name: "service_area", type: "json", nullable: true })
+  serviceArea?: IBranchServiceAreaPoint[] | null;
+
   @DeleteDateColumn({ name: "deleted_at", type: "timestamp", nullable: true })
   deletedAt?: Date | null;
+
+  @OneToMany(() => User, (user) => user.branch)
+  users?: Partial<IUser[]> | null;
 }

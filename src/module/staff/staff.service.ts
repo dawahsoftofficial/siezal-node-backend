@@ -7,6 +7,7 @@ import { User } from "src/database/entities/user.entity";
 import { ERole } from "src/common/enums/role.enum";
 import { CreateStaffDto, UpdateStaffDto } from "./dto/create-staff.dto";
 import { hashBcrypt, removeSensitiveData } from "src/common/utils/app.util";
+import { Branch } from "src/database/entities/branch.entity";
 
 @Injectable()
 export class StaffService extends BaseSqlService<User, IUser> {
@@ -15,6 +16,8 @@ export class StaffService extends BaseSqlService<User, IUser> {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Branch)
+    private readonly branchRepository: Repository<Branch>,
   ) {
     super(userRepository);
   }
@@ -51,18 +54,24 @@ export class StaffService extends BaseSqlService<User, IUser> {
         where,
         order: { createdAt: "DESC" },
         withDeleted: true,
+        relations: {
+          branch: true,
+        },
       });
     }
 
     return this.paginate<IUser>(page, limit, {
       where,
       order: { createdAt: "DESC" },
+      relations: {
+        branch: true,
+      },
     });
   }
 
 
   async show(id: number) {
-    const user = await this.findOne({ where: { id } });
+    const user = await this.findOne({ where: { id }, relations: { branch: true } });
 
     if (!user) {
       throw new NotFoundException("Staff not found");
@@ -72,10 +81,37 @@ export class StaffService extends BaseSqlService<User, IUser> {
   }
 
   async update(id: number, body: UpdateStaffDto) {
-    const user = await this.userRepository.findOne({ where: { id }, withDeleted: true });
+    const user = await this.userRepository.findOne({
+      where: { id },
+      withDeleted: true,
+      relations: {
+        branch: true,
+      },
+    });
 
     if (!user) {
       throw new NotFoundException(`Staff with ID ${id} not found`);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "branchId")) {
+      if (body.branchId === null) {
+        user.branch = null;
+        user.branchId = null;
+      } else if (body.branchId !== undefined) {
+        const branch = await this.branchRepository.findOne({
+          where: {
+            id: body.branchId,
+            deletedAt: IsNull(),
+          },
+        });
+
+        if (!branch) {
+          throw new NotFoundException(`Branch with ID ${body.branchId} not found`);
+        }
+
+        user.branch = branch;
+        user.branchId = branch.id;
+      }
     }
 
     let hashedPassword = user.password;
@@ -89,7 +125,17 @@ export class StaffService extends BaseSqlService<User, IUser> {
       password: hashedPassword
     });
 
-    return await this.userRepository.save(updatedUser);
+    await this.userRepository.save(updatedUser);
+
+    return removeSensitiveData(
+      await this.userRepository.findOne({
+        where: { id },
+        withDeleted: true,
+        relations: {
+          branch: true,
+        },
+      }),
+    );
   }
 
   async createStaff(body: CreateStaffDto) {
@@ -102,12 +148,34 @@ export class StaffService extends BaseSqlService<User, IUser> {
     }
 
     const hashedPassword = await hashBcrypt(body.password);
+    let branch: Branch | null = null;
+
+    if (body.branchId !== undefined && body.branchId !== null) {
+      branch = await this.branchRepository.findOne({
+        where: {
+          id: body.branchId,
+          deletedAt: IsNull(),
+        },
+      });
+
+      if (!branch) {
+        throw new NotFoundException(`Branch with ID ${body.branchId} not found`);
+      }
+    }
 
     const user = await this.create({
       ...body,
-      password: hashedPassword
+      password: hashedPassword,
+      branch,
     });
 
-    return removeSensitiveData(user);
+    return removeSensitiveData(
+      await this.userRepository.findOne({
+        where: { id: user.id },
+        relations: {
+          branch: true,
+        },
+      }),
+    );
   }
 }

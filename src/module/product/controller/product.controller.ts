@@ -51,6 +51,8 @@ export class ProductController {
       query.limit,
       {
         categoryId: query.categoryId,
+        branchId: query.branchId,
+        generalOnly: query.generalOnly,
         q: query.q,
         tags: query.tags,
       }

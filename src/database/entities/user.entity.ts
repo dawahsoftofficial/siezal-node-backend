@@ -1,7 +1,7 @@
 import { ERole } from "src/common/enums/role.enum";
 import { BaseEntity } from "src/core/base/entity/entity.base";
 import { IUser } from "src/module/user/interface/user.interface";
-import { Entity, Column, OneToMany, DeleteDateColumn } from "typeorm";
+import { Entity, Column, OneToMany, DeleteDateColumn, ManyToOne, JoinColumn } from "typeorm";
 import { UserSession } from "./user-session.entity";
 import { IUserSession } from "src/module/user-session/interface/user-session.interface";
 import { IFcmToken } from "src/module/fcm-token/interface/fcm-token.interface";
@@ -9,6 +9,7 @@ import { FcmToken } from "./fcm-token.entity";
 import { Address } from "./address.entity";
 import { PendingOrder } from "./pending-order.entity";
 import { IPendingOrder } from "src/module/pending-order/interface/pending-order.interface";
+import { Branch } from "./branch.entity";
 
 @Entity({ name: "users" })
 export class User extends BaseEntity implements IUser {
@@ -36,6 +37,16 @@ export class User extends BaseEntity implements IUser {
     default: ERole.USER,
   })
   role: ERole;
+
+  @Column({ name: "branch_id", type: "int", nullable: true })
+  branchId?: number | null;
+
+  @ManyToOne(() => Branch, (branch) => branch.users, {
+    nullable: true,
+    onDelete: "SET NULL",
+  })
+  @JoinColumn({ name: "branch_id" })
+  branch?: Branch | null;
 
   @Column({ name: "verified_at", nullable: true, type: "timestamp" })
   verifiedAt?: Date;

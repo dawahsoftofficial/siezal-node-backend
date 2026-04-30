@@ -157,25 +157,125 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     });
   };
 
-  index = async ({ page, limit }: CategoryListQueryDto) => {
+  private async getScopedProductCountMap(
+    categoryIds: number[],
+    filters?: { branchId?: number; generalOnly?: boolean }
+  ) {
+    if (!categoryIds.length) {
+      return new Map<number, number>();
+    }
+
+    const qb = this.categoryRepository.manager
+      .getRepository(Product)
+      .createQueryBuilder("product")
+      .select("product.categoryId", "categoryId")
+      .addSelect("COUNT(product.id)", "count")
+      .where("product.categoryId IN (:...ids)", { ids: categoryIds })
+      .andWhere("product.status = :status", { status: EInventoryStatus.AVAILABLE })
+      .andWhere("product.imported = :imported", { imported: false });
+
+    if (filters?.branchId) {
+      qb.andWhere("product.branchId = :branchId", {
+        branchId: filters.branchId,
+      });
+    } else if (filters?.generalOnly) {
+      qb.andWhere("product.branchId IS NULL");
+    }
+
+    const counts = await qb.groupBy("product.categoryId").getRawMany();
+
+    return new Map<number, number>(
+      counts.map((row) => [Number(row.categoryId), Number(row.count)])
+    );
+  }
+
+  private async scopeCategoriesByProducts(
+    categories: ICategory[],
+    filters?: { branchId?: number; generalOnly?: boolean },
+    filterEmptyParents = true
+  ) {
+    if (!categories.length) {
+      return [];
+    }
+
+    const categoryIds = Array.from(
+      new Set(
+        categories.flatMap((category) => [
+          category.id!,
+          ...(category.subCategories?.map((subCategory) => subCategory.id!) || []),
+        ])
+      )
+    );
+
+    const countMap = await this.getScopedProductCountMap(categoryIds, filters);
+
+    const scopedCategories = categories.map((category) => {
+      const publishedSubCategories = (category.subCategories || []).filter(
+        (subCategory) => subCategory.status === ECategoryStatus.PUBLISHED
+      );
+
+      const scopedSubCategories = publishedSubCategories
+        .map((subCategory) => ({
+          ...subCategory,
+          hasProducts: (countMap.get(subCategory.id!) ?? 0) > 0,
+        }))
+        .filter((subCategory) => subCategory.hasProducts);
+
+      const hasDirectProducts = (countMap.get(category.id!) ?? 0) > 0;
+      const hasProducts = hasDirectProducts || scopedSubCategories.length > 0;
+
+      return {
+        ...category,
+        subCategories: scopedSubCategories,
+        hasProducts,
+      };
+    });
+
+    return filterEmptyParents
+      ? scopedCategories.filter((category) => category.hasProducts)
+      : scopedCategories;
+  }
+
+  index = async ({
+    page,
+    limit,
+    branchId,
+    generalOnly,
+  }: CategoryListQueryDto) => {
     const currentPage = page ?? 1;
     const perPage = limit ?? 10;
 
-    const qb = this.categoryRepository
-      .createQueryBuilder("category")
-      .where("category.parentId IS NULL")
-      .andWhere("category.status = :status", {
+    const categories = await this.categoryRepository.find({
+      where: {
+        parentId: IsNull(),
         status: ECategoryStatus.PUBLISHED,
-      })
-      .orderBy("category.position", "ASC")
-      .skip((currentPage - 1) * perPage)
-      .take(perPage);
+      },
+      relations: ["subCategories"],
+      order: {
+        position: "ASC",
+        subCategories: {
+          position: "ASC",
+        },
+      },
+    });
 
-    const [categories, total] = await qb.getManyAndCount();
+    const scopedCategories = await this.scopeCategoriesByProducts(categories, {
+      branchId,
+      generalOnly,
+    });
+
+    const paginatedCategories = scopedCategories.slice(
+      (currentPage - 1) * perPage,
+      currentPage * perPage
+    );
 
     return {
-      data: instanceToPlain(categories) as ICategory[],
-      pagination: getPaginationMetadata(total, currentPage, perPage),
+      data: instanceToPlain(paginatedCategories) as ICategory[],
+      pagination: getPaginationMetadata(
+        scopedCategories.length,
+        currentPage,
+        perPage
+      ),
     };
   };
 
@@ -222,7 +322,10 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     });
   };
 
-  detail = async (slug: string) => {
+  detail = async (
+    slug: string,
+    filters?: { branchId?: number; generalOnly?: boolean }
+  ) => {
     const category = await this.findOne({
       where: { slug, status: ECategoryStatus.PUBLISHED },
       relations: ["subCategories"],
@@ -233,37 +336,17 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
       },
     });
 
-    if (category?.subCategories?.length) {
-      const publishedSubCategoryIds = category.subCategories
-        .filter((subCategory) => subCategory.status === ECategoryStatus.PUBLISHED)
-        .map((subCategory) => subCategory.id);
-
-      if (!publishedSubCategoryIds.length) {
-        category.subCategories = [];
-        return category;
-      }
-
-      const counts = await this.categoryRepository.manager
-        .getRepository(Product)
-        .createQueryBuilder("product")
-        .select("product.categoryId", "categoryId")
-        .addSelect("COUNT(product.id)", "count")
-        .where("product.categoryId IN (:...ids)", { ids: publishedSubCategoryIds })
-        .andWhere("product.status = :status", { status: EInventoryStatus.AVAILABLE })
-        .andWhere("product.imported = :imported", { imported: false })
-        .groupBy("product.categoryId")
-        .getRawMany();
-
-      const countMap = new Map<number, number>(
-        counts.map((row) => [Number(row.categoryId), Number(row.count)])
-      );
-
-      category.subCategories = category.subCategories.filter(
-        (subCategory) => (countMap.get(subCategory.id!) ?? 0) > 0
-      );
+    if (!category) {
+      return category;
     }
 
-    return category;
+    const [scopedCategory] = await this.scopeCategoriesByProducts(
+      [category],
+      filters,
+      false
+    );
+
+    return scopedCategory;
   };
 
   detailAdmin = async (slug: string) => {

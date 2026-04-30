@@ -6,11 +6,12 @@ import { PublicAuthGuard } from 'src/common/guards/public-auth.guard';
 import { GetOrderParamDto } from 'src/module/order/dto/order-show.dto';
 import { OrderService } from '../order.service';
 import { GetOrdersQueryDto, GetOrdersQueryDtoAdmin } from '../dto/order-list.dto';
-import { AdminRouteController } from 'src/common/decorators/app.decorator';
+import { AdminRouteController, AuthUser } from 'src/common/decorators/app.decorator';
 import { SuccessResponse } from 'src/common/utils/api-response.util';
 import { UpdateOrderDto } from '../dto/update-order.dto';
 import { EOrderStatus } from 'src/common/enums/order-status.enum';
 import { UpdateOrderItemDto } from '../dto/create-order-item.dto';
+import { IAuthRequest } from 'src/common/interfaces/app.interface';
 
 @ApiTags('Admin Orders Managment')
 @AdminRouteController('orders')
@@ -29,8 +30,8 @@ export class AdminOrderController {
     })
     @HttpCode(HttpStatus.OK)
     @Get("/list")
-    async getOrders(@Query() query: GetOrdersQueryDtoAdmin) {
-        const { data, pagination, counts } = await this.orderService.list(query);
+    async getOrders(@Query() query: GetOrdersQueryDtoAdmin, @AuthUser() authUser: IAuthRequest) {
+        const { data, pagination, counts } = await this.orderService.list(query, authUser);
 
         return SuccessResponse(
             "Data fetch successfully",

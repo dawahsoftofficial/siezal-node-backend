@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
-import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString } from "class-validator";
+import { Type } from "class-transformer";
+import { IsBoolean, IsEmail, IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
 import { ERole } from "src/common/enums/role.enum";
 
 export class CreateStaffDto {
@@ -35,6 +36,15 @@ export class CreateStaffDto {
   })
   @IsEnum(ERole)
   role: ERole;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: "Assigned branch ID",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  branchId?: number | null;
 
   @ApiPropertyOptional({
     example: false,

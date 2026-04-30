@@ -10,6 +10,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { Product } from "src/database/entities/product.entity";
 import { Between, Brackets, In, Repository } from "typeorm";
+import type { SelectQueryBuilder } from "typeorm";
 import { IProduct } from "./interface/product.interface";
 import {
   IPaginatedResponse,
@@ -30,9 +31,18 @@ import { Branch } from "src/database/entities/branch.entity";
 import slugify from "slugify";
 import { CreateVendorProductDto } from "../vendor/dto/vendor-product.dto";
 import { UpdateVendorProductDto } from "../vendor/dto/update-vendor-product.dto";
+import { EProductUnit } from "src/common/enums/product-unit.enum";
+import {
+  ProductCsvImportChunkDto,
+  ProductCsvImportFinalizeDto,
+  ProductCsvImportRowDto,
+} from "./dto/product-csv-import.dto";
 
 @Injectable()
 export class ProductService extends BaseSqlService<Product, IProduct> {
+  private static readonly PLACEHOLDER_IMAGE_URL =
+    "https://siezal-next.vercel.app/placeholder.svg";
+
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
@@ -55,7 +65,16 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     limit: number,
     filters: any,
     onlyList = false
-  ): Promise<IPaginatedResponse<IProduct>> {
+  ): Promise<
+    IPaginatedResponse<IProduct> & {
+      extra: {
+        imageCounts: {
+          with: number;
+          without: number;
+        };
+      };
+    }
+  > {
     const qb = this.productRepository
       .createQueryBuilder("product")
       .leftJoinAndSelect("product.inventory", "inventory")
@@ -83,6 +102,12 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       qb.andWhere("category.slug = :slug", { slug: filters.category });
     }
 
+    if (filters.branchId) {
+      qb.andWhere("product.branchId = :branchId", {
+        branchId: filters.branchId,
+      });
+    }
+
     if (filters.price) {
       const setting = await this.settingService.findOne({
         where: { key: "replacementProductPriceRange" },
@@ -106,9 +131,23 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       });
     }
 
+    const countsQb = qb.clone();
+
+    if (filters.imageState === "with") {
+      this.applyImageStateFilter(qb, "with");
+    } else if (filters.imageState === "without") {
+      this.applyImageStateFilter(qb, "without");
+    }
+
     qb.skip((page - 1) * limit)
       .take(limit)
-      .orderBy("product.createdAt", "DESC");
+      .orderBy(
+        typeof filters.imported === "boolean" && filters.imported
+          ? "product.updatedAt"
+          : "product.createdAt",
+        "DESC",
+      )
+      .addOrderBy("product.createdAt", "DESC");
 
     const [data, total] = await qb.getManyAndCount();
 
@@ -118,8 +157,54 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       page,
       limit
     );
+    const imageCounts = await this.getImageCounts(countsQb);
 
-    return { data: plainObjects, pagination };
+    return {
+      data: plainObjects,
+      pagination,
+      extra: {
+        imageCounts,
+      },
+    };
+  }
+
+  private applyImageStateFilter(
+    qb: SelectQueryBuilder<Product>,
+    imageState: "with" | "without",
+  ) {
+    const placeholderImageUrl = ProductService.PLACEHOLDER_IMAGE_URL;
+
+    if (imageState === "with") {
+      qb.andWhere(
+        "product.image IS NOT NULL AND TRIM(product.image) != '' AND product.image != :placeholderImageUrl",
+        { placeholderImageUrl },
+      );
+
+      return;
+    }
+
+    qb.andWhere(
+      "(product.image IS NULL OR TRIM(product.image) = '' OR product.image = :placeholderImageUrl)",
+      { placeholderImageUrl },
+    );
+  }
+
+  private async getImageCounts(baseQb: SelectQueryBuilder<Product>) {
+    const withCountQb = baseQb.clone();
+    const withoutCountQb = baseQb.clone();
+
+    this.applyImageStateFilter(withCountQb, "with");
+    this.applyImageStateFilter(withoutCountQb, "without");
+
+    const [withImage, withoutImage] = await Promise.all([
+      withCountQb.getCount(),
+      withoutCountQb.getCount(),
+    ]);
+
+    return {
+      with: withImage,
+      without: withoutImage,
+    };
   }
 
   async index(
@@ -145,6 +230,14 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       qb.andWhere("product.categoryId = :categoryId", {
         categoryId: filters.categoryId,
       });
+    }
+
+    if (filters.branchId) {
+      qb.andWhere("product.branchId = :branchId", {
+        branchId: filters.branchId,
+      });
+    } else if (filters.generalOnly) {
+      qb.andWhere("product.branchId IS NULL");
     }
 
     if (filters.q) {
@@ -417,6 +510,321 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         { sku },
       )
       .getOne();
+  }
+
+  private async findAllBySku(sku: string): Promise<Product[]> {
+    return this.productRepository
+      .createQueryBuilder("product")
+      .where(
+        "JSON_SEARCH(product.sku, 'one', :sku, NULL, '$[*]') IS NOT NULL",
+        { sku },
+      )
+      .getMany();
+  }
+
+  private normalizeImportedSalePrice(
+    regularPrice: number,
+    salePrice?: number | null,
+  ): number | null {
+    if (salePrice === undefined || salePrice === null) {
+      return null;
+    }
+
+    const normalizedSalePrice = Number(salePrice);
+
+    if (!Number.isFinite(normalizedSalePrice) || normalizedSalePrice <= 0) {
+      return null;
+    }
+
+    return normalizedSalePrice === Number(regularPrice)
+      ? null
+      : normalizedSalePrice;
+  }
+
+  private buildCsvImportSlug(
+    title: string,
+    itemCode: string,
+    branchId: number | null,
+  ) {
+    const branchSuffix = branchId === null ? "general" : `branch-${branchId}`;
+
+    return slugify(`${title}-${itemCode}-${branchSuffix}`, {
+      lower: true,
+      strict: true,
+    }).slice(0, 255);
+  }
+
+  private async resolveCsvImportTargets(
+    body: Pick<
+      ProductCsvImportChunkDto,
+      "applyToAllBranches" | "includeUnassigned" | "branchIds"
+    >,
+  ): Promise<Array<number | null>> {
+    if (body.applyToAllBranches) {
+      const branches = await this.branchRepository.find({
+        where: { isActive: true },
+        select: ["id"],
+      });
+
+      return branches.map((branch) => branch.id!);
+    }
+
+    const branchIds = Array.from(new Set(body.branchIds || []));
+
+    if (branchIds.length) {
+      const branches = await this.branchRepository.find({
+        where: { id: In(branchIds) },
+        select: ["id"],
+      });
+      const foundBranchIds = new Set(branches.map((branch) => branch.id));
+      const missingBranchIds = branchIds.filter((id) => !foundBranchIds.has(id));
+
+      if (missingBranchIds.length) {
+        throw new BadRequestException(
+          `Branch with ID "${missingBranchIds.join(", ")}" not found`
+        );
+      }
+    }
+
+    const targets: Array<number | null> = [
+      ...branchIds,
+      ...(body.includeUnassigned || !branchIds.length ? [null] : []),
+    ];
+
+    return targets;
+  }
+
+  private async resolveCsvImportDefaultCategoryId(
+    defaultCategoryId?: number,
+  ): Promise<number> {
+    if (defaultCategoryId) {
+      const category = await this.categoryRepository.findOne({
+        where: { id: defaultCategoryId },
+        select: ["id"],
+      });
+
+      if (!category) {
+        throw new BadRequestException(
+          `Category with ID "${defaultCategoryId}" not found`
+        );
+      }
+
+      return category.id!;
+    }
+
+    const category = await this.categoryRepository.findOne({
+      where: {},
+      order: { id: "ASC" },
+      select: ["id"],
+    });
+
+    if (!category) {
+      throw new BadRequestException(
+        "No category exists. Create a category before importing new products."
+      );
+    }
+
+    return category.id!;
+  }
+
+  private buildCsvImportedProduct(
+    row: ProductCsvImportRowDto,
+    branchId: number | null,
+    template: Product | null,
+    defaultCategoryId: number,
+  ): Product {
+    const description = row.description?.trim() || undefined;
+    const isAvailable = row.isAvailable !== false;
+
+    return this.productRepository.create({
+      sku: [row.itemCode],
+      title: row.title,
+      slug: this.buildCsvImportSlug(row.title, row.itemCode, branchId),
+      shortDescription: description,
+      description,
+      seoTitle: template?.seoTitle ?? undefined,
+      seoDescription: template?.seoDescription ?? undefined,
+      price: Number(row.regularPrice),
+      salePrice: this.normalizeImportedSalePrice(
+        row.regularPrice,
+        row.salePrice,
+      ),
+      stockQuantity:
+        template?.stockQuantity && template.stockQuantity > 0
+          ? template.stockQuantity
+          : isAvailable
+            ? 1
+            : 0,
+      status: isAvailable
+        ? EInventoryStatus.AVAILABLE
+        : EInventoryStatus.OUT_OF_STOCK,
+      categoryId: template?.categoryId ?? defaultCategoryId,
+      branchId,
+      inventoryId: template?.inventoryId ?? 1,
+      unit: template?.unit ?? EProductUnit.PIECE,
+      isGstEnabled: false,
+      gstFee: null,
+      image:
+        template?.image || "https://siezal-next.vercel.app/placeholder.svg",
+      imported: true,
+    } as Product);
+  }
+
+  private async markMissingImportedProductsOutOfStock(
+    itemCodes: string[],
+    targetBranchIds: Array<number | null>,
+  ): Promise<void> {
+    const normalizedItemCodes = new Set(
+      itemCodes.map((itemCode) => itemCode.trim().toLowerCase()).filter(Boolean),
+    );
+    const branchIds = targetBranchIds.filter(
+      (branchId): branchId is number => branchId !== null,
+    );
+
+    const qb = this.productRepository.createQueryBuilder("product");
+
+    if (branchIds.length && targetBranchIds.includes(null)) {
+      qb.where("product.branchId IN (:...branchIds)", { branchIds }).orWhere(
+        "product.branchId IS NULL",
+      );
+    } else if (branchIds.length) {
+      qb.where("product.branchId IN (:...branchIds)", { branchIds });
+    } else if (targetBranchIds.includes(null)) {
+      qb.where("product.branchId IS NULL");
+    } else {
+      return;
+    }
+
+    const scopedProducts = await qb.getMany();
+    const productsToUpdate = scopedProducts.filter((product) => {
+      const productSkus = Array.isArray(product.sku) ? product.sku : [];
+
+      return !productSkus.some((sku) =>
+        normalizedItemCodes.has(String(sku).trim().toLowerCase()),
+      );
+    });
+
+    if (!productsToUpdate.length) {
+      return;
+    }
+
+    for (const product of productsToUpdate) {
+      product.stockQuantity = 0;
+      product.status = EInventoryStatus.OUT_OF_STOCK;
+      product.imported = true;
+    }
+
+    await this.productRepository.save(productsToUpdate);
+  }
+
+  async importCsvChunk(body: ProductCsvImportChunkDto) {
+    if (!body.rows.length) {
+      return { processed: 0, created: 0, updated: 0, skipped: 0 };
+    }
+
+    const targetBranchIds = await this.resolveCsvImportTargets(body);
+    const defaultCategoryId = await this.resolveCsvImportDefaultCategoryId(
+      body.defaultCategoryId,
+    );
+    const toSave: Product[] = [];
+    const seenItemCodes = new Set<string>();
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const payload of body.rows) {
+      const itemCode = payload.itemCode.trim();
+      const title = payload.title.trim();
+      const regularPrice = Number(payload.regularPrice);
+
+      if (!itemCode || !title || !Number.isFinite(regularPrice)) {
+        skipped += 1;
+        continue;
+      }
+
+      const seenKey = itemCode.toLowerCase();
+
+      if (seenItemCodes.has(seenKey)) {
+        skipped += 1;
+        continue;
+      }
+
+      seenItemCodes.add(seenKey);
+
+      const row: ProductCsvImportRowDto = {
+        ...payload,
+        itemCode,
+        title,
+        regularPrice,
+        isAvailable: payload.isAvailable !== false,
+      };
+      const existingProducts = await this.findAllBySku(itemCode);
+      const template = existingProducts[0] || null;
+
+      for (const branchId of targetBranchIds) {
+        const existing = existingProducts.find(
+          (product) => (product.branchId ?? null) === branchId,
+        );
+        const isAvailable = row.isAvailable !== false;
+
+        if (existing) {
+          existing.price = Number(row.regularPrice);
+          existing.salePrice = this.normalizeImportedSalePrice(
+            row.regularPrice,
+            row.salePrice,
+          );
+          existing.status = isAvailable
+            ? EInventoryStatus.AVAILABLE
+            : EInventoryStatus.OUT_OF_STOCK;
+          existing.stockQuantity =
+            isAvailable && existing.stockQuantity <= 0
+              ? 1
+              : isAvailable
+                ? existing.stockQuantity
+                : 0;
+          existing.imported = true;
+          toSave.push(existing);
+          updated += 1;
+          continue;
+        }
+
+        toSave.push(
+          this.buildCsvImportedProduct(
+            row,
+            branchId,
+            template,
+            defaultCategoryId,
+          ),
+        );
+        created += 1;
+      }
+    }
+
+    if (toSave.length) {
+      await this.productRepository.save(toSave);
+    }
+
+    return {
+      processed: body.rows.length,
+      created,
+      updated,
+      skipped,
+    };
+  }
+
+  async finalizeCsvImport(body: ProductCsvImportFinalizeDto) {
+    const targetBranchIds = await this.resolveCsvImportTargets(body);
+
+    await this.markMissingImportedProductsOutOfStock(
+      body.allItemCodes || [],
+      targetBranchIds,
+    );
+
+    return {
+      finalized: true,
+      branchTargets: targetBranchIds.length,
+      itemCodes: body.allItemCodes?.length || 0,
+    };
   }
 
   private async resolveImportedCategoryId(categorySlug: string) {

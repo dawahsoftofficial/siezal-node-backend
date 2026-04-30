@@ -27,6 +27,7 @@ export class JwtService {
       email: user?.email,
       phone: user.phone!,
       role: user.role || ERole.USER,
+      branchId: user.branchId,
       sessionId,
     };
     const expiresIn = this.configService.getOrThrow(
@@ -53,6 +54,7 @@ export class JwtService {
       email: user?.email,
       phone: user.phone!,
       role: user.role || ERole.USER,
+      branchId: user.branchId,
       sessionId,
     };
     const expiresIn = this.configService.getOrThrow(
