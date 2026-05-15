@@ -152,12 +152,13 @@ export class AuthService {
       expiresAt,
     } = await this.generateUserJwtTokens(user);
 
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
     await Promise.all([
       this.redisService.setUserData(sessionId, {
         ...user,
         accessToken,
         refreshToken,
-      }), // Store user data in Redis with TTL
+      }, sevenDaysMs), // TTL matches refresh token expiry (7 days)
       await this.userSessionService.create({
         sessionId,
         userId: user.id!,
@@ -194,12 +195,13 @@ export class AuthService {
       expiresAt,
     } = await this.generateUserJwtTokens(user);
 
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
     await Promise.all([
       this.redisService.setUserData(sessionId, {
         ...user,
         accessToken,
         refreshToken,
-      }), // Store user data in Redis with TTL
+      }, sevenDaysMs), // TTL matches refresh token expiry (7 days)
       await this.userSessionService.create({
         sessionId,
         userId: user.id!,
@@ -350,12 +352,13 @@ export class AuthService {
         sessionId,
         expiresAt,
       } = await this.generateUserJwtTokens(user);
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
       await Promise.all([
         this.redisService.setUserData(sessionId, {
           ...user,
           accessToken,
           refreshToken,
-        }),
+        }, sevenDaysMs),
         this.userSessionService.create({
           sessionId,
           userId: user.id!,
@@ -465,11 +468,12 @@ export class AuthService {
       expiry: decoded?.exp! * 1000,
     };
 
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
     await this.redisService.setUserData(sessionId, {
       ...userUpdatedData,
       refreshToken: encryptRefreshToken,
       accessToken,
-    });
+    }, sevenDaysMs);
 
     return response;
   };

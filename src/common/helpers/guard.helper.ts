@@ -9,6 +9,7 @@ import { IAuthRequest } from "../interfaces/app.interface";
 import { JwtService } from "src/shared/jwt/jwt.service";
 import { hashString } from "../utils/app.util";
 import { RedisService } from "src/shared/redis/redis.service";
+import { UserSessionService } from "src/module/user-session/user-session.service";
 
 /**
  * GuardHelper
@@ -28,8 +29,8 @@ export class GuardHelper {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
-
-    private readonly aesHelper: AesHelper
+    private readonly aesHelper: AesHelper,
+    private readonly userSessionService: UserSessionService,
   ) {}
 
   /**
@@ -117,8 +118,13 @@ export class GuardHelper {
     }
     const { role, id, sessionId } = decoded;
     const data = await this.redisService.getUserData(sessionId, role, id);
+
     if (!data || data?.accessToken !== token) {
-      throw new UnauthorizedException("Session expired or invalid token");
+      // Redis miss — fall back to DB to check the session is still active
+      const session = await this.userSessionService.findBySessionId(sessionId);
+      if (!session || session.userId !== id) {
+        throw new UnauthorizedException("Session expired or invalid token");
+      }
     }
 
     return decoded as IAuthRequest;

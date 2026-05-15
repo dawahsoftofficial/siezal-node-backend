@@ -31,4 +31,8 @@ export class UserSessionService extends BaseSqlService<
       },
     });
   };
+
+  findBySessionId = async (sessionId: string) => {
+    return this.UserSessionRepository.findOne({ where: { sessionId } });
+  };
 }
