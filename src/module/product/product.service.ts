@@ -296,7 +296,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
   async createProduct(
     body: CreateProductBodyDto,
-    image: Express.Multer.File
+    image?: Express.Multer.File
   ): Promise<IProduct> {
     if (body.branchId) {
       const branch = await this.branchRepository.findOne({
@@ -308,13 +308,16 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       }
     }
 
-    if (image.buffer instanceof Buffer) {
+    if (image?.buffer instanceof Buffer) {
       const { url } = await this.s3Service.uploadImage(image);
 
       return await this.create({ ...body, image: url });
     }
 
-    throw new NotFoundException(`Product image is not a valid file`);
+    return await this.create({
+      ...body,
+      image: ProductService.PLACEHOLDER_IMAGE_URL,
+    });
   }
 
   async update(
@@ -352,6 +355,24 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     }
 
     return await this.productRepository.save(updatedProduct);
+  }
+
+  async updateImage(id: number, image: string): Promise<IProduct> {
+    const product = await this.productRepository.findOne({ where: { id } });
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    const nextImage = image?.trim();
+
+    if (!nextImage) {
+      throw new BadRequestException("Image URL is required");
+    }
+
+    product.image = nextImage;
+
+    return await this.productRepository.save(product);
   }
 
   async show(id: number) {
