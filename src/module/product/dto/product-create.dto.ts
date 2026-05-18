@@ -114,9 +114,10 @@ export class CreateProductBodyDto {
   @IsInt()
   inventoryId: number;
 
-  // @ApiProperty({ description: "Image URL" })
-  // @IsOptional()
-  // image?: string;
+  @ApiPropertyOptional({ description: "Existing image URL to reuse when no file is uploaded" })
+  @IsString()
+  @IsOptional()
+  image?: string;
 
   @ApiProperty({
     enum: EProductUnit,

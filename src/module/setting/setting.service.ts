@@ -1,7 +1,7 @@
 import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
-import { MoreThan, Not, Repository } from "typeorm";
+import { IsNull, MoreThan, Not, Repository } from "typeorm";
 import {
   defaultSmsConfig,
   ISetting,
@@ -15,6 +15,7 @@ import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { S3Service } from "src/shared/aws/s3.service";
 import { ESettingType } from "src/common/enums/setting-type.enum";
 import { UpdateSettingsDto } from "./dto/update-setting.dto";
+import { ECategoryStatus } from "src/common/enums/category-status.enum";
 
 @Injectable()
 export class SettingService extends BaseSqlService<Setting, ISetting> {
@@ -32,7 +33,7 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
     super(settingRepository);
   }
 
-  async getHomepageSettings() {
+  async getHomepageSettings(filters?: { branchId?: number; generalOnly?: boolean }) {
     const settings = await this.settingRepository.findOne({
       where: { key: "homepage" },
     });
@@ -42,24 +43,35 @@ export class SettingService extends BaseSqlService<Setting, ISetting> {
       : [];
 
     const categories = await this.categoryService.findAll({
-      relations: ["parentCategory"],
+      relations: ["parentCategory", "subCategories"],
       where: {
         isFeatured: true,
-        products: {
-          status: EInventoryStatus.AVAILABLE,
-        },
+        status: ECategoryStatus.PUBLISHED,
       },
+      order: { position: "ASC" },
     });
 
-    // Then for each category, fetch its limited products
     const categoryWithProducts = await Promise.all(
       categories.map(async (category) => {
+        const categoryIds = [
+          category.id,
+          ...(category.subCategories?.map((subCategory) => subCategory.id) || []),
+        ].filter((id): id is number => typeof id === "number");
+
+        const productWhere = categoryIds.map((categoryId) => ({
+          categoryId,
+          status: EInventoryStatus.AVAILABLE,
+          stockQuantity: MoreThan(0),
+          imported: false,
+          ...(filters?.branchId
+            ? { branchId: filters.branchId }
+            : filters?.generalOnly
+              ? { branchId: IsNull() }
+              : {}),
+        }));
+
         const products = await this.productService.findAll({
-          where: {
-            categoryId: category.id,
-            status: EInventoryStatus.AVAILABLE,
-            stockQuantity: MoreThan(0),
-          },
+          where: productWhere,
           order: { updatedAt: "DESC" },
           take: 10,
         });

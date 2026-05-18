@@ -133,6 +133,12 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       });
     }
 
+    if (filters.stockStatus) {
+      qb.andWhere("product.status = :stockStatus", {
+        stockStatus: filters.stockStatus,
+      });
+    }
+
     const countsQb = qb.clone();
 
     if (filters.imageState === "with") {
@@ -318,7 +324,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
     return await this.create({
       ...body,
-      image: ProductService.PLACEHOLDER_IMAGE_URL,
+      image: body.image || ProductService.PLACEHOLDER_IMAGE_URL,
     });
   }
 

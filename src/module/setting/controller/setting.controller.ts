@@ -16,6 +16,7 @@ import { GuestAuthGuard } from "src/common/guards/guest-auth.guard";
 import { SuccessResponse } from "src/common/utils/api-response.util";
 import { GetSettingsDto } from "../dto/get-setting.dto";
 import { CreateLeadRequestDto } from "../../lead/dto/create-lead.dto";
+import { CategoryListQueryDto } from "src/module/category/dto/category-list-query.dto";
 
 @ApiTags("Settings Management")
 @PublicRouteController("settings")
@@ -43,8 +44,12 @@ export class SettingController {
   @Get("homepage")
   @HttpCode(HttpStatus.OK)
   @UseGuards(GuestAuthGuard)
-  async getHomepageSettings() {
-    const response = await this.settingService.getHomepageSettings();
+  async getHomepageSettings(@Query() query: CategoryListQueryDto) {
+    const response = await this.settingService.getHomepageSettings({
+      branchId: query.branchId,
+      generalOnly: query.generalOnly,
+    });
+
     return SuccessResponse("Setting Data Fetched", response);
   }
 
