@@ -1,8 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsPositive, IsString, IsArray, IsBoolean } from 'class-validator';
+import { IsInt, IsOptional, IsPositive, IsString, IsArray, IsBoolean, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { ToBoolean } from 'src/common/utils/app.util';
+import { EInventoryStatus } from 'src/common/enums/inventory-status.enum';
 
 export class GetProductsQueryDtoAdmin extends PaginationDto {
     @ApiPropertyOptional({
@@ -12,6 +13,15 @@ export class GetProductsQueryDtoAdmin extends PaginationDto {
     @IsOptional()
     @IsString()
     imageState?: 'with' | 'without';
+
+    @ApiPropertyOptional({
+        description: 'Filter products by stock status',
+        example: EInventoryStatus.AVAILABLE,
+        enum: EInventoryStatus,
+    })
+    @IsOptional()
+    @IsEnum(EInventoryStatus)
+    stockStatus?: EInventoryStatus;
 
     @ApiPropertyOptional({
         description: 'Search term to match in title or description',

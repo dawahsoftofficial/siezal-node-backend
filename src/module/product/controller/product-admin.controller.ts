@@ -65,7 +65,8 @@ export class AdminProductController {
                 price: query.price,
                 imported: query.imported,
                 branchId: query.branchId,
-                imageState: query.imageState
+                imageState: query.imageState,
+                stockStatus: query.stockStatus
             },
             true
         );

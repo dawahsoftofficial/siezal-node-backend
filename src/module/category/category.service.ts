@@ -189,6 +189,86 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
     );
   }
 
+  private async getAdminProductCountMap(categoryIds: number[]) {
+    if (!categoryIds.length) {
+      return new Map<number, number>();
+    }
+
+    const counts = await this.categoryRepository.manager
+      .getRepository(Product)
+      .createQueryBuilder("product")
+      .select("product.categoryId", "categoryId")
+      .addSelect("COUNT(product.id)", "count")
+      .where("product.categoryId IN (:...ids)", { ids: categoryIds })
+      .andWhere("product.imported = :imported", { imported: false })
+      .groupBy("product.categoryId")
+      .getRawMany();
+
+    return new Map<number, number>(
+      counts.map((row) => [Number(row.categoryId), Number(row.count)])
+    );
+  }
+
+  private async getAdminParentProductCountMap(parentIds: number[]) {
+    if (!parentIds.length) {
+      return new Map<number, number>();
+    }
+
+    const counts = await this.categoryRepository.manager
+      .getRepository(Product)
+      .createQueryBuilder("product")
+      .innerJoin(Category, "category", "category.id = product.categoryId")
+      .select("COALESCE(category.parentId, category.id)", "parentId")
+      .addSelect("COUNT(product.id)", "count")
+      .where("COALESCE(category.parentId, category.id) IN (:...parentIds)", {
+        parentIds,
+      })
+      .andWhere("product.imported = :imported", { imported: false })
+      .groupBy("COALESCE(category.parentId, category.id)")
+      .getRawMany();
+
+    return new Map<number, number>(
+      counts.map((row) => [Number(row.parentId), Number(row.count)])
+    );
+  }
+
+  private async withAdminProductCounts(categories: ICategory[]) {
+    const categoryIds = Array.from(
+      new Set(
+        categories.flatMap((category) => [
+          category.id!,
+          ...(category.subCategories?.map((subCategory) => subCategory.id!) || []),
+        ])
+      )
+    ).filter((id): id is number => typeof id === "number");
+    const parentIds = categories
+      .map((category) => category.id)
+      .filter((id): id is number => typeof id === "number");
+    const [countMap, parentCountMap] = await Promise.all([
+      this.getAdminProductCountMap(categoryIds),
+      this.getAdminParentProductCountMap(parentIds),
+    ]);
+
+    return categories.map((category) => {
+      const subCategories = (category.subCategories || []).map((subCategory) => ({
+        ...subCategory,
+        productCount: countMap.get(subCategory.id!) ?? 0,
+      }));
+      const directCount = countMap.get(category.id!) ?? 0;
+      const childCount = subCategories.reduce(
+        (sum, subCategory) => sum + (subCategory.productCount || 0),
+        0
+      );
+
+      return {
+        ...category,
+        subCategories,
+        productCount:
+          parentCountMap.get(category.id!) ?? directCount + childCount,
+      };
+    });
+  }
+
   private async scopeCategoriesByProducts(
     categories: ICategory[],
     filters?: { branchId?: number; generalOnly?: boolean },
@@ -315,11 +395,16 @@ export class CategoryService extends BaseSqlService<Category, ICategory> {
         | "DESC",
     };
 
-    return this.paginate<ICategory>(page, limit, {
+    const paginated = await this.paginate<ICategory>(page, limit, {
       where,
       order: sort,
       relations: ["subCategories"],
     });
+
+    return {
+      ...paginated,
+      data: await this.withAdminProductCounts(paginated.data),
+    };
   };
 
   detail = async (
