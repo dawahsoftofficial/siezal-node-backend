@@ -2,6 +2,7 @@
 import {
   Injectable,
   BadRequestException,
+  BadGatewayException,
   OnModuleInit,
   Logger,
 } from "@nestjs/common";
@@ -135,7 +136,9 @@ export class S3Service implements OnModuleInit {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new Error("Failed to process image upload");
+      throw new BadGatewayException(
+        `Image upload failed: ${error.message || "storage service unavailable"}`
+      );
     }
   }
 

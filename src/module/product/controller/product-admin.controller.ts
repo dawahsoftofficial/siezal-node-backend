@@ -37,6 +37,7 @@ import {
     ProductCsvImportChunkDto,
     ProductCsvImportFinalizeDto,
 } from "../dto/product-csv-import.dto";
+import { UpdateProductImageDto } from "../dto/product-update-image.dto";
 
 @ApiTags("Products Inventory Management")
 @AdminRouteController("products")
@@ -114,10 +115,10 @@ export class AdminProductController {
         @Body() body: CreateProductBodyDto,
         @UploadedFile(
             new ParseFilePipe({
-                fileIsRequired: true,
+                fileIsRequired: false,
             })
         )
-        image: Express.Multer.File
+        image?: Express.Multer.File
     ) {
         const created = await this.productService.createProduct(body, image);
         return SuccessResponse("Product created successfully", created);
@@ -150,6 +151,26 @@ export class AdminProductController {
     ) {
         const updated = await this.productService.update(params.id, body, image);
         return SuccessResponse("Product updated successfully", updated);
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Update product image URL by ID",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+            { status: HttpStatus.CONFLICT },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Patch("/update-image/:id")
+    async updateProductImage(
+        @Param() params: GetProductParamDto,
+        @Body() body: UpdateProductImageDto,
+    ) {
+        const updated = await this.productService.updateImage(params.id, body.image);
+        return SuccessResponse("Product image updated successfully", updated);
     }
 
     @GenerateSwaggerDoc({
