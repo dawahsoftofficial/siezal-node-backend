@@ -56,6 +56,15 @@ export class GetProductsQueryDtoAdmin extends PaginationDto {
     @ToBoolean()
     @IsBoolean()
     imported?: boolean
+
+    @ApiPropertyOptional({
+        description: 'Show only products with no branch assigned',
+        example: true,
+    })
+    @IsOptional()
+    @ToBoolean()
+    @IsBoolean()
+    generalOnly?: boolean;
 }
 
 export class GetProductsQueryDtoUser extends GetProductsQueryDtoAdmin {
@@ -79,12 +88,4 @@ export class GetProductsQueryDtoUser extends GetProductsQueryDtoAdmin {
   @IsString({ each: true })
   tags?: string[];
 
-    @ApiPropertyOptional({
-        description: 'Show only general inventory without a branch assignment',
-        example: true,
-    })
-    @IsOptional()
-    @ToBoolean()
-    @IsBoolean()
-    generalOnly?: boolean;
 }

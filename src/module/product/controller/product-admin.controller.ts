@@ -28,9 +28,8 @@ import { CreateProductBodyDto } from "../dto/product-create.dto";
 import { UpdateProductBodyDto } from "../dto/product-update.dto";
 import { SuccessResponse } from "src/common/utils/api-response.util";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
-import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { ProductBulkSyncDto } from "../dto/product-bulk-sync.dto";
-import { BulkDeleteProductsDto } from "../dto/product-bulk-delete.dto";
+import { BulkDeleteProductsDto, BulkDeleteByBranchDto } from "../dto/product-bulk-delete.dto";
 import { ProductImagesBulkUploadDto } from "../dto/product-images-bulk-upload.dto";
 import { ProductLinkImagesQueryDto } from "../dto/product-link-images.dto";
 import {
@@ -208,6 +207,21 @@ export class AdminProductController {
     }
 
     @GenerateSwaggerDoc({
+        summary: "Bulk delete products by branch (or products with no branch)",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Post("/bulk-delete-by-branch")
+    async bulkDeleteProductsByBranch(@Body() body: BulkDeleteByBranchDto) {
+        const deleted = await this.productService.bulkDeleteByBranch(body.branchId);
+        return SuccessResponse("Products deleted successfully", { deleted });
+    }
+
+    @GenerateSwaggerDoc({
         summary: "Accept or Reject import batch",
         responses: [
             { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
@@ -220,10 +234,20 @@ export class AdminProductController {
     @HttpCode(HttpStatus.OK)
     @Get("/handle-import")
     async handleImport(@Query() query: HandleImportBatchDto) {
-        await this.productService.updateMany(
-            { imported: true },
-            { imported: false, ...(!query.accepted ? { stockQuantity: 0, status: EInventoryStatus.OUT_OF_STOCK } : {}) }
-        );
+        if (!query.accepted) {
+            // Delete products that were newly created during import (SKU did not exist before)
+            await this.productService.deleteMany({ imported: true, importedNew: true });
+            // Revert the imported flag for existing products whose prices were updated
+            await this.productService.updateMany(
+                { imported: true, importedNew: false },
+                { imported: false },
+            );
+        } else {
+            await this.productService.updateMany(
+                { imported: true },
+                { imported: false, importedNew: false },
+            );
+        }
 
         return SuccessResponse("Products imported successfully");
     }

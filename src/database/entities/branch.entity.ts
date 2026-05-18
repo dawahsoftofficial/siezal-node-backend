@@ -34,6 +34,9 @@ export class Branch extends BaseEntity implements IBranch {
   @Column({ name: "is_ecommerce_enabled", type: "boolean", default: true })
   isEcommerceEnabled: boolean;
 
+  @Column({ name: "is_primary", type: "boolean", default: false })
+  isPrimary: boolean;
+
   @Column({ name: "weekly_schedule", type: "json", nullable: true })
   weeklySchedule?: IBranchWeeklySchedule | null;
 

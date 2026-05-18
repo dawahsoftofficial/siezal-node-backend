@@ -22,6 +22,8 @@ import { BranchService } from "../branch.service";
 import { CreateBranchDto, UpdateBranchDto } from "../dto/create-branch.dto";
 import { GetBranchParamDto } from "../dto/get-branch.dto";
 import { GetBranchQueryDto } from "../dto/list-branch.dto";
+import { SyncBranchProductsDto } from "../dto/sync-branch-products.dto";
+import { SyncBranchProductsChunkDto, SyncPrimaryProductsChunkDto } from "../dto/sync-branch-products-chunk.dto";
 
 @ApiTags("Admin branches")
 @AdminRouteController("branches")
@@ -125,6 +127,108 @@ export class AdminBranchController {
     const updated = await this.branchService.updateBranch(params.id, body);
 
     return SuccessResponse("Branch updated successfully", updated);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Set branch as primary",
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.CONFLICT },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @HttpCode(HttpStatus.OK)
+  @Patch("/set-primary/:id")
+  async setPrimaryBranch(@Param() params: GetBranchParamDto) {
+    const updated = await this.branchService.setPrimaryBranch(params.id);
+
+    return SuccessResponse("Primary branch updated successfully", updated);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Sync products from source branch to target branch",
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.CONFLICT },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @HttpCode(HttpStatus.OK)
+  @Post("/sync-products")
+  async syncProducts(@Body() body: SyncBranchProductsDto) {
+    const result = await this.branchService.syncProductsBetweenBranches(
+      body.sourceBranchId,
+      body.targetBranchId,
+    );
+
+    return SuccessResponse("Branch products synced successfully", result);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Sync products from primary branch to all branches",
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.CONFLICT },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @HttpCode(HttpStatus.OK)
+  @Post("/sync-primary-products")
+  async syncPrimaryProducts() {
+    const result = await this.branchService.syncPrimaryProductsToAllBranches();
+
+    return SuccessResponse("Primary branch products synced successfully", result);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Sync products from source branch to target branch in a chunk",
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.CONFLICT },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @HttpCode(HttpStatus.OK)
+  @Post("/sync-products-chunk")
+  async syncProductsChunk(@Body() body: SyncBranchProductsChunkDto) {
+    const result = await this.branchService.syncProductsBetweenBranchesChunk(
+      body.sourceBranchId,
+      body.targetBranchId,
+      body.offset,
+      body.limit,
+    );
+
+    return SuccessResponse("Branch products chunk synced successfully", result);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Sync products from primary branch to a target branch in a chunk",
+    responses: [
+      { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+      { status: HttpStatus.BAD_REQUEST },
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      { status: HttpStatus.CONFLICT },
+      { status: HttpStatus.INTERNAL_SERVER_ERROR },
+    ],
+  })
+  @HttpCode(HttpStatus.OK)
+  @Post("/sync-primary-products-chunk")
+  async syncPrimaryProductsChunk(@Body() body: SyncPrimaryProductsChunkDto) {
+    const result = await this.branchService.syncPrimaryProductsChunk(
+      body.targetBranchId,
+      body.offset,
+      body.limit,
+    );
+
+    return SuccessResponse("Primary branch chunk synced successfully", result);
   }
 
   @GenerateSwaggerDoc({

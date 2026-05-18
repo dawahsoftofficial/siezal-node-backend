@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { Branch } from "src/database/entities/branch.entity";
 import { FindOptionsWhere, IsNull, Like, Not, Repository } from "typeorm";
+import { Product } from "src/database/entities/product.entity";
 import {
   normalizeBranchServiceArea,
   normalizeBranchWeeklySchedule,
@@ -10,11 +11,35 @@ import {
 import { CreateBranchDto, UpdateBranchDto } from "./dto/create-branch.dto";
 import { IBranch } from "./interface/branch.interface";
 
+type BranchProductSyncResult = {
+  sourceBranchId: number;
+  targetBranchId: number;
+  scanned: number;
+  targetBefore: number;
+  targetAfter: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+};
+
+export type BranchProductSyncChunkResult = {
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  processed: number;
+  total: number;
+  hasMore: boolean;
+};
+
 @Injectable()
 export class BranchService extends BaseSqlService<Branch, IBranch> {
   constructor(
     @InjectRepository(Branch)
     private readonly branchRepository: Repository<Branch>,
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>,
   ) {
     super(branchRepository);
   }
@@ -96,10 +121,15 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
   }
 
   async createBranch(body: CreateBranchDto) {
+    if (body.isPrimary) {
+      await this.clearPrimaryBranches();
+    }
+
     const created = await this.create({
       ...body,
       isActive: body.isActive ?? true,
       isEcommerceEnabled: body.isEcommerceEnabled ?? true,
+      isPrimary: body.isPrimary ?? false,
       weeklySchedule: normalizeBranchWeeklySchedule(body.weeklySchedule),
       serviceArea: normalizeBranchServiceArea(body.serviceArea),
     });
@@ -127,11 +157,376 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
       nextBody.serviceArea = normalizeBranchServiceArea(body.serviceArea);
     }
 
+    if (body.isPrimary === true) {
+      await this.clearPrimaryBranches(id);
+    }
+
     const updatedBranch = this.branchRepository.merge(branch, nextBody);
 
     const savedBranch = await this.branchRepository.save(updatedBranch);
 
     return this.normalizeBranch(savedBranch);
+  }
+
+  async setPrimaryBranch(id: number) {
+    const branch = await this.branchRepository.findOne({
+      where: { id },
+      withDeleted: true,
+    });
+
+    if (!branch) {
+      throw new NotFoundException(`Branch with ID ${id} not found`);
+    }
+
+    await this.clearPrimaryBranches(id);
+
+    branch.isPrimary = true;
+
+    const savedBranch = await this.branchRepository.save(branch);
+
+    return this.normalizeBranch(savedBranch);
+  }
+
+  async syncProductsBetweenBranches(
+    sourceBranchId: number,
+    targetBranchId: number,
+  ): Promise<BranchProductSyncResult> {
+    if (sourceBranchId === targetBranchId) {
+      throw new BadRequestException("Source and target branches must be different");
+    }
+
+    await this.assertBranchExists(sourceBranchId);
+    await this.assertBranchExists(targetBranchId);
+
+    const [sourceProducts, targetProducts, targetBefore] = await Promise.all([
+      this.findProductsByBranch(sourceBranchId),
+      this.findProductsByBranch(targetBranchId),
+      this.countProductsByBranch(targetBranchId),
+    ]);
+
+    const targetBySku = new Map<string, Product>();
+    const targetBySlug = new Map<string, Product>();
+
+    targetProducts.forEach(product => {
+      this.getProductSkuKeys(product).forEach(skuKey => {
+        if (!targetBySku.has(skuKey)) {
+          targetBySku.set(skuKey, product);
+        }
+      });
+
+      if (product.slug && !targetBySlug.has(product.slug)) {
+        targetBySlug.set(product.slug, product);
+      }
+    });
+
+    let created = 0;
+    let updated = 0;
+    let unchanged = 0;
+    let skipped = 0;
+    const productsToSave: Product[] = [];
+
+    sourceProducts.forEach(sourceProduct => {
+      const skuKeys = this.getProductSkuKeys(sourceProduct);
+
+      // Match by SKU when available; fall back to slug for products without a
+      // valid SKU so they are never silently skipped. Slug is reliable because
+      // createProductForBranch copies it verbatim from the source product.
+      let targetProduct: Product | undefined = skuKeys
+        .map(skuKey => targetBySku.get(skuKey))
+        .find(
+          (product): product is Product =>
+            product !== undefined && product.branchId === targetBranchId,
+        );
+
+      if (!targetProduct && sourceProduct.slug) {
+        targetProduct = targetBySlug.get(sourceProduct.slug);
+      }
+
+      if (targetProduct) {
+        const hasChanges =
+          targetProduct.image !== sourceProduct.image ||
+          targetProduct.title !== sourceProduct.title ||
+          targetProduct.categoryId !== sourceProduct.categoryId;
+
+        if (!hasChanges) {
+          unchanged += 1;
+
+          return;
+        }
+
+        targetProduct.image = sourceProduct.image;
+        targetProduct.title = sourceProduct.title;
+        targetProduct.categoryId = sourceProduct.categoryId;
+        productsToSave.push(targetProduct);
+        updated += 1;
+
+        return;
+      }
+
+      productsToSave.push(this.createProductForBranch(sourceProduct, targetBranchId));
+      created += 1;
+    });
+
+    if (productsToSave.length) {
+      await this.productRepository.save(productsToSave);
+    }
+
+    const targetAfter = await this.countProductsByBranch(targetBranchId);
+
+    return {
+      sourceBranchId,
+      targetBranchId,
+      scanned: sourceProducts.length,
+      targetBefore,
+      targetAfter,
+      created,
+      updated,
+      unchanged,
+      skipped,
+    };
+  }
+
+  async syncProductsBetweenBranchesChunk(
+    sourceBranchId: number,
+    targetBranchId: number,
+    offset: number,
+    limit = 500,
+  ): Promise<BranchProductSyncChunkResult> {
+    if (sourceBranchId === targetBranchId) {
+      throw new BadRequestException("Source and target branches must be different");
+    }
+
+    await this.assertBranchExists(sourceBranchId);
+    await this.assertBranchExists(targetBranchId);
+
+    const [sourceProducts, targetProducts, total] = await Promise.all([
+      this.findProductsByBranchPaginated(sourceBranchId, offset, limit),
+      this.findProductsByBranch(targetBranchId),
+      this.countProductsByBranch(sourceBranchId),
+    ]);
+
+    const targetBySku = new Map<string, Product>();
+    const targetBySlug = new Map<string, Product>();
+
+    targetProducts.forEach(product => {
+      this.getProductSkuKeys(product).forEach(skuKey => {
+        if (!targetBySku.has(skuKey)) {
+          targetBySku.set(skuKey, product);
+        }
+      });
+      if (product.slug && !targetBySlug.has(product.slug)) {
+        targetBySlug.set(product.slug, product);
+      }
+    });
+
+    let created = 0;
+    let updated = 0;
+    let unchanged = 0;
+    let skipped = 0;
+    const productsToSave: Product[] = [];
+
+    sourceProducts.forEach(sourceProduct => {
+      const skuKeys = this.getProductSkuKeys(sourceProduct);
+
+      let targetProduct: Product | undefined = skuKeys
+        .map(skuKey => targetBySku.get(skuKey))
+        .find(
+          (p): p is Product =>
+            p !== undefined && p.branchId === targetBranchId,
+        );
+
+      if (!targetProduct && sourceProduct.slug) {
+        targetProduct = targetBySlug.get(sourceProduct.slug);
+      }
+
+      if (targetProduct) {
+        const hasChanges =
+          targetProduct.image !== sourceProduct.image ||
+          targetProduct.title !== sourceProduct.title ||
+          targetProduct.categoryId !== sourceProduct.categoryId;
+
+        if (!hasChanges) {
+          unchanged += 1;
+          return;
+        }
+
+        targetProduct.image = sourceProduct.image;
+        targetProduct.title = sourceProduct.title;
+        targetProduct.categoryId = sourceProduct.categoryId;
+        productsToSave.push(targetProduct);
+        updated += 1;
+        return;
+      }
+
+      productsToSave.push(this.createProductForBranch(sourceProduct, targetBranchId));
+      created += 1;
+    });
+
+    if (productsToSave.length) {
+      await this.productRepository.save(productsToSave);
+    }
+
+    return {
+      created,
+      updated,
+      unchanged,
+      skipped,
+      processed: sourceProducts.length,
+      total,
+      hasMore: offset + limit < total,
+    };
+  }
+
+  async syncPrimaryProductsToAllBranches() {
+    const primaryBranch = await this.branchRepository.findOne({
+      where: { isPrimary: true, deletedAt: IsNull() },
+    });
+
+    if (!primaryBranch?.id) {
+      throw new BadRequestException("Primary branch is not configured");
+    }
+
+    const branches = await this.branchRepository.find({
+      where: { deletedAt: IsNull() },
+      order: { name: "ASC" },
+    });
+
+    const targetBranches = branches.filter(
+      branch => branch.id !== primaryBranch.id,
+    );
+    const results: BranchProductSyncResult[] = [];
+
+    for (const branch of targetBranches) {
+      if (!branch.id) {
+        continue;
+      }
+
+      results.push(
+        await this.syncProductsBetweenBranches(primaryBranch.id, branch.id),
+      );
+    }
+
+    return {
+      primaryBranchId: primaryBranch.id,
+      branchesSynced: results.length,
+      created: results.reduce((sum, result) => sum + result.created, 0),
+      updated: results.reduce((sum, result) => sum + result.updated, 0),
+      unchanged: results.reduce((sum, result) => sum + result.unchanged, 0),
+      skipped: results.reduce((sum, result) => sum + result.skipped, 0),
+      results,
+    };
+  }
+
+  async syncPrimaryProductsChunk(
+    targetBranchId: number,
+    offset: number,
+    limit = 500,
+  ): Promise<BranchProductSyncChunkResult> {
+    const primaryBranch = await this.branchRepository.findOne({
+      where: { isPrimary: true, deletedAt: IsNull() },
+    });
+
+    if (!primaryBranch?.id) {
+      throw new BadRequestException("Primary branch is not configured");
+    }
+
+    return this.syncProductsBetweenBranchesChunk(
+      primaryBranch.id,
+      targetBranchId,
+      offset,
+      limit,
+    );
+  }
+
+  private async clearPrimaryBranches(exceptBranchId?: number) {
+    const qb = this.branchRepository
+      .createQueryBuilder()
+      .update(Branch)
+      .set({ isPrimary: false })
+      .where("is_primary = :isPrimary", { isPrimary: true });
+
+    if (exceptBranchId) {
+      qb.andWhere("id != :exceptBranchId", { exceptBranchId });
+    }
+
+    await qb.execute();
+  }
+
+  private async assertBranchExists(id: number) {
+    const branch = await this.branchRepository.findOne({ where: { id } });
+
+    if (!branch) {
+      throw new NotFoundException(`Branch with ID ${id} not found`);
+    }
+  }
+
+  private async findProductsByBranch(branchId: number) {
+    return this.productRepository
+      .createQueryBuilder("product")
+      .where("product.branch_id = :branchId", { branchId })
+      .andWhere("product.imported = :imported", { imported: false })
+      .getMany();
+  }
+
+  private async countProductsByBranch(branchId: number) {
+    return this.productRepository
+      .createQueryBuilder("product")
+      .where("product.branch_id = :branchId", { branchId })
+      .andWhere("product.imported = :imported", { imported: false })
+      .getCount();
+  }
+
+  private async findProductsByBranchPaginated(
+    branchId: number,
+    offset: number,
+    limit: number,
+  ) {
+    return this.productRepository
+      .createQueryBuilder("product")
+      .where("product.branch_id = :branchId", { branchId })
+      .andWhere("product.imported = :imported", { imported: false })
+      .orderBy("product.id", "ASC")
+      .skip(offset)
+      .take(limit)
+      .getMany();
+  }
+
+  private getProductSkuKeys(product: Product) {
+    if (!Array.isArray(product.sku)) {
+      return [];
+    }
+
+    return Array.from(
+      new Set(
+        product.sku
+          .map(sku => String(sku).trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    );
+  }
+
+  private createProductForBranch(sourceProduct: Product, branchId: number) {
+    return this.productRepository.create({
+      sku: sourceProduct.sku,
+      imported: sourceProduct.imported,
+      title: sourceProduct.title,
+      slug: sourceProduct.slug,
+      shortDescription: sourceProduct.shortDescription,
+      description: sourceProduct.description,
+      seoTitle: sourceProduct.seoTitle,
+      seoDescription: sourceProduct.seoDescription,
+      price: sourceProduct.price,
+      salePrice: sourceProduct.salePrice,
+      stockQuantity: sourceProduct.stockQuantity,
+      unit: sourceProduct.unit,
+      isGstEnabled: sourceProduct.isGstEnabled,
+      gstFee: sourceProduct.gstFee,
+      status: sourceProduct.status,
+      categoryId: sourceProduct.categoryId,
+      branchId,
+      inventoryId: sourceProduct.inventoryId,
+      image: sourceProduct.image,
+    });
   }
 
   private normalizeBranch(branch: IBranch): IBranch {

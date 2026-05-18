@@ -102,7 +102,9 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       qb.andWhere("category.slug = :slug", { slug: filters.category });
     }
 
-    if (filters.branchId) {
+    if (filters.generalOnly) {
+      qb.andWhere("product.branchId IS NULL");
+    } else if (filters.branchId) {
       qb.andWhere("product.branchId = :branchId", {
         branchId: filters.branchId,
       });
@@ -433,6 +435,14 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     return result.affected || 0;
   }
 
+  async bulkDeleteByBranch(branchId?: number): Promise<number> {
+    const result = await this.productRepository.delete(
+      branchId !== undefined ? { branchId } : { branchId: null as any },
+    );
+
+    return result.affected || 0;
+  }
+
   async linkImages(date: string): Promise<{ linked: number; notFound: number }> {
     if (!date) {
       throw new BadRequestException("Date is required");
@@ -688,6 +698,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       image:
         template?.image || "https://siezal-next.vercel.app/placeholder.svg",
       imported: true,
+      importedNew: true,
     } as Product);
   }
 
@@ -804,6 +815,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
                 ? existing.stockQuantity
                 : 0;
           existing.imported = true;
+          existing.importedNew = false;
           toSave.push(existing);
           updated += 1;
           continue;
