@@ -23,6 +23,16 @@ type BranchProductSyncResult = {
   skipped: number;
 };
 
+export type BranchProductSyncChunkResult = {
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  processed: number;
+  total: number;
+  hasMore: boolean;
+};
+
 @Injectable()
 export class BranchService extends BaseSqlService<Branch, IBranch> {
   constructor(
@@ -276,6 +286,97 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
     };
   }
 
+  async syncProductsBetweenBranchesChunk(
+    sourceBranchId: number,
+    targetBranchId: number,
+    offset: number,
+    limit = 500,
+  ): Promise<BranchProductSyncChunkResult> {
+    if (sourceBranchId === targetBranchId) {
+      throw new BadRequestException("Source and target branches must be different");
+    }
+
+    await this.assertBranchExists(sourceBranchId);
+    await this.assertBranchExists(targetBranchId);
+
+    const [sourceProducts, targetProducts, total] = await Promise.all([
+      this.findProductsByBranchPaginated(sourceBranchId, offset, limit),
+      this.findProductsByBranch(targetBranchId),
+      this.countProductsByBranch(sourceBranchId),
+    ]);
+
+    const targetBySku = new Map<string, Product>();
+    const targetBySlug = new Map<string, Product>();
+
+    targetProducts.forEach(product => {
+      this.getProductSkuKeys(product).forEach(skuKey => {
+        if (!targetBySku.has(skuKey)) {
+          targetBySku.set(skuKey, product);
+        }
+      });
+      if (product.slug && !targetBySlug.has(product.slug)) {
+        targetBySlug.set(product.slug, product);
+      }
+    });
+
+    let created = 0;
+    let updated = 0;
+    let unchanged = 0;
+    let skipped = 0;
+    const productsToSave: Product[] = [];
+
+    sourceProducts.forEach(sourceProduct => {
+      const skuKeys = this.getProductSkuKeys(sourceProduct);
+
+      let targetProduct: Product | undefined = skuKeys
+        .map(skuKey => targetBySku.get(skuKey))
+        .find(
+          (p): p is Product =>
+            p !== undefined && p.branchId === targetBranchId,
+        );
+
+      if (!targetProduct && sourceProduct.slug) {
+        targetProduct = targetBySlug.get(sourceProduct.slug);
+      }
+
+      if (targetProduct) {
+        const hasChanges =
+          targetProduct.image !== sourceProduct.image ||
+          targetProduct.title !== sourceProduct.title ||
+          targetProduct.categoryId !== sourceProduct.categoryId;
+
+        if (!hasChanges) {
+          unchanged += 1;
+          return;
+        }
+
+        targetProduct.image = sourceProduct.image;
+        targetProduct.title = sourceProduct.title;
+        targetProduct.categoryId = sourceProduct.categoryId;
+        productsToSave.push(targetProduct);
+        updated += 1;
+        return;
+      }
+
+      productsToSave.push(this.createProductForBranch(sourceProduct, targetBranchId));
+      created += 1;
+    });
+
+    if (productsToSave.length) {
+      await this.productRepository.save(productsToSave);
+    }
+
+    return {
+      created,
+      updated,
+      unchanged,
+      skipped,
+      processed: sourceProducts.length,
+      total,
+      hasMore: offset + limit < total,
+    };
+  }
+
   async syncPrimaryProductsToAllBranches() {
     const primaryBranch = await this.branchRepository.findOne({
       where: { isPrimary: true, deletedAt: IsNull() },
@@ -316,6 +417,27 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
     };
   }
 
+  async syncPrimaryProductsChunk(
+    targetBranchId: number,
+    offset: number,
+    limit = 500,
+  ): Promise<BranchProductSyncChunkResult> {
+    const primaryBranch = await this.branchRepository.findOne({
+      where: { isPrimary: true, deletedAt: IsNull() },
+    });
+
+    if (!primaryBranch?.id) {
+      throw new BadRequestException("Primary branch is not configured");
+    }
+
+    return this.syncProductsBetweenBranchesChunk(
+      primaryBranch.id,
+      targetBranchId,
+      offset,
+      limit,
+    );
+  }
+
   private async clearPrimaryBranches(exceptBranchId?: number) {
     const qb = this.branchRepository
       .createQueryBuilder()
@@ -352,6 +474,21 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
       .where("product.branch_id = :branchId", { branchId })
       .andWhere("product.imported = :imported", { imported: false })
       .getCount();
+  }
+
+  private async findProductsByBranchPaginated(
+    branchId: number,
+    offset: number,
+    limit: number,
+  ) {
+    return this.productRepository
+      .createQueryBuilder("product")
+      .where("product.branch_id = :branchId", { branchId })
+      .andWhere("product.imported = :imported", { imported: false })
+      .orderBy("product.id", "ASC")
+      .skip(offset)
+      .take(limit)
+      .getMany();
   }
 
   private getProductSkuKeys(product: Product) {

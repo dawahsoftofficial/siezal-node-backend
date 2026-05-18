@@ -29,7 +29,7 @@ import { UpdateProductBodyDto } from "../dto/product-update.dto";
 import { SuccessResponse } from "src/common/utils/api-response.util";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { ProductBulkSyncDto } from "../dto/product-bulk-sync.dto";
-import { BulkDeleteProductsDto } from "../dto/product-bulk-delete.dto";
+import { BulkDeleteProductsDto, BulkDeleteByBranchDto } from "../dto/product-bulk-delete.dto";
 import { ProductImagesBulkUploadDto } from "../dto/product-images-bulk-upload.dto";
 import { ProductLinkImagesQueryDto } from "../dto/product-link-images.dto";
 import {
@@ -203,6 +203,21 @@ export class AdminProductController {
     @Post("/bulk-delete")
     async bulkDeleteProducts(@Body() body: BulkDeleteProductsDto) {
         const deleted = await this.productService.bulkDeleteByDateRange(body.dateRange);
+        return SuccessResponse("Products deleted successfully", { deleted });
+    }
+
+    @GenerateSwaggerDoc({
+        summary: "Bulk delete products by branch (or products with no branch)",
+        responses: [
+            { status: HttpStatus.OK, type: SuccessResponseSingleObjectDto },
+            { status: HttpStatus.BAD_REQUEST },
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        ],
+    })
+    @HttpCode(HttpStatus.OK)
+    @Post("/bulk-delete-by-branch")
+    async bulkDeleteProductsByBranch(@Body() body: BulkDeleteByBranchDto) {
+        const deleted = await this.productService.bulkDeleteByBranch(body.branchId);
         return SuccessResponse("Products deleted successfully", { deleted });
     }
 

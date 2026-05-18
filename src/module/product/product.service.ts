@@ -102,7 +102,9 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       qb.andWhere("category.slug = :slug", { slug: filters.category });
     }
 
-    if (filters.branchId) {
+    if (filters.generalOnly) {
+      qb.andWhere("product.branchId IS NULL");
+    } else if (filters.branchId) {
       qb.andWhere("product.branchId = :branchId", {
         branchId: filters.branchId,
       });
@@ -429,6 +431,14 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     const result = await this.productRepository.delete({
       createdAt: Between(startDate, endDate),
     });
+
+    return result.affected || 0;
+  }
+
+  async bulkDeleteByBranch(branchId?: number): Promise<number> {
+    const result = await this.productRepository.delete(
+      branchId !== undefined ? { branchId } : { branchId: null as any },
+    );
 
     return result.affected || 0;
   }
