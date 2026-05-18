@@ -30,6 +30,7 @@ export interface IBranch {
   email?: string | null;
   isActive: boolean;
   isEcommerceEnabled: boolean;
+  isPrimary: boolean;
   weeklySchedule?: IBranchWeeklySchedule | null;
   serviceArea?: IBranchServiceAreaPoint[] | null;
   createdAt?: Date | string;
