@@ -7,6 +7,7 @@ import { IBranch } from "src/module/branch/interface/branch.interface";
 export interface IProduct extends IEntityBase {
   sku?: string[];
   imported: boolean;
+  importedNew: boolean;
   title: string;
   slug: string;
   shortDescription?: string;

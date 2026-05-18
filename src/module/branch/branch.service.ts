@@ -15,8 +15,11 @@ type BranchProductSyncResult = {
   sourceBranchId: number;
   targetBranchId: number;
   scanned: number;
+  targetBefore: number;
+  targetAfter: number;
   created: number;
   updated: number;
+  unchanged: number;
   skipped: number;
 };
 
@@ -185,38 +188,61 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
     await this.assertBranchExists(sourceBranchId);
     await this.assertBranchExists(targetBranchId);
 
-    const [sourceProducts, targetProducts] = await Promise.all([
-      this.productRepository.find({ where: { branchId: sourceBranchId } }),
-      this.productRepository.find({ where: { branchId: targetBranchId } }),
+    const [sourceProducts, targetProducts, targetBefore] = await Promise.all([
+      this.findProductsByBranch(sourceBranchId),
+      this.findProductsByBranch(targetBranchId),
+      this.countProductsByBranch(targetBranchId),
     ]);
 
     const targetBySku = new Map<string, Product>();
+    const targetByInventoryId = new Map<number, Product>();
 
     targetProducts.forEach(product => {
-      const skuKey = this.getProductSkuKey(product);
+      this.getProductSkuKeys(product).forEach(skuKey => {
+        if (!targetBySku.has(skuKey)) {
+          targetBySku.set(skuKey, product);
+        }
+      });
 
-      if (skuKey && !targetBySku.has(skuKey)) {
-        targetBySku.set(skuKey, product);
+      if (product.inventoryId && !targetByInventoryId.has(product.inventoryId)) {
+        targetByInventoryId.set(product.inventoryId, product);
       }
     });
 
     let created = 0;
     let updated = 0;
+    let unchanged = 0;
     let skipped = 0;
     const productsToSave: Product[] = [];
 
     sourceProducts.forEach(sourceProduct => {
-      const skuKey = this.getProductSkuKey(sourceProduct);
+      const skuKeys = this.getProductSkuKeys(sourceProduct);
 
-      if (!skuKey) {
-        skipped += 1;
+      // Try matching by SKU first, then fall back to inventoryId so that
+      // products without a valid SKU are not silently skipped.
+      let targetProduct: Product | undefined = skuKeys
+        .map(skuKey => targetBySku.get(skuKey))
+        .find(
+          (product): product is Product =>
+            product !== undefined && product.branchId === targetBranchId,
+        );
 
-        return;
+      if (!targetProduct && sourceProduct.inventoryId) {
+        targetProduct = targetByInventoryId.get(sourceProduct.inventoryId);
       }
 
-      const targetProduct = targetBySku.get(skuKey);
-
       if (targetProduct) {
+        const hasChanges =
+          targetProduct.image !== sourceProduct.image ||
+          targetProduct.title !== sourceProduct.title ||
+          targetProduct.categoryId !== sourceProduct.categoryId;
+
+        if (!hasChanges) {
+          unchanged += 1;
+
+          return;
+        }
+
         targetProduct.image = sourceProduct.image;
         targetProduct.title = sourceProduct.title;
         targetProduct.categoryId = sourceProduct.categoryId;
@@ -234,12 +260,17 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
       await this.productRepository.save(productsToSave);
     }
 
+    const targetAfter = await this.countProductsByBranch(targetBranchId);
+
     return {
       sourceBranchId,
       targetBranchId,
       scanned: sourceProducts.length,
+      targetBefore,
+      targetAfter,
       created,
       updated,
+      unchanged,
       skipped,
     };
   }
@@ -278,6 +309,7 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
       branchesSynced: results.length,
       created: results.reduce((sum, result) => sum + result.created, 0),
       updated: results.reduce((sum, result) => sum + result.updated, 0),
+      unchanged: results.reduce((sum, result) => sum + result.unchanged, 0),
       skipped: results.reduce((sum, result) => sum + result.skipped, 0),
       results,
     };
@@ -305,10 +337,34 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
     }
   }
 
-  private getProductSkuKey(product: Product) {
-    const sku = Array.isArray(product.sku) ? product.sku[0] : undefined;
+  private async findProductsByBranch(branchId: number) {
+    return this.productRepository
+      .createQueryBuilder("product")
+      .where("product.branch_id = :branchId", { branchId })
+      .andWhere("product.imported = :imported", { imported: false })
+      .getMany();
+  }
 
-    return typeof sku === "string" ? sku.trim().toLowerCase() : "";
+  private async countProductsByBranch(branchId: number) {
+    return this.productRepository
+      .createQueryBuilder("product")
+      .where("product.branch_id = :branchId", { branchId })
+      .andWhere("product.imported = :imported", { imported: false })
+      .getCount();
+  }
+
+  private getProductSkuKeys(product: Product) {
+    if (!Array.isArray(product.sku)) {
+      return [];
+    }
+
+    return Array.from(
+      new Set(
+        product.sku
+          .map(sku => String(sku).trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    );
   }
 
   private createProductForBranch(sourceProduct: Product, branchId: number) {

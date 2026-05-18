@@ -688,6 +688,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       image:
         template?.image || "https://siezal-next.vercel.app/placeholder.svg",
       imported: true,
+      importedNew: true,
     } as Product);
   }
 
@@ -804,6 +805,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
                 ? existing.stockQuantity
                 : 0;
           existing.imported = true;
+          existing.importedNew = false;
           toSave.push(existing);
           updated += 1;
           continue;
