@@ -195,7 +195,7 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
     ]);
 
     const targetBySku = new Map<string, Product>();
-    const targetByInventoryId = new Map<number, Product>();
+    const targetBySlug = new Map<string, Product>();
 
     targetProducts.forEach(product => {
       this.getProductSkuKeys(product).forEach(skuKey => {
@@ -204,8 +204,8 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
         }
       });
 
-      if (product.inventoryId && !targetByInventoryId.has(product.inventoryId)) {
-        targetByInventoryId.set(product.inventoryId, product);
+      if (product.slug && !targetBySlug.has(product.slug)) {
+        targetBySlug.set(product.slug, product);
       }
     });
 
@@ -218,8 +218,9 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
     sourceProducts.forEach(sourceProduct => {
       const skuKeys = this.getProductSkuKeys(sourceProduct);
 
-      // Try matching by SKU first, then fall back to inventoryId so that
-      // products without a valid SKU are not silently skipped.
+      // Match by SKU when available; fall back to slug for products without a
+      // valid SKU so they are never silently skipped. Slug is reliable because
+      // createProductForBranch copies it verbatim from the source product.
       let targetProduct: Product | undefined = skuKeys
         .map(skuKey => targetBySku.get(skuKey))
         .find(
@@ -227,8 +228,8 @@ export class BranchService extends BaseSqlService<Branch, IBranch> {
             product !== undefined && product.branchId === targetBranchId,
         );
 
-      if (!targetProduct && sourceProduct.inventoryId) {
-        targetProduct = targetByInventoryId.get(sourceProduct.inventoryId);
+      if (!targetProduct && sourceProduct.slug) {
+        targetProduct = targetBySlug.get(sourceProduct.slug);
       }
 
       if (targetProduct) {
