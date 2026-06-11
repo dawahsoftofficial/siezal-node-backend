@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Min,
   ValidateIf,
 } from "class-validator";
@@ -15,9 +16,18 @@ import { EInventoryStatus } from "src/common/enums/inventory-status.enum";
 import { EProductUnit } from "src/common/enums/product-unit.enum";
 
 export class CreateVendorProductDto {
-  @ApiProperty({ example: "SZ-001", description: "Vendor SKU identifier" })
+  @ApiProperty({
+    example: "SZ-001",
+    description: "Single vendor SKU identifier. Comma-separated values are not accepted.",
+  })
+  @Transform(({ value }) =>
+    typeof value === "string" ? value.trim() : value
+  )
   @IsString()
   @IsNotEmpty()
+  @Matches(/^[^,]+$/, {
+    message: "sku must contain a single value without commas",
+  })
   sku: string;
 
   @ApiProperty({ example: "Imported Product", description: "Product title" })
@@ -70,7 +80,11 @@ export class CreateVendorProductDto {
   @Min(0)
   salePrice?: number | null;
 
-  @ApiProperty({ example: 12, description: "Available stock quantity" })
+  @ApiProperty({
+    example: 12,
+    description:
+      "Available stock quantity. A value of 0 automatically sets status to out_of_stock.",
+  })
   @Type(() => Number)
   @IsInt()
   @Min(0)
@@ -80,14 +94,14 @@ export class CreateVendorProductDto {
   @IsEnum(EInventoryStatus)
   status: EInventoryStatus;
 
-  @ApiPropertyOptional({ example: null, nullable: true, description: "Optional branch ID" })
-  @Transform(({ value }) =>
-    value === null || value === undefined || value === "" ? null : Number(value)
-  )
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null)
+  @ApiProperty({
+    example: 1,
+    description: "Branch ID for this product",
+  })
+  @Type(() => Number)
   @IsInt()
-  branchId?: number | null;
+  @Min(1)
+  branchId: number;
 
   @ApiPropertyOptional({ example: 1, description: "Inventory ID, defaults to 1" })
   @Type(() => Number)

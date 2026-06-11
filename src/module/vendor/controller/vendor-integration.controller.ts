@@ -182,7 +182,7 @@ export class VendorIntegrationController {
   }
 
   @GenerateSwaggerDoc({
-    summary: "Update imported product by SKU for vendor, or create it if missing",
+    summary: "Partially update an existing imported product by SKU and branch",
     responses: [{ status: HttpStatus.OK, type: SuccessResponseSingleObjectDto }],
   })
   @HttpCode(HttpStatus.OK)
@@ -194,31 +194,29 @@ export class VendorIntegrationController {
     @Body() body: UpdateVendorProductDto,
   ) {
     try {
-      const { product, created } = await this.productService.upsertImportedVendorProductBySku(
+      const product = await this.productService.updateImportedVendorProductBySku(
         params.sku,
         body,
       );
 
       await this.vendorService.createLog({
         vendorId: req.vendor.vendorId,
-        type: created ? "product_create" : "product_update",
+        type: "product_update",
         endpoint: `/v1/integrations/vendor/products/${params.sku}`,
         method: "PATCH",
         requestPayload: body,
         responsePayload: {
           productId: product.id,
-          sku: body.sku ?? params.sku,
-          action: created ? "created" : "updated",
+          sku: params.sku,
+          branchId: body.branchId,
+          action: "updated",
         },
         statusCode: HttpStatus.OK,
         success: true,
         errorMessage: null,
       });
 
-      return SuccessResponse(
-        created ? "Product created successfully" : "Product updated successfully",
-        product,
-      );
+      return SuccessResponse("Product updated successfully", product);
     } catch (error) {
       const statusCode =
         error instanceof HttpException ? error.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
