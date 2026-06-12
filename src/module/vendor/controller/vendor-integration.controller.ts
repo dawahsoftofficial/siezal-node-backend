@@ -146,19 +146,10 @@ export class VendorIntegrationController {
   @Post("/products")
   async createProduct(@Req() req: VendorRequest, @Body() body: CreateVendorProductDto) {
     try {
-      const product = await this.productService.createImportedVendorProduct(body);
-
-      await this.vendorService.createLog({
-        vendorId: req.vendor.vendorId,
-        type: "product_create",
-        endpoint: "/v1/integrations/vendor/products",
-        method: "POST",
-        requestPayload: body,
-        responsePayload: { productId: product.id, sku: body.sku },
-        statusCode: HttpStatus.OK,
-        success: true,
-        errorMessage: null,
-      });
+      const product = await this.vendorService.createVendorProductWithAudit(
+        req.vendor,
+        body,
+      );
 
       return SuccessResponse("Product created successfully", product);
     } catch (error) {
@@ -194,27 +185,11 @@ export class VendorIntegrationController {
     @Body() body: UpdateVendorProductDto,
   ) {
     try {
-      const product = await this.productService.updateImportedVendorProductBySku(
+      const product = await this.vendorService.updateVendorProductWithAudit(
+        req.vendor,
         params.sku,
         body,
       );
-
-      await this.vendorService.createLog({
-        vendorId: req.vendor.vendorId,
-        type: "product_update",
-        endpoint: `/v1/integrations/vendor/products/${params.sku}`,
-        method: "PATCH",
-        requestPayload: body,
-        responsePayload: {
-          productId: product.id,
-          sku: params.sku,
-          branchId: body.branchId,
-          action: "updated",
-        },
-        statusCode: HttpStatus.OK,
-        success: true,
-        errorMessage: null,
-      });
 
       return SuccessResponse("Product updated successfully", product);
     } catch (error) {

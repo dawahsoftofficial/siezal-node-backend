@@ -9,7 +9,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { BaseSqlService } from "src/core/base/services/sql.base.service";
 import { Product } from "src/database/entities/product.entity";
-import { Between, Brackets, In, Repository } from "typeorm";
+import { Between, Brackets, EntityManager, In, Repository } from "typeorm";
 import type { SelectQueryBuilder } from "typeorm";
 import { IProduct } from "./interface/product.interface";
 import {
@@ -562,8 +562,12 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
   private async findVendorProductBySkuAndBranch(
     sku: string,
     branchId: number,
+    manager?: EntityManager,
   ): Promise<Product | null> {
-    const products = await this.productRepository
+    const productRepository = manager
+      ? manager.getRepository(Product)
+      : this.productRepository;
+    const products = await productRepository
       .createQueryBuilder("product")
       .where("product.branchId = :branchId", { branchId })
       .andWhere(
@@ -888,8 +892,14 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     };
   }
 
-  private async resolveImportedCategoryId(categorySlug: string) {
-    const category = await this.categoryRepository.findOne({
+  private async resolveImportedCategoryId(
+    categorySlug: string,
+    manager?: EntityManager,
+  ) {
+    const categoryRepository = manager
+      ? manager.getRepository(Category)
+      : this.categoryRepository;
+    const category = await categoryRepository.findOne({
       where: { slug: categorySlug.trim().toLowerCase() },
       select: ["id", "slug"],
     });
@@ -901,9 +911,15 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     return category.id;
   }
 
-  private async ensureBranchExists(branchId?: number | null) {
+  private async ensureBranchExists(
+    branchId?: number | null,
+    manager?: EntityManager,
+  ) {
     if (branchId) {
-      const branch = await this.branchRepository.findOne({
+      const branchRepository = manager
+        ? manager.getRepository(Branch)
+        : this.branchRepository;
+      const branch = await branchRepository.findOne({
         where: { id: branchId },
       });
 
@@ -915,14 +931,16 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
 
   async createImportedVendorProduct(
     body: CreateVendorProductDto,
+    manager?: EntityManager,
   ): Promise<IProduct> {
     const sku = body.sku.trim();
 
-    await this.ensureBranchExists(body.branchId);
+    await this.ensureBranchExists(body.branchId, manager);
 
     const existing = await this.findVendorProductBySkuAndBranch(
       sku,
       body.branchId,
+      manager,
     );
 
     if (existing) {
@@ -931,45 +949,58 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       );
     }
 
-    const categoryId = await this.resolveImportedCategoryId(body.categorySlug);
+    const categoryId = await this.resolveImportedCategoryId(
+      body.categorySlug,
+      manager,
+    );
 
-    return this.create({
-      sku: [sku],
-      title: body.title,
-      slug: body.slug || slugify(body.title, { lower: true, strict: true }),
-      shortDescription: body.shortDescription ?? undefined,
-      description: body.description ?? undefined,
-      seoTitle: body.seoTitle ?? undefined,
-      seoDescription: body.seoDescription ?? undefined,
-      price: body.price,
-      salePrice: body.salePrice ?? null,
-      stockQuantity: body.stockQuantity,
-      status:
-        body.stockQuantity === 0
-          ? EInventoryStatus.OUT_OF_STOCK
-          : body.status,
-      categoryId,
-      branchId: body.branchId,
-      inventoryId: body.inventoryId ?? 1,
-      unit: body.unit,
-      isGstEnabled: body.isGstEnabled,
-      gstFee: body.isGstEnabled ? body.gstFee ?? null : null,
-      image: body.image || "https://siezal-next.vercel.app/placeholder.svg",
-      imported: true,
-    });
+    return this.create(
+      {
+        sku: [sku],
+        title: body.title,
+        slug: body.slug || slugify(body.title, { lower: true, strict: true }),
+        shortDescription: body.shortDescription ?? undefined,
+        description: body.description ?? undefined,
+        seoTitle: body.seoTitle ?? undefined,
+        seoDescription: body.seoDescription ?? undefined,
+        price: body.price,
+        salePrice: body.salePrice ?? null,
+        stockQuantity: body.stockQuantity,
+        status:
+          body.stockQuantity === 0
+            ? EInventoryStatus.OUT_OF_STOCK
+            : body.status,
+        categoryId,
+        branchId: body.branchId,
+        inventoryId: body.inventoryId ?? 1,
+        unit: body.unit,
+        isGstEnabled: body.isGstEnabled,
+        gstFee: body.isGstEnabled ? body.gstFee ?? null : null,
+        image: body.image || "https://siezal-next.vercel.app/placeholder.svg",
+        imported: true,
+      },
+      manager,
+    );
   }
 
   private async updateImportedVendorProduct(
     product: Product,
     body: UpdateVendorProductDto,
+    manager?: EntityManager,
   ): Promise<IProduct> {
     let relationPayload: { categoryId?: number } = {};
 
     if (body.categorySlug) {
-      relationPayload.categoryId = await this.resolveImportedCategoryId(body.categorySlug);
+      relationPayload.categoryId = await this.resolveImportedCategoryId(
+        body.categorySlug,
+        manager,
+      );
     }
 
-    const updatedProduct = this.productRepository.merge(product, {
+    const productRepository = manager
+      ? manager.getRepository(Product)
+      : this.productRepository;
+    const updatedProduct = productRepository.merge(product, {
       ...(body.title !== undefined ? { title: body.title } : {}),
       ...(body.slug !== undefined
         ? { slug: body.slug || slugify(body.title || product.title, { lower: true, strict: true }) }
@@ -999,18 +1030,20 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       updatedProduct.gstFee = null;
     }
 
-    return this.productRepository.save(updatedProduct);
+    return productRepository.save(updatedProduct);
   }
 
-  async updateImportedVendorProductBySku(
+  async updateImportedVendorProductBySkuWithPrevious(
     sku: string,
     body: UpdateVendorProductDto,
-  ): Promise<IProduct> {
-    await this.ensureBranchExists(body.branchId);
+    manager?: EntityManager,
+  ): Promise<{ product: IProduct; previous: IProduct }> {
+    await this.ensureBranchExists(body.branchId, manager);
 
     const product = await this.findVendorProductBySkuAndBranch(
       sku.trim(),
       body.branchId,
+      manager,
     );
 
     if (!product) {
@@ -1019,7 +1052,27 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       );
     }
 
-    return this.updateImportedVendorProduct(product, body);
+    const previous = {
+      ...product,
+      sku: product.sku ? [...product.sku] : product.sku,
+    } as IProduct;
+
+    return {
+      product: await this.updateImportedVendorProduct(product, body, manager),
+      previous,
+    };
+  }
+
+  async updateImportedVendorProductBySku(
+    sku: string,
+    body: UpdateVendorProductDto,
+  ): Promise<IProduct> {
+    const { product } = await this.updateImportedVendorProductBySkuWithPrevious(
+      sku,
+      body,
+    );
+
+    return product;
   }
 
   async bulkSync(products: ProductBulkSyncItemDto[]) {
