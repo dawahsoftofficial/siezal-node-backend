@@ -117,6 +117,7 @@ export class VendorIntegrationController {
       query.limit,
       {
         q: query.q,
+        branchId: query.branchId,
         imported: true,
       },
       true,

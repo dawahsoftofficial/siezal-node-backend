@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString } from "class-validator";
+import { Type } from "class-transformer";
+import { IsInt, IsOptional, IsPositive, IsString } from "class-validator";
 import { PaginationDto } from "src/common/dto/pagination.dto";
 
 export class VendorProductListDto extends PaginationDto {
@@ -10,4 +11,14 @@ export class VendorProductListDto extends PaginationDto {
   @IsOptional()
   @IsString()
   q?: string;
+
+  @ApiPropertyOptional({
+    description: "Branch ID to filter imported products by",
+    example: 3,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  branchId?: number;
 }

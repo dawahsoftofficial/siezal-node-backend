@@ -1,6 +1,7 @@
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { UpdateVendorProductDto } from "./update-vendor-product.dto";
+import { VendorProductListDto } from "./vendor-product-list.dto";
 import { CreateVendorProductDto } from "./vendor-product.dto";
 import { VendorProductParamDto } from "./vendor-product-param.dto";
 
@@ -51,5 +52,15 @@ describe("Vendor product DTO validation", () => {
     });
 
     expect(errors.some((error) => error.property === "sku")).toBe(true);
+  });
+
+  it("accepts branchId for product list filters", async () => {
+    const dto = plainToInstance(VendorProductListDto, {
+      branchId: "3",
+    });
+    const errors = await validate(dto);
+
+    expect(dto.branchId).toBe(3);
+    expect(errors.some((error) => error.property === "branchId")).toBe(false);
   });
 });
