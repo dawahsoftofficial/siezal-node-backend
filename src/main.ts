@@ -62,7 +62,13 @@ async function bootstrap() {
     next();
   });
 
-  if (process.env.NODE_ENV !== "prod") {
+  // Swagger is mounted on every non-prod environment, and on prod only when
+  // explicitly opted in via ENABLE_SWAGGER=true. On prod we expose ONLY the
+  // vendor docs (/vendor-docs); the full internal docs (/docs) stay hidden.
+  const isProd = process.env.NODE_ENV === "prod";
+  const swaggerEnabled = !isProd || process.env.ENABLE_SWAGGER === "true";
+
+  if (swaggerEnabled) {
     // Swagger Configuration
     const config = new DocumentBuilder()
       .setTitle("Siezal API Docs")
@@ -83,8 +89,11 @@ async function bootstrap() {
       jsonDocumentUrl: "vendor-docs-json",
     };
 
-    // Setup Swagger Module
-    SwaggerModule.setup("docs", app, document);
+    // Setup Swagger Module. The full API docs are non-prod only; vendor docs
+    // are always mounted whenever Swagger is enabled (incl. prod opt-in).
+    if (!isProd) {
+      SwaggerModule.setup("docs", app, document);
+    }
     SwaggerModule.setup("vendor-docs", app, vendorDocument, vendorSwaggerOptions);
   }
 
