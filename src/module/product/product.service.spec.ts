@@ -4,22 +4,11 @@ import { EProductUnit } from "src/common/enums/product-unit.enum";
 import { ProductService } from "./product.service";
 
 describe("ProductService vendor SKU handling", () => {
-  const createQueryBuilder = (products: any[]) => {
-    let importedOnly = false;
-    const qb: any = {
-      where: jest.fn(() => qb),
-      andWhere: jest.fn((clause: string) => {
-        if (typeof clause === "string" && clause.includes("product.imported")) {
-          importedOnly = true;
-        }
-        return qb;
-      }),
-      getMany: jest.fn(async () =>
-        importedOnly ? products.filter((p: any) => p.imported === true) : products,
-      ),
-    };
-    return qb;
-  };
+  const createQueryBuilder = (products: object[]) => ({
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue(products),
+  });
 
   const createService = (products: object[] = []) => {
     const queryBuilder = createQueryBuilder(products);
@@ -85,7 +74,6 @@ describe("ProductService vendor SKU handling", () => {
       stockQuantity: 5,
       status: EInventoryStatus.AVAILABLE,
       isGstEnabled: false,
-      imported: true,
     };
     const { service, queryBuilder } = createService([product]);
 
@@ -107,35 +95,27 @@ describe("ProductService vendor SKU handling", () => {
     );
   });
 
-  it("scopes the vendor update to imported products when a native duplicate shares the SKU", async () => {
-    const nativeDuplicate = {
+  it("updates a non-imported product without flipping its imported flag", async () => {
+    const product = {
       id: 1,
       branchId: 2,
-      sku: ["56894521314550"],
-      title: "Native catalog product",
-      imported: false,
-    };
-    const importedProduct = {
-      id: 2,
-      branchId: 2,
-      sku: ["56894521314550"],
-      title: "Vendor imported product",
+      sku: ["PRIMARY"],
+      title: "Native Product",
       stockQuantity: 5,
       status: EInventoryStatus.AVAILABLE,
       isGstEnabled: false,
-      imported: true,
+      imported: false,
     };
-    const { service } = createService([nativeDuplicate, importedProduct]);
+    const { service } = createService([product]);
 
-    const result = await service.updateImportedVendorProductBySku("56894521314550", {
+    const result = await service.updateImportedVendorProductBySku("PRIMARY", {
       branchId: 2,
       price: 120,
     });
 
-    // Must resolve to the imported product, not 409 on the native duplicate.
-    expect(result.id).toBe(2);
-    expect(result.imported).toBe(true);
+    // PATCH works on non-imported products and must not flip imported to true.
     expect(Number(result.price)).toBe(120);
+    expect(result.imported).toBe(false);
   });
 
   it("returns not found instead of creating through PATCH", async () => {
@@ -153,8 +133,8 @@ describe("ProductService vendor SKU handling", () => {
 
   it("rejects ambiguous SKU matches within the same branch", async () => {
     const { service } = createService([
-      { id: 1, branchId: 2, sku: ["DUPLICATE"], imported: true },
-      { id: 2, branchId: 2, sku: ["DUPLICATE"], imported: true },
+      { id: 1, branchId: 2, sku: ["DUPLICATE"] },
+      { id: 2, branchId: 2, sku: ["DUPLICATE"] },
     ]);
 
     await expect(

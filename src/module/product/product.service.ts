@@ -563,27 +563,18 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     sku: string,
     branchId: number,
     manager?: EntityManager,
-    importedOnly = false,
   ): Promise<Product | null> {
     const productRepository = manager
       ? manager.getRepository(Product)
       : this.productRepository;
-    const qb = productRepository
+    const products = await productRepository
       .createQueryBuilder("product")
       .where("product.branchId = :branchId", { branchId })
       .andWhere(
         "JSON_SEARCH(product.sku, 'one', :sku, NULL, '$[*]') IS NOT NULL",
         { sku: sku.trim() },
-      );
-
-    // Vendor updates manage only imported products. A native catalog row can
-    // legitimately share the same SKU in the same branch; scoping to imported
-    // products prevents a false "multiple products" conflict on update.
-    if (importedOnly) {
-      qb.andWhere("product.imported = :imported", { imported: true });
-    }
-
-    const products = await qb.getMany();
+      )
+      .getMany();
 
     if (products.length > 1) {
       throw new ConflictException(
@@ -1056,7 +1047,6 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       sku.trim(),
       body.branchId,
       manager,
-      true,
     );
 
     if (!product) {
