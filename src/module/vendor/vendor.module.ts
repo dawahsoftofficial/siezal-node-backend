@@ -6,6 +6,7 @@ import { Category } from "src/database/entities/category.entity";
 import { Product } from "src/database/entities/product.entity";
 import { Vendor } from "src/database/entities/vendor.entity";
 import { VendorLog } from "src/database/entities/vendor-log.entity";
+import { VendorProductAudit } from "src/database/entities/vendor-product-audit.entity";
 import { VendorAdminController } from "./controller/vendor-admin.controller";
 import { VendorIntegrationController } from "./controller/vendor-integration.controller";
 import { VendorAuthGuard } from "./guard/vendor-auth.guard";
@@ -15,7 +16,14 @@ import { BranchModule } from "../branch/branch.module";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Vendor, VendorLog, Product, Category, Branch]),
+    TypeOrmModule.forFeature([
+      Vendor,
+      VendorLog,
+      VendorProductAudit,
+      Product,
+      Category,
+      Branch,
+    ]),
     JwtModule,
     ProductModule,
     BranchModule,

@@ -117,6 +117,7 @@ export class VendorIntegrationController {
       query.limit,
       {
         q: query.q,
+        branchId: query.branchId,
         imported: true,
       },
       true,
@@ -146,19 +147,10 @@ export class VendorIntegrationController {
   @Post("/products")
   async createProduct(@Req() req: VendorRequest, @Body() body: CreateVendorProductDto) {
     try {
-      const product = await this.productService.createImportedVendorProduct(body);
-
-      await this.vendorService.createLog({
-        vendorId: req.vendor.vendorId,
-        type: "product_create",
-        endpoint: "/v1/integrations/vendor/products",
-        method: "POST",
-        requestPayload: body,
-        responsePayload: { productId: product.id, sku: body.sku },
-        statusCode: HttpStatus.OK,
-        success: true,
-        errorMessage: null,
-      });
+      const product = await this.vendorService.createVendorProductWithAudit(
+        req.vendor,
+        body,
+      );
 
       return SuccessResponse("Product created successfully", product);
     } catch (error) {
@@ -182,7 +174,7 @@ export class VendorIntegrationController {
   }
 
   @GenerateSwaggerDoc({
-    summary: "Update imported product by SKU for vendor, or create it if missing",
+    summary: "Partially update an existing imported product by SKU and branch",
     responses: [{ status: HttpStatus.OK, type: SuccessResponseSingleObjectDto }],
   })
   @HttpCode(HttpStatus.OK)
@@ -194,31 +186,13 @@ export class VendorIntegrationController {
     @Body() body: UpdateVendorProductDto,
   ) {
     try {
-      const { product, created } = await this.productService.upsertImportedVendorProductBySku(
+      const product = await this.vendorService.updateVendorProductWithAudit(
+        req.vendor,
         params.sku,
         body,
       );
 
-      await this.vendorService.createLog({
-        vendorId: req.vendor.vendorId,
-        type: created ? "product_create" : "product_update",
-        endpoint: `/v1/integrations/vendor/products/${params.sku}`,
-        method: "PATCH",
-        requestPayload: body,
-        responsePayload: {
-          productId: product.id,
-          sku: body.sku ?? params.sku,
-          action: created ? "created" : "updated",
-        },
-        statusCode: HttpStatus.OK,
-        success: true,
-        errorMessage: null,
-      });
-
-      return SuccessResponse(
-        created ? "Product created successfully" : "Product updated successfully",
-        product,
-      );
+      return SuccessResponse("Product updated successfully", product);
     } catch (error) {
       const statusCode =
         error instanceof HttpException ? error.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;

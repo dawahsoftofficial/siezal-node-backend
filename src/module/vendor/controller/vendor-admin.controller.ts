@@ -20,6 +20,7 @@ import { CreateVendorDto, UpdateVendorDto } from "../dto/create-vendor.dto";
 import { ListVendorDto } from "../dto/list-vendor.dto";
 import { VendorLogListDto } from "../dto/vendor-log-list.dto";
 import { VendorParamDto } from "../dto/vendor-param.dto";
+import { VendorProductHistoryParamDto } from "../dto/vendor-product-history-param.dto";
 import { VendorService } from "../vendor.service";
 
 @ApiTags("Admin vendors")
@@ -112,6 +113,25 @@ export class VendorAdminController {
   async logs(@Param() params: VendorParamDto, @Query() query: VendorLogListDto) {
     const { data, pagination } = await this.vendorService.listLogs(
       params.id,
+      query.page,
+      query.limit,
+    );
+
+    return SuccessResponse("Data fetch successfully", data, undefined, pagination);
+  }
+
+  @GenerateSwaggerDoc({
+    summary: "Get vendor API history for a product",
+    responses: [{ status: HttpStatus.OK, type: SuccessResponseArrayDto }],
+  })
+  @HttpCode(HttpStatus.OK)
+  @Get("/products/:productId/history")
+  async productHistory(
+    @Param() params: VendorProductHistoryParamDto,
+    @Query() query: VendorLogListDto,
+  ) {
+    const { data, pagination } = await this.vendorService.listProductHistory(
+      params.productId,
       query.page,
       query.limit,
     );
