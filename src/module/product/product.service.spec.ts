@@ -95,6 +95,29 @@ describe("ProductService vendor SKU handling", () => {
     );
   });
 
+  it("updates a non-imported product without flipping its imported flag", async () => {
+    const product = {
+      id: 1,
+      branchId: 2,
+      sku: ["PRIMARY"],
+      title: "Native Product",
+      stockQuantity: 5,
+      status: EInventoryStatus.AVAILABLE,
+      isGstEnabled: false,
+      imported: false,
+    };
+    const { service } = createService([product]);
+
+    const result = await service.updateImportedVendorProductBySku("PRIMARY", {
+      branchId: 2,
+      price: 120,
+    });
+
+    // PATCH works on non-imported products and must not flip imported to true.
+    expect(Number(result.price)).toBe(120);
+    expect(result.imported).toBe(false);
+  });
+
   it("returns not found instead of creating through PATCH", async () => {
     const { service, productRepository } = createService();
 

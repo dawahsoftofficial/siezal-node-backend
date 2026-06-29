@@ -1023,7 +1023,10 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       ...(body.gstFee !== undefined ? { gstFee: body.gstFee } : {}),
       ...(body.image !== undefined ? { image: body.image } : {}),
       ...relationPayload,
-      imported: true,
+      // Do NOT set `imported` here: a partial vendor update must preserve the
+      // product's existing provenance. Only the create path marks a product as
+      // imported. Forcing it here flipped native (imported=false) products to
+      // imported=true on any PATCH.
     });
 
     if (body.isGstEnabled === false) {
