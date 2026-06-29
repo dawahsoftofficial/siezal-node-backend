@@ -563,18 +563,27 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
     sku: string,
     branchId: number,
     manager?: EntityManager,
+    importedOnly = false,
   ): Promise<Product | null> {
     const productRepository = manager
       ? manager.getRepository(Product)
       : this.productRepository;
-    const products = await productRepository
+    const qb = productRepository
       .createQueryBuilder("product")
       .where("product.branchId = :branchId", { branchId })
       .andWhere(
         "JSON_SEARCH(product.sku, 'one', :sku, NULL, '$[*]') IS NOT NULL",
         { sku: sku.trim() },
-      )
-      .getMany();
+      );
+
+    // Vendor updates manage only imported products. A native catalog row can
+    // legitimately share the same SKU in the same branch; scoping to imported
+    // products prevents a false "multiple products" conflict on update.
+    if (importedOnly) {
+      qb.andWhere("product.imported = :imported", { imported: true });
+    }
+
+    const products = await qb.getMany();
 
     if (products.length > 1) {
       throw new ConflictException(
@@ -1023,7 +1032,10 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       ...(body.gstFee !== undefined ? { gstFee: body.gstFee } : {}),
       ...(body.image !== undefined ? { image: body.image } : {}),
       ...relationPayload,
-      imported: true,
+      // Do NOT set `imported` here: a partial vendor update must preserve the
+      // product's existing provenance. Only the create path marks a product as
+      // imported. Forcing it here flipped native (imported=false) products to
+      // imported=true on any PATCH.
     });
 
     if (body.isGstEnabled === false) {
@@ -1044,6 +1056,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       sku.trim(),
       body.branchId,
       manager,
+      true,
     );
 
     if (!product) {
