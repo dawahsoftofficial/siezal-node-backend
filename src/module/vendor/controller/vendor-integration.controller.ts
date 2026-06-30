@@ -31,8 +31,21 @@ import { UpdateVendorProductDto } from "../dto/update-vendor-product.dto";
 import { VendorProductParamDto } from "../dto/vendor-product-param.dto";
 import { IVendorTokenPayload } from "../interface/vendor-auth.interface";
 import { VendorProductListDto } from "../dto/vendor-product-list.dto";
+import { IVendorClientInfo } from "../interface/vendor-log.interface";
 
 type VendorRequest = Request & { vendor: IVendorTokenPayload };
+
+function getClientInfo(req: Request): IVendorClientInfo {
+  const forwarded = (req.headers["x-forwarded-for"] as string) || "";
+  const ip =
+    req.ip ||
+    forwarded.split(",")[0]?.trim() ||
+    req.socket?.remoteAddress ||
+    null;
+  const userAgent = (req.headers["user-agent"] as string) || null;
+
+  return { ip: ip || null, userAgent };
+}
 
 @ApiTags("Vendor integrations")
 @PublicRouteController("integrations/vendor")
@@ -52,7 +65,7 @@ export class VendorIntegrationController {
   @ApplyHeader()
   @HttpCode(HttpStatus.OK)
   @Post("/auth/login")
-  async login(@Body() body: VendorLoginDto) {
+  async login(@Req() req: Request, @Body() body: VendorLoginDto) {
     try {
       const result = await this.vendorService.loginVendor(body);
 
@@ -69,6 +82,7 @@ export class VendorIntegrationController {
         statusCode: HttpStatus.OK,
         success: true,
         errorMessage: null,
+        ...getClientInfo(req),
       });
 
       return SuccessResponse("Logged In Successfully", result, {
@@ -99,6 +113,7 @@ export class VendorIntegrationController {
       statusCode: HttpStatus.OK,
       success: true,
       errorMessage: null,
+      ...getClientInfo(req),
     });
 
     return SuccessResponse("Data fetch successfully", data);
@@ -133,6 +148,7 @@ export class VendorIntegrationController {
       statusCode: HttpStatus.OK,
       success: true,
       errorMessage: null,
+      ...getClientInfo(req),
     });
 
     return SuccessResponse("Data fetch successfully", data, undefined, pagination);
@@ -146,10 +162,13 @@ export class VendorIntegrationController {
   @UseGuards(VendorAuthGuard)
   @Post("/products")
   async createProduct(@Req() req: VendorRequest, @Body() body: CreateVendorProductDto) {
+    const client = getClientInfo(req);
+
     try {
       const product = await this.vendorService.createVendorProductWithAudit(
         req.vendor,
         body,
+        client,
       );
 
       return SuccessResponse("Product created successfully", product);
@@ -167,6 +186,7 @@ export class VendorIntegrationController {
         statusCode,
         success: false,
         errorMessage: (error as Error).message,
+        ...client,
       });
 
       throw error;
@@ -185,11 +205,14 @@ export class VendorIntegrationController {
     @Param() params: VendorProductParamDto,
     @Body() body: UpdateVendorProductDto,
   ) {
+    const client = getClientInfo(req);
+
     try {
       const product = await this.vendorService.updateVendorProductWithAudit(
         req.vendor,
         params.sku,
         body,
+        client,
       );
 
       return SuccessResponse("Product updated successfully", product);
@@ -207,6 +230,7 @@ export class VendorIntegrationController {
         statusCode,
         success: false,
         errorMessage: (error as Error).message,
+        ...client,
       });
 
       throw error;

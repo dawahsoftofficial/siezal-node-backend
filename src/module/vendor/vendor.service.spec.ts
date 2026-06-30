@@ -184,4 +184,71 @@ describe("VendorService product auditing", () => {
     expect(auditRepository.save).not.toHaveBeenCalled();
     expect(vendorLogRepository.save).not.toHaveBeenCalled();
   });
+
+  it("persists the vendor IP and user-agent on a log entry", async () => {
+    const { service, vendorLogRepository } = createService();
+
+    await service.createLog({
+      vendorId: 7,
+      type: "login",
+      endpoint: "/v1/integrations/vendor/auth/login",
+      method: "POST",
+      requestPayload: null,
+      responsePayload: null,
+      statusCode: 200,
+      success: true,
+      errorMessage: null,
+      ip: "203.0.113.5",
+      userAgent: "VendorClient/1.0",
+    });
+
+    expect(vendorLogRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ip: "203.0.113.5",
+        userAgent: "VendorClient/1.0",
+      }),
+    );
+  });
+
+  it("filters vendor logs by type and search term", async () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([[{ id: 1 }], 1]),
+    };
+    const vendorRepository = {
+      findOne: jest.fn().mockResolvedValue({ id: 7 }),
+    };
+    const vendorLogRepository = {
+      createQueryBuilder: jest.fn(() => qb),
+    };
+    const service = new VendorService(
+      vendorRepository as never,
+      vendorLogRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await service.listLogs(7, 1, 10, {
+      type: "product_update",
+      q: "products",
+    });
+
+    expect(qb.where).toHaveBeenCalledWith("log.vendorId = :vendorId", {
+      vendorId: 7,
+    });
+    expect(qb.andWhere).toHaveBeenCalledWith("log.type = :type", {
+      type: "product_update",
+    });
+    // one andWhere for the type, a second (Brackets) for the search term
+    expect(qb.andWhere).toHaveBeenCalledTimes(2);
+    expect(qb.getManyAndCount).toHaveBeenCalled();
+    expect(result.pagination.totalItems).toBe(1);
+  });
 });

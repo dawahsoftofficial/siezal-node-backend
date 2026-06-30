@@ -115,6 +115,7 @@ export class VendorAdminController {
       params.id,
       query.page,
       query.limit,
+      { type: query.type, q: query.q },
     );
 
     return SuccessResponse("Data fetch successfully", data, undefined, pagination);
