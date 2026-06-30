@@ -35,4 +35,10 @@ export class VendorLog extends BaseEntity implements IVendorLog {
 
   @Column({ name: "error_message", type: "text", nullable: true })
   errorMessage?: string | null;
+
+  @Column({ name: "ip", type: "varchar", length: 64, nullable: true })
+  ip?: string | null;
+
+  @Column({ name: "user_agent", type: "varchar", length: 512, nullable: true })
+  userAgent?: string | null;
 }

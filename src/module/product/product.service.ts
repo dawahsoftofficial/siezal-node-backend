@@ -559,20 +559,49 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       .getMany();
   }
 
+  /**
+   * SKU values a vendor lookup should treat as equivalent. For numeric SKUs
+   * (barcodes) a single leading zero is optional, so "09932106547411" and
+   * "9932106547411" resolve to the same product. Non-numeric SKUs match exactly.
+   */
+  private buildSkuMatchCandidates(sku: string): string[] {
+    const trimmed = sku.trim();
+
+    if (!/^\d+$/.test(trimmed)) {
+      return [trimmed];
+    }
+
+    const withoutLeadingZeros = trimmed.replace(/^0+/, "") || "0";
+
+    return [...new Set([trimmed, withoutLeadingZeros, `0${withoutLeadingZeros}`])];
+  }
+
   private async findVendorProductBySkuAndBranch(
     sku: string,
     branchId: number,
     manager?: EntityManager,
+    ignoreLeadingZero = false,
   ): Promise<Product | null> {
     const productRepository = manager
       ? manager.getRepository(Product)
       : this.productRepository;
+
+    const candidates = ignoreLeadingZero
+      ? this.buildSkuMatchCandidates(sku)
+      : [sku.trim()];
+
     const products = await productRepository
       .createQueryBuilder("product")
       .where("product.branchId = :branchId", { branchId })
       .andWhere(
-        "JSON_SEARCH(product.sku, 'one', :sku, NULL, '$[*]') IS NOT NULL",
-        { sku: sku.trim() },
+        new Brackets((qb) => {
+          candidates.forEach((candidate, index) => {
+            qb.orWhere(
+              `JSON_SEARCH(product.sku, 'one', :skuCandidate${index}, NULL, '$[*]') IS NOT NULL`,
+              { [`skuCandidate${index}`]: candidate },
+            );
+          });
+        }),
       )
       .getMany();
 
@@ -1047,6 +1076,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       sku.trim(),
       body.branchId,
       manager,
+      true,
     );
 
     if (!product) {

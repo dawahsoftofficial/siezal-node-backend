@@ -12,6 +12,7 @@ import { Vendor } from "src/database/entities/vendor.entity";
 import { VendorLog } from "src/database/entities/vendor-log.entity";
 import { VendorProductAudit } from "src/database/entities/vendor-product-audit.entity";
 import {
+  Brackets,
   DataSource,
   EntityManager,
   FindOptionsWhere,
@@ -20,7 +21,10 @@ import {
 } from "typeorm";
 import { CreateVendorDto, UpdateVendorDto } from "./dto/create-vendor.dto";
 import { IVendor } from "./interface/vendor.interface";
-import { IVendorLog } from "./interface/vendor-log.interface";
+import {
+  IVendorClientInfo,
+  IVendorLog,
+} from "./interface/vendor-log.interface";
 import { generateRandomString, hashString } from "src/common/utils/app.util";
 import { VendorLoginDto } from "./dto/vendor-login.dto";
 import { IVendorTokenPayload } from "./interface/vendor-auth.interface";
@@ -298,6 +302,7 @@ export class VendorService extends BaseSqlService<Vendor, IVendor> {
   async createVendorProductWithAudit(
     vendor: IVendorTokenPayload,
     body: CreateVendorProductDto,
+    client: IVendorClientInfo = {},
   ): Promise<IProduct> {
     return this.dataSource.transaction(async (manager) => {
       const product = await this.productService.createImportedVendorProduct(
@@ -316,6 +321,8 @@ export class VendorService extends BaseSqlService<Vendor, IVendor> {
           statusCode: 200,
           success: true,
           errorMessage: null,
+          ip: client.ip ?? null,
+          userAgent: client.userAgent ?? null,
         },
         manager,
       );
@@ -348,6 +355,7 @@ export class VendorService extends BaseSqlService<Vendor, IVendor> {
     vendor: IVendorTokenPayload,
     sku: string,
     body: UpdateVendorProductDto,
+    client: IVendorClientInfo = {},
   ): Promise<IProduct> {
     return this.dataSource.transaction(async (manager) => {
       const { product, previous } =
@@ -373,6 +381,8 @@ export class VendorService extends BaseSqlService<Vendor, IVendor> {
           statusCode: 200,
           success: true,
           errorMessage: null,
+          ip: client.ip ?? null,
+          userAgent: client.userAgent ?? null,
         },
         manager,
       );
@@ -426,7 +436,12 @@ export class VendorService extends BaseSqlService<Vendor, IVendor> {
     };
   }
 
-  async listLogs(vendorId: number, page: number, limit: number) {
+  async listLogs(
+    vendorId: number,
+    page: number,
+    limit: number,
+    filters: { type?: string; q?: string } = {},
+  ) {
     const vendor = await this.vendorRepository.findOne({
       where: { id: vendorId },
     });
@@ -435,12 +450,31 @@ export class VendorService extends BaseSqlService<Vendor, IVendor> {
       throw new NotFoundException("Vendor not found");
     }
 
-    const [data, total] = await this.vendorLogRepository.findAndCount({
-      where: { vendorId },
-      skip: (page - 1) * limit,
-      take: limit,
-      order: { createdAt: "DESC" },
-    });
+    const qb = this.vendorLogRepository
+      .createQueryBuilder("log")
+      .where("log.vendorId = :vendorId", { vendorId });
+
+    if (filters.type) {
+      qb.andWhere("log.type = :type", { type: filters.type });
+    }
+
+    if (filters.q) {
+      const search = `%${filters.q}%`;
+      qb.andWhere(
+        new Brackets((b) => {
+          b.where("log.endpoint LIKE :search", { search })
+            .orWhere("log.method LIKE :search", { search })
+            .orWhere("log.ip LIKE :search", { search })
+            .orWhere("log.errorMessage LIKE :search", { search });
+        }),
+      );
+    }
+
+    const [data, total] = await qb
+      .orderBy("log.createdAt", "DESC")
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
 
     return {
       data,

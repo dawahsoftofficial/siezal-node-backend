@@ -47,6 +47,10 @@ const createVendorDocument = (document: OpenAPIObject): OpenAPIObject => {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Trust the reverse proxy (nginx) so req.ip resolves the real client IP
+  // (from X-Forwarded-For) rather than the proxy's address.
+  app.getHttpAdapter().getInstance().set("trust proxy", true);
+
   // Enable CORS (Cross-Origin Resource Sharing)
   app.enableCors({
     origin: "*", // Change this to restrict the origins

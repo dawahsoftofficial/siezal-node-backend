@@ -9,6 +9,13 @@ export interface IVendorLog {
   statusCode: number;
   success: boolean;
   errorMessage?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
   createdAt?: Date | string;
   updatedAt?: Date | string;
+}
+
+export interface IVendorClientInfo {
+  ip?: string | null;
+  userAgent?: string | null;
 }
