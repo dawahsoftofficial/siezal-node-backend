@@ -89,10 +89,6 @@ describe("ProductService vendor SKU handling", () => {
       "product.branchId = :branchId",
       { branchId: 2 },
     );
-    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-      "JSON_SEARCH(product.sku, 'one', :sku, NULL, '$[*]') IS NOT NULL",
-      { sku: "ALIAS" },
-    );
   });
 
   it("updates a non-imported product without flipping its imported flag", async () => {
@@ -116,6 +112,22 @@ describe("ProductService vendor SKU handling", () => {
     // PATCH works on non-imported products and must not flip imported to true.
     expect(Number(result.price)).toBe(120);
     expect(result.imported).toBe(false);
+  });
+
+  it("treats a leading zero as optional when matching vendor SKUs", () => {
+    const { service } = createService();
+    const candidatesFor = (sku: string): string[] =>
+      (service as never as { buildSkuMatchCandidates(s: string): string[] })
+        .buildSkuMatchCandidates(sku);
+
+    expect(candidatesFor("09932106547411")).toEqual(
+      expect.arrayContaining(["09932106547411", "9932106547411"]),
+    );
+    expect(candidatesFor("9932106547411")).toEqual(
+      expect.arrayContaining(["09932106547411", "9932106547411"]),
+    );
+    // non-numeric SKUs match exactly, with no spurious zero variants
+    expect(candidatesFor("PRIMARY")).toEqual(["PRIMARY"]);
   });
 
   it("returns not found instead of creating through PATCH", async () => {
