@@ -993,7 +993,7 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
         seoTitle: body.seoTitle ?? undefined,
         seoDescription: body.seoDescription ?? undefined,
         price: body.price,
-        salePrice: body.salePrice ?? null,
+        salePrice: body.salePrice === 0 ? null : body.salePrice ?? null,
         stockQuantity: body.stockQuantity,
         status:
           body.stockQuantity === 0
@@ -1039,7 +1039,9 @@ export class ProductService extends BaseSqlService<Product, IProduct> {
       ...(body.seoTitle !== undefined ? { seoTitle: body.seoTitle } : {}),
       ...(body.seoDescription !== undefined ? { seoDescription: body.seoDescription } : {}),
       ...(body.price !== undefined ? { price: body.price } : {}),
-      ...(body.salePrice !== undefined ? { salePrice: body.salePrice } : {}),
+      ...(body.salePrice !== undefined
+        ? { salePrice: body.salePrice === 0 ? null : body.salePrice }
+        : {}),
       ...(body.stockQuantity !== undefined ? { stockQuantity: body.stockQuantity } : {}),
       ...(body.stockQuantity === 0
         ? { status: EInventoryStatus.OUT_OF_STOCK }
