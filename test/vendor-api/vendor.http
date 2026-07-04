@@ -1,0 +1,70 @@
+### Siezal Vendor Integration API — manual requests
+### VS Code: install the "REST Client" extension, then click "Send Request" above each block.
+### JetBrains IDEs support this file natively.
+
+@baseUrl = https://apis.siezal.com
+@clientId = vendor_IPOS_f3EoSUCc8f
+@clientSecret = 7RaktpghRVhK00EjE5zGx9IAhR2LdUSVGubHK2wHKZ1gePAx
+@branchId = 1
+@categorySlug = soft-drinks
+
+### 1. Login -> captures {{login.response.body.data.accessToken}}
+# @name login
+POST {{baseUrl}}/v1/integrations/vendor/auth/login
+Content-Type: application/json
+
+{
+  "clientId": "{{clientId}}",
+  "clientSecret": "{{clientSecret}}"
+}
+
+@token = {{login.response.body.data.accessToken}}
+
+### 2. List active branches
+GET {{baseUrl}}/v1/integrations/vendor/branches
+Authorization: Bearer {{token}}
+
+### 3. List imported products (paginated)
+GET {{baseUrl}}/v1/integrations/vendor/products?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### 4. Search products by title / SKU / category
+GET {{baseUrl}}/v1/integrations/vendor/products?page=1&limit=10&q=sprite
+Authorization: Bearer {{token}}
+
+### 5. Filter products by branch
+GET {{baseUrl}}/v1/integrations/vendor/products?page=1&limit=10&branchId={{branchId}}
+Authorization: Bearer {{token}}
+
+### 6. Create a product  (WRITES TO THE LIVE CATALOG)
+# Rules: (sku, branchId) must be unique; categorySlug must exist;
+# stockQuantity:0 forces status -> out_of_stock; gstFee ignored unless isGstEnabled:true.
+POST {{baseUrl}}/v1/integrations/vendor/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sku": "TEST-VENDOR-0001",
+  "title": "Vendor API Test Product",
+  "categorySlug": "{{categorySlug}}",
+  "price": 100,
+  "salePrice": 90,
+  "stockQuantity": 12,
+  "status": "available",
+  "branchId": {{branchId}},
+  "unit": "piece",
+  "isGstEnabled": true,
+  "gstFee": 18,
+  "shortDescription": "Created via REST Client"
+}
+
+### 7. Update a product by SKU  (WRITES — matched by path SKU + body branchId)
+PATCH {{baseUrl}}/v1/integrations/vendor/products/TEST-VENDOR-0001
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "branchId": {{branchId}},
+  "price": 150,
+  "stockQuantity": 5
+}

@@ -130,6 +130,49 @@ describe("ProductService vendor SKU handling", () => {
     expect(candidatesFor("PRIMARY")).toEqual(["PRIMARY"]);
   });
 
+  it("stores salePrice as null when a PATCH sends 0", async () => {
+    const product = {
+      id: 1,
+      branchId: 2,
+      sku: ["PRIMARY"],
+      title: "Product",
+      stockQuantity: 5,
+      salePrice: 90,
+      status: EInventoryStatus.AVAILABLE,
+      isGstEnabled: false,
+      imported: true,
+    };
+    const { service } = createService([product]);
+
+    const result = await service.updateImportedVendorProductBySku("PRIMARY", {
+      branchId: 2,
+      salePrice: 0,
+    });
+
+    expect(result.salePrice).toBeNull();
+  });
+
+  it("stores salePrice as null when create sends 0", async () => {
+    const { service, productRepository } = createService();
+
+    await service.createImportedVendorProduct({
+      sku: "SKU-Z",
+      title: "Product",
+      categorySlug: "category",
+      price: 100,
+      salePrice: 0,
+      stockQuantity: 1,
+      status: EInventoryStatus.AVAILABLE,
+      branchId: 2,
+      unit: EProductUnit.PIECE,
+      isGstEnabled: false,
+    });
+
+    expect(productRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ salePrice: null }),
+    );
+  });
+
   it("returns not found instead of creating through PATCH", async () => {
     const { service, productRepository } = createService();
 
