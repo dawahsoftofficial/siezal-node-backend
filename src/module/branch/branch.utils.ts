@@ -69,7 +69,8 @@ export const normalizeBranchDeliveryAreas = (
   return Array.from(
     new Set(
       (deliveryAreas || [])
-        .map(area => area?.trim())
+        .flatMap((area) => area?.split(",") || [])
+        .map((area) => area?.trim())
         .filter((area): area is string => Boolean(area)),
     ),
   );

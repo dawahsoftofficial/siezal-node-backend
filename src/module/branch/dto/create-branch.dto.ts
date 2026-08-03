@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsArray,
+  ArrayUnique,
   IsBoolean,
   IsEmail,
   IsNotEmpty,
@@ -182,6 +183,18 @@ export class CreateBranchDto {
   @ValidateNested()
   @Type(() => BranchWeeklyScheduleDto)
   weeklySchedule?: BranchWeeklyScheduleDto | null;
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ["Bahria Town Phase 7", "DHA Phase 1"],
+    description: "Checkout delivery-area options served by this branch",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  deliveryAreas?: string[] | null;
 
   @ApiPropertyOptional({
     type: [BranchServiceAreaPointDto],
