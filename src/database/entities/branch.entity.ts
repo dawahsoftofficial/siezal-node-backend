@@ -40,6 +40,9 @@ export class Branch extends BaseEntity implements IBranch {
   @Column({ name: "weekly_schedule", type: "json", nullable: true })
   weeklySchedule?: IBranchWeeklySchedule | null;
 
+  @Column({ name: "delivery_areas", type: "json", nullable: true })
+  deliveryAreas?: string[] | null;
+
   @Column({ name: "service_area", type: "json", nullable: true })
   serviceArea?: IBranchServiceAreaPoint[] | null;
 
